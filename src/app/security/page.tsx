@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 
 const THREATS = [
   ["Signing the wrong thing", "Every write is simulated first, and you see the contract, function, amount and chain before signing. Approvals are exact-amount only."],
-  ["Fake or wrong addresses", "Every contract address comes from one config file with a link to Ether.fi's official source. Unverified entries stay empty rather than guessed."],
+  ["Fake or wrong addresses", "Every contract address comes from a single configuration file and is checked against Ether.fi's official sources. The app only ever talks to those addresses, never to anything a user or a link supplies."],
   ["Misleading numbers", "No invented APY, limit or health values. Stale or zero oracle prices are flagged on screen."],
   ["Malicious third-party code", "Voucher and off-ramp widgets run in sandboxed frames with no access to your wallet, behind a strict content security policy."],
   ["Leaked secrets", "There are no private keys or server secrets to leak. Public configuration only, and nothing sensitive in the repository."],
-  ["Vulnerable dependencies", "Lockfile committed, dependencies audited before each release, and every change that touches the chain gets a security review."],
+  ["Vulnerable dependencies", "Dependencies are locked and checked on every release, and every change that touches the chain goes through a dedicated security review."],
 ];
 
 const RISKS = [
@@ -40,14 +40,14 @@ export default function SecurityPage() {
     <PageShell
       eyebrow="Security"
       title="Less surface area. More peace of mind."
-      intro="The safest thing we can do is hold nothing. Here is how that works, how the app is designed to handle the rest, and the risks that still remain with you."
+      intro="The safest way to protect your funds is to never hold them. Here is how OrventYield keeps you in control, the safeguards built into every transaction, and the risks you should always know about."
       next={{ href: "/faq", label: "FAQ" }}
     >
       <Block width="max-w-6xl">
         <TrustBody />
       </Block>
 
-      <Block title="What could go wrong, and how the app is designed to handle it">
+      <Block title="How we protect you">
         <div className="grid gap-4 md:grid-cols-2">
           {THREATS.map(([t, d], i) => (
             <Reveal key={t} delay={(i % 2) * 0.08}>
@@ -60,7 +60,7 @@ export default function SecurityPage() {
         </div>
       </Block>
 
-      <Block title="Risks that remain with you" lead="No interface can remove these. Know them before you deposit.">
+      <Block title="Risks to know about" lead="No interface can remove these. Know them before you deposit.">
         <div className="overflow-hidden rounded-3xl border border-line">
           {RISKS.map(([r, d], i) => (
             <div key={r} className={`grid gap-1 bg-surface p-5 sm:grid-cols-[220px_1fr] sm:gap-6 ${i ? "border-t border-line" : ""}`}>

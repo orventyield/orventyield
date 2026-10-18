@@ -2,14 +2,13 @@ import { Check } from "../ui/Icons";
 import { CountUp, Reveal, SplitWords } from "../ui/motion";
 
 const STATS = [
-  { to: 0, label: "smart contracts deployed by us", suffix: "" },
-  { to: 0, label: "backends or databases", suffix: "" },
-  { to: 100, label: "self-custody", suffix: "%" },
-  { to: 0, label: "monthly hosting cost", prefix: "$" },
+  { to: 100, label: "self-custody, your keys, your Safe", suffix: "%" },
+  { to: 0, label: "of your funds held by us", suffix: "" },
+  { to: 100, label: "of transactions signed by you", suffix: "%" },
 ];
 
 const POINTS = [
-  "Built on Ether.fi's existing, deployed cash-v3 contracts",
+  "Built on Ether.fi's deployed cash-v3 contracts",
   "Every transaction is simulated before you sign it",
   "Exact-amount approvals only, never unlimited",
   "You always see the contract, function and amount",
@@ -20,12 +19,11 @@ const POINTS = [
 export function TrustBody() {
   return (
     <>
-        <div className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-line bg-line lg:grid-cols-4">
+        <div className="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-3xl border border-line bg-line sm:grid-cols-3">
           {STATS.map((s) => (
             <div key={s.label} className="bg-surface px-5 py-8 text-center sm:py-10">
               <CountUp
                 to={s.to}
-                prefix={s.prefix}
                 suffix={s.suffix}
                 className="text-gradient font-mono text-4xl font-extrabold sm:text-5xl"
               />

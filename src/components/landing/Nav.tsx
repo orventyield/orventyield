@@ -8,6 +8,7 @@ import { Close, Logo, Menu } from "../ui/Icons";
 import { ButtonLink } from "../ui/Button";
 
 export const NAV_LINKS = [
+  { href: "/dashboard", label: "App" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/calculator", label: "Calculator" },
   { href: "/features", label: "Features" },
@@ -70,8 +71,8 @@ export function Nav() {
 
         <div className="flex items-center gap-2">
           <div className="hidden sm:block">
-            <ButtonLink href="/#cta" className="!min-h-10 !px-5 !text-sm">
-              Get early access
+            <ButtonLink href="/dashboard" className="!min-h-10 !px-5 !text-sm">
+              Launch App
             </ButtonLink>
           </div>
           <button
@@ -115,8 +116,8 @@ export function Nav() {
                 </motion.li>
               ))}
             </ul>
-            <ButtonLink href="/#cta" className="mt-2 w-full" arrow>
-              Get early access
+            <ButtonLink href="/dashboard" className="mt-2 w-full" arrow>
+              Launch App
             </ButtonLink>
           </motion.div>
         )}

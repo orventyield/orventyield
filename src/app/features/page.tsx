@@ -81,7 +81,7 @@ export default function FeaturesPage() {
       intro="Five things, done well. Try the live demos first, then read what each one actually does."
       next={{ href: "/security", label: "Security" }}
     >
-      <Block title="Try it" lead="These demos run in your browser. All numbers are illustrative.">
+      <Block title="Try it" lead="These demos run right in your browser. Numbers shown are examples.">
         <BentoGrid />
       </Block>
 

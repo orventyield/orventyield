@@ -110,7 +110,7 @@ function HealthTile() {
           style={{ "--fill": `${(drop / 60) * 100}%` } as CSSProperties}
           className="w-full"
         />
-        <p className="mt-3 text-xs text-muted">Illustrative. Safe above 1.5x, warning below 1.2x.</p>
+        <p className="mt-3 text-xs text-muted">Example. Safe above 1.5x, warning below 1.2x.</p>
       </div>
     </>
   );
@@ -178,7 +178,7 @@ function YieldTile() {
       <Label icon={<Bolt />}>Live yield</Label>
       <h3 className="mt-3 text-xl font-bold tracking-tight">Watch it earn, second by second.</h3>
       <YieldTicker start={128.4} perSecond={0.00041} className="mt-5 block text-3xl font-extrabold text-emerald sm:text-4xl" />
-      <p className="mt-1 text-xs text-muted">Illustrative demo value</p>
+      <p className="mt-1 text-xs text-muted">Example value</p>
       <svg viewBox="0 0 300 90" className="mt-6 w-full" aria-hidden="true">
         <defs>
           <linearGradient id="spark" x1="0" x2="0" y1="0" y2="1">

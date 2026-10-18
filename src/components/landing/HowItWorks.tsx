@@ -44,7 +44,7 @@ export function HowItWorks() {
           <Reveal delay={0.2}>
             <p className="mt-5 max-w-sm text-muted">
               No custody, no KYC at our layer, no waiting for approval. Everything happens on-chain between you and
-              Ether.fi&rsquo;s audited contracts.
+              Ether.fi&rsquo;s deployed contracts.
             </p>
           </Reveal>
         </div>

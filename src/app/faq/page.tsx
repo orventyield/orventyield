@@ -12,7 +12,7 @@ const GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
     title: "The basics",
     items: [
       { q: "What is OrventYield?", a: "A web interface for Ether.fi Cash. You deposit collateral, watch yield accrue, and spend through a virtual card, vouchers or cashout, while repaying with yield instead of selling your principal." },
-      { q: "Is it live?", a: "Not yet. The pages show the product we are building, and numbers in demos are illustrative. Early access is opening soon." },
+      { q: "When can I use it?", a: "Early access is opening soon. Use the Get early access button to be first in line." },
       { q: "Is this affiliated with Ether.fi?", a: "No. OrventYield is independent and connects to Ether.fi's publicly deployed contracts. Ether.fi has not endorsed it." },
     ],
   },
@@ -38,7 +38,7 @@ const GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
     items: [
       { q: "Which chains and assets?", a: "Planned for Arbitrum, Base and Scroll, where Ether.fi Cash is active. Collateral: ETH, WETH, weETH and USDC." },
       { q: "Which wallets work?", a: "MetaMask, Rainbow, Coinbase Wallet and anything supporting WalletConnect." },
-      { q: "Where do the numbers come from?", a: "APY, prices, limits and debt are read live from Ether.fi's contracts. Demos on this site use illustrative values and are labelled as such." },
+      { q: "Where do the numbers come from?", a: "APY, prices, limits and debt are read live from Ether.fi's contracts. Demos on this site use example values and are labelled as such." },
       { q: "Do you run a backend or database?", a: "No. State lives on-chain and the site is static, which is also why running it costs nothing." },
     ],
   },

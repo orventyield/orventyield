@@ -1,0 +1,9 @@
+{
+  "name": "orventyield",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./out" },
+  "routes": [
+    { "pattern": "orventyield.tech", "custom_domain": true },
+    { "pattern": "www.orventyield.tech", "custom_domain": true }
+  ]
+}

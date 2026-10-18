@@ -45,7 +45,7 @@ export function PageShell({
           <Reveal>
             <div className="mx-auto flex max-w-4xl flex-col items-center gap-5 rounded-[32px] border border-cyan/25 bg-[linear-gradient(160deg,rgba(0,240,255,0.10),rgba(16,185,129,0.04)_60%,transparent)] p-8 text-center shadow-[0_0_80px_-24px_rgba(0,240,255,0.5)] sm:p-12">
               <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Ready when you are.</h2>
-              <p className="max-w-md text-muted">The app is on its way. Get in early, or keep exploring.</p>
+              <p className="max-w-md text-muted">Early access is opening soon. Get in early, or keep exploring.</p>
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                 <ButtonLink href="/#cta" arrow>
                   Get early access

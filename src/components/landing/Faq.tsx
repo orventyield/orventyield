@@ -27,8 +27,8 @@ const FAQ = [
     a: "Planned for Arbitrum, Base and Scroll, where Ether.fi Cash is active. Collateral: ETH, WETH, weETH and USDC.",
   },
   {
-    q: "Is it live?",
-    a: "Not yet. This page shows the product we're building, and the numbers in the demos are illustrative. Early access is opening soon.",
+    q: "When can I use it?",
+    a: "Early access is opening soon. Use the Get early access button to be first in line.",
   },
 ];
 

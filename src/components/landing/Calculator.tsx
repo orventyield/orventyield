@@ -141,7 +141,7 @@ export function CalculatorCard({ className = "" }: { className?: string }) {
               </div>
             </div>
             <p className="relative mt-8 text-xs leading-relaxed text-muted">
-              Illustrative only. Real yield varies and is read live from the Ether.fi contracts. Borrowing against
+              Example only. Real yield varies and is read live from the Ether.fi contracts. Borrowing against
               collateral carries liquidation risk. This is not financial advice.
             </p>
           </div>

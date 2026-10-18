@@ -64,8 +64,8 @@ export function Hero() {
             className="mt-9 flex flex-col gap-3 sm:flex-row"
           >
             <Magnetic>
-              <ButtonLink href="#cta" arrow className="w-full sm:w-auto">
-                Get early access
+              <ButtonLink href="/dashboard" arrow className="w-full sm:w-auto">
+                Launch Neobank App
               </ButtonLink>
             </Magnetic>
             <ButtonLink href="#how" variant="ghost" className="w-full sm:w-auto">
@@ -111,7 +111,7 @@ export function Hero() {
             transition={{ delay: 1.5, duration: 0.9 }}
             className="glass absolute -left-2 bottom-[-44px] rounded-2xl px-4 py-3 shadow-2xl sm:-left-12"
           >
-            <p className="text-[11px] uppercase tracking-widest text-muted">Yield accrued · illustrative</p>
+            <p className="text-[11px] uppercase tracking-widest text-muted">Yield accrued · example</p>
             <YieldTicker start={128.4} perSecond={0.00041} className="text-xl font-bold text-emerald" />
           </motion.div>
           <motion.div

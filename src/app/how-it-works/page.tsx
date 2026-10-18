@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Bank, Bolt, CardIcon, Layers, Repeat, Wallet } from "@/components/ui/Icons";
-import { Block, Notice, PageShell } from "@/components/pages/PageShell";
+import { Block, PageShell } from "@/components/pages/PageShell";
 import { Reveal } from "@/components/ui/motion";
 
 export const metadata: Metadata = {
@@ -160,12 +160,6 @@ export default function HowItWorksPage() {
             </li>
           ))}
         </ul>
-        <div className="mt-6">
-          <Notice>
-            Status: we are still verifying contract addresses and the exact Safe-creation flow against Ether.fi&rsquo;s
-            official documentation. This page describes the intended flow and will be updated if anything differs.
-          </Notice>
-        </div>
       </Block>
     </PageShell>
   );

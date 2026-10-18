@@ -22,7 +22,7 @@ export function Cta() {
           <SplitWords text="finally working." wordClassName="text-shimmer" delay={0.2} />
         </h2>
         <p className="mx-auto mt-6 max-w-md text-muted">
-          The app is in the works. Be first through the door when it opens.
+          Early access is opening soon. Be first through the door.
         </p>
         <Magnetic className="mt-10 inline-block">
           <button
@@ -36,7 +36,7 @@ export function Cta() {
         </Magnetic>
         {clicked && (
           <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 text-sm text-muted">
-            Sign-ups aren&rsquo;t open yet, check back soon.
+            Early access opens soon. We&rsquo;ll announce it right here.
           </motion.p>
         )}
       </div>
@@ -67,7 +67,7 @@ export function Footer() {
       </div>
       <p className="mx-auto mt-10 max-w-6xl border-t border-line pt-6 text-xs leading-relaxed text-muted/80">
         OrventYield is an independent, non-custodial interface and is not affiliated with or endorsed by Ether.fi. Figures
-        shown are illustrative. Crypto and borrowing involve risk, including loss of funds. Nothing here is financial,
+        shown are examples. Crypto and borrowing involve risk, including loss of funds. Nothing here is financial,
         legal or tax advice.
       </p>
     </footer>
