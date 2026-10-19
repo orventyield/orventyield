@@ -159,7 +159,9 @@ test.describe("wallet modal", () => {
     await expect(page.getByTestId("account-button")).toContainText("0xf39F…2266");
     await expect(page.getByTestId("wallet-modal")).toHaveCount(0);
     await expect(page.getByTestId("mode-mainnet")).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByTestId("link-safe")).toBeVisible();
+    // Mainnet now finds the account itself: no address to paste.
+    await expect(page.getByTestId("link-safe")).toHaveCount(0);
+    await expect(page.getByTestId("finding-account").or(page.getByTestId("no-account"))).toBeVisible({ timeout: 60_000 });
 
     await page.getByTestId("account-button").click();
     await page.getByTestId("disconnect").click();

@@ -30,6 +30,7 @@ export const safeFactoryAbi = parseAbi([
   "function isEtherFiSafe(address safeAddr) view returns (bool)",
   "function getDeployedAddresses(uint256 start, uint256 n) view returns (address[])",
   "function getDeterministicAddress(bytes32 salt) view returns (address)",
+  "function numContractsDeployed() view returns (uint256)",
 ]);
 
 export const etherFiSafeAbi = parseAbi([

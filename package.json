@@ -15,7 +15,8 @@
     "e2e": "playwright test",
     "test:live": "LIVE=1 vitest run tests/integration",
     "api:migrate": "wrangler d1 migrations apply DB --local --config worker/wrangler.jsonc --persist-to .wrangler-api",
-    "api:dev": "npm run api:migrate && wrangler dev --config worker/wrangler.jsonc --port 8787 --local --persist-to .wrangler-api --var PEPPER:local-dev-pepper-change-me-please --var OTP_PROVIDER:mock --var ALLOW_MOCK_OTP:1 --var ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3200"
+    "api:dev": "npm run api:migrate && wrangler dev --config worker/wrangler.jsonc --port 8787 --local --persist-to .wrangler-api --var PEPPER:local-dev-pepper-change-me-please --var OTP_PROVIDER:mock --var ALLOW_MOCK_OTP:1 --var ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3200",
+    "index:safes": "node scripts/build-safe-index.mjs"
   },
   "dependencies": {
     "@coinbase/wallet-sdk": "^4.4.0",

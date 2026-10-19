@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isAddress, type Address } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 import { PosSimulator } from "@/components/dashboard/PosSimulator";
@@ -9,6 +9,8 @@ import type { SpendResult } from "@/features/vault/useVaultState";
 import { checkSpend, CASH_CHAIN } from "@/lib/etherfi/spendCheck";
 import { liveToAccount, type LiveSafe, type LiveTokenBalance } from "@/lib/etherfi/snapshot";
 import { useLiveSafe, type UseLiveSafe } from "@/lib/etherfi/useLiveSafe";
+import { useResolvedSafes } from "@/lib/etherfi/useResolvedSafes";
+import { useWalletHoldings } from "@/lib/etherfi/useWalletHoldings";
 import { authCode, generateCardDetails } from "@/utils/card";
 import { getHealthStatus } from "@/utils/math";
 
@@ -48,33 +50,28 @@ function Stat({ label, value, sub, tone, testId }: { label: string; value: strin
 function ConnectGate({ onWatch }: { onWatch: () => void }) {
   const { openWalletModal, setMode } = useAppMode();
   return (
-    <Card className="mx-auto max-w-xl text-center" >
+    <Card className="mx-auto max-w-xl text-center">
       <div data-testid="mainnet-gate" className="space-y-4 py-4">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-cyan/30 bg-cyan/10 text-2xl" aria-hidden="true">🔐</div>
-        <h2 className="text-xl font-bold text-fg">Connect to see your live account</h2>
+        <h2 className="text-xl font-bold text-fg">Connect your wallet</h2>
         <p className="mx-auto max-w-sm text-sm text-muted">
-          Mainnet reads your Ether.fi Cash Safe on Optimism: balances, debt, limits and health. OrventYield only reads; it never moves funds.
+          We&rsquo;ll find your account on Optimism and show your live balances, credit and health. OrventYield only reads; it never moves funds.
         </p>
         <div className="flex flex-col justify-center gap-2 sm:flex-row">
           <button
             type="button"
             data-testid="gate-connect"
             onClick={() => openWalletModal({ thenMainnet: true })}
-            className="min-h-12 rounded-xl bg-cyan px-6 text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.3)] hover:brightness-110"
+            className="min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.3)] hover:brightness-110"
           >
             Connect wallet
           </button>
-          <button
-            type="button"
-            data-testid="gate-watch"
-            onClick={onWatch}
-            className="min-h-12 rounded-xl border border-white/10 px-6 text-sm font-semibold text-fg hover:bg-white/5"
-          >
-            Watch a Safe address
+          <button type="button" onClick={() => setMode("playground")} className="min-h-12 rounded-xl border border-white/10 px-6 text-sm font-semibold text-fg hover:bg-white/5">
+            Try the playground
           </button>
         </div>
-        <button type="button" onClick={() => setMode("playground")} className="text-xs text-muted hover:text-cyan">
-          or try the playground with no wallet
+        <button type="button" data-testid="gate-watch" onClick={onWatch} className="text-xs text-muted/80 hover:text-cyan">
+          Viewing someone else&rsquo;s account? Paste a Safe address
         </button>
       </div>
     </Card>
@@ -220,7 +217,7 @@ function HealthCard({ live }: { live: LiveSafe }) {
   );
 }
 
-function SafeHeader({ safe, state, onChange }: { safe: Address; state: UseLiveSafe; onChange: () => void }) {
+function SafeHeader({ safe, state, onChange, switcher }: { safe: Address; state: UseLiveSafe; onChange?: () => void; switcher?: React.ReactNode }) {
   const now = useNow(1000);
   const age = state.updatedAt ? Math.max(0, Math.round((now - state.updatedAt) / 1000)) : null;
   const live = state.live;
@@ -259,9 +256,12 @@ function SafeHeader({ safe, state, onChange }: { safe: Address; state: UseLiveSa
         <button type="button" data-testid="live-refresh" onClick={state.refetch} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-muted hover:text-fg">
           Refresh
         </button>
-        <button type="button" data-testid="change-safe" onClick={onChange} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-muted hover:text-fg">
-          Change Safe
-        </button>
+        {switcher}
+        {onChange && (
+          <button type="button" data-testid="change-safe" onClick={onChange} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-muted hover:text-fg">
+            Change Safe
+          </button>
+        )}
       </div>
     </Card>
   );
@@ -283,7 +283,7 @@ function LockedPanel({ title, body }: { title: string; body: string }) {
   );
 }
 
-function LiveDashboard({ safe, onChangeSafe }: { safe: Address; onChangeSafe: () => void }) {
+function LiveDashboard({ safe, onChangeSafe, switcher }: { safe: Address; onChangeSafe?: () => void; switcher?: React.ReactNode }) {
   const state = useLiveSafe(safe);
   const client = usePublicClient({ chainId: CASH_CHAIN });
   const [tab, setTab] = useState<Tab>("overview");
@@ -308,7 +308,7 @@ function LiveDashboard({ safe, onChangeSafe }: { safe: Address; onChangeSafe: ()
           </p>
           <div className="flex justify-center gap-2">
             <button type="button" onClick={state.refetch} className="rounded-xl bg-cyan px-5 py-2.5 text-sm font-semibold text-bg">Retry</button>
-            <button type="button" onClick={onChangeSafe} className="rounded-xl border border-white/10 px-5 py-2.5 text-sm text-fg">Change Safe</button>
+            {onChangeSafe && <button type="button" onClick={onChangeSafe} className="rounded-xl border border-white/10 px-5 py-2.5 text-sm text-fg">Change Safe</button>}
           </div>
         </div>
       </Card>
@@ -349,7 +349,7 @@ function LiveDashboard({ safe, onChangeSafe }: { safe: Address; onChangeSafe: ()
 
   return (
     <div className="space-y-6" data-testid="live-dashboard">
-      <SafeHeader safe={safe} state={state} onChange={onChangeSafe} />
+      <SafeHeader safe={safe} state={state} onChange={onChangeSafe} switcher={switcher} />
 
       <div className="flex items-center gap-2 overflow-x-auto border-b border-white/5 pb-2 font-mono text-xs">
         {tabs.map((t) => (
@@ -417,34 +417,153 @@ function LiveDashboard({ safe, onChangeSafe }: { safe: Address; onChangeSafe: ()
   );
 }
 
-export function MainnetDashboard() {
-  const { isConnected } = useAccount();
-  const { linkedSafe, setLinkedSafe, openWalletModal } = useAppMode();
-  const [stage, setStage] = useState<"auto" | "link">("auto");
-
-  if (linkedSafe && stage === "auto") {
-    return <LiveDashboard safe={linkedSafe} onChangeSafe={() => setStage("link")} />;
-  }
-  if (!linkedSafe && !isConnected && stage === "auto") {
-    return <ConnectGate onWatch={() => setStage("link")} />;
-  }
+function FindingAccount() {
   return (
-    <div className="space-y-4">
-      <LinkSafe
-        connected={isConnected}
-        onLinked={(a) => {
-          setLinkedSafe(a);
-          setStage("auto");
-        }}
-      />
-      {!isConnected && (
-        <p className="text-center text-xs text-muted">
-          Have a wallet?{" "}
-          <button type="button" onClick={() => openWalletModal({ thenMainnet: true })} className="font-semibold text-cyan hover:underline">
-            Connect it
-          </button>
-        </p>
-      )}
+    <div data-testid="finding-account" className="grid place-items-center py-24 text-center text-sm text-muted">
+      <span className="mb-3 h-7 w-7 animate-spin rounded-full border-2 border-cyan border-t-transparent" aria-hidden="true" />
+      <p className="font-semibold text-fg">Finding your account…</p>
+      <p className="mt-1 text-xs">Checking Optimism for a Cash account on this wallet.</p>
     </div>
   );
+}
+
+/** What the connected wallet holds on Optimism, and what it could back once a Cash account exists. */
+function WalletPortfolio({ owner }: { owner: Address }) {
+  const { loading, value } = useWalletHoldings(owner);
+  return (
+    <Card>
+      <div data-testid="wallet-portfolio" className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-wider text-muted">Your wallet on Optimism</p>
+            <p data-testid="wallet-total" className="mt-1 text-3xl font-extrabold tracking-tight text-fg tabular">{loading || !value ? "…" : usd(value.totalUsd)}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-mono text-[11px] uppercase tracking-wider text-muted">Spending power it could back</p>
+            <p data-testid="wallet-power" className="mt-1 text-3xl font-extrabold tracking-tight text-emerald tabular">{loading || !value ? "…" : usd(value.borrowPowerUsd)}</p>
+          </div>
+        </div>
+        {value && value.rows.length > 0 ? (
+          <ul className="divide-y divide-white/5 text-sm">
+            {value.rows.map((r) => (
+              <li key={r.symbol} className="flex items-center justify-between py-2 font-mono">
+                <span className="font-semibold text-fg">{r.symbol}</span>
+                <span className="text-muted">{r.units.toLocaleString("en-US", { maximumFractionDigits: 4 })}</span>
+                <span className="text-fg">{usd(r.valueUsd)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          !loading && <p className="py-2 text-sm text-muted">No supported assets found yet. Add ETH, weETH or USDC on Optimism to see what they could back.</p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function NoAccount({ owner, indexAvailable, onManual }: { owner: Address; indexAvailable: boolean; onManual: () => void }) {
+  return (
+    <div className="mx-auto max-w-2xl space-y-5" data-testid="no-account">
+      <Card>
+        <div className="space-y-3 text-center">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-cyan/30 bg-cyan/10 text-2xl" aria-hidden="true">✨</div>
+          <h2 className="text-xl font-bold text-fg">One step to your Cash account</h2>
+          <p className="mx-auto max-w-md text-sm text-muted">
+            {indexAvailable
+              ? "This wallet doesn’t have a Cash account yet. Accounts are opened with our partner Ether.fi (a quick ID check), and everything here lights up automatically once it exists."
+              : "We couldn’t find a Cash account on this wallet. If you have one, it may have been opened very recently. Otherwise, open one with our partner Ether.fi (a quick ID check)."}
+          </p>
+          <a
+            data-testid="open-cash-account"
+            href="https://ether.fi"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-12 items-center rounded-xl bg-cyan px-8 text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.3)] hover:brightness-110"
+          >
+            Open a Cash account
+          </a>
+        </div>
+      </Card>
+      <WalletPortfolio owner={owner} />
+      <p className="text-center text-xs text-muted/80">
+        Already have a Cash account under a different wallet?{" "}
+        <button type="button" data-testid="manual-link" onClick={onManual} className="font-semibold text-cyan hover:underline">
+          Link it manually
+        </button>
+      </p>
+    </div>
+  );
+}
+
+export function MainnetDashboard() {
+  const { address, isConnected } = useAccount();
+  const { linkedSafe, setLinkedSafe, openWalletModal } = useAppMode();
+  const [manual, setManual] = useState(false);
+  const [pick, setPick] = useState<Address | null>(null);
+  // Connecting a wallet means "show MY account": drop any Safe that was being watched before.
+  const wasConnected = useRef(isConnected);
+  useEffect(() => {
+    if (isConnected && !wasConnected.current && linkedSafe) setLinkedSafe(null);
+    wasConnected.current = isConnected;
+  }, [isConnected, linkedSafe, setLinkedSafe]);
+
+  // Find the connected wallet's account automatically, unless the user chose a Safe by hand.
+  const resolved = useResolvedSafes(isConnected && address && !linkedSafe && !manual ? address : null);
+
+  if (manual) {
+    return (
+      <div className="space-y-4">
+        <LinkSafe
+          connected={isConnected}
+          onLinked={(a) => {
+            setLinkedSafe(a);
+            setManual(false);
+          }}
+        />
+        <p className="text-center text-xs text-muted">
+          <button type="button" onClick={() => setManual(false)} className="font-semibold text-cyan hover:underline">Back</button>
+          {!isConnected && (
+            <>
+              {" · "}Have a wallet?{" "}
+              <button type="button" onClick={() => openWalletModal({ thenMainnet: true })} className="font-semibold text-cyan hover:underline">Connect it</button>
+            </>
+          )}
+        </p>
+      </div>
+    );
+  }
+  if (linkedSafe) {
+    return (
+      <LiveDashboard
+        safe={linkedSafe}
+        onChangeSafe={() => {
+          setLinkedSafe(null);
+          setManual(true);
+        }}
+      />
+    );
+  }
+  if (!isConnected || !address) return <ConnectGate onWatch={() => setManual(true)} />;
+  if (resolved.status === "idle" || resolved.status === "resolving") return <FindingAccount />;
+  if (resolved.status === "found") {
+    const safe = pick && resolved.safes.includes(pick) ? pick : resolved.safes[0]!;
+    const switcher =
+      resolved.safes.length > 1 ? (
+        <select
+          aria-label="Account"
+          data-testid="account-switcher"
+          value={safe}
+          onChange={(e) => setPick(e.target.value as Address)}
+          className="rounded-lg border border-white/10 bg-surface-2 px-2 py-1.5 font-mono text-xs text-fg"
+        >
+          {resolved.safes.map((s, i) => (
+            <option key={s} value={s}>
+              Account {i + 1} · {short(s)}
+            </option>
+          ))}
+        </select>
+      ) : undefined;
+    return <LiveDashboard safe={safe} switcher={switcher} />;
+  }
+  return <NoAccount owner={address} indexAvailable={resolved.indexAvailable} onManual={() => setManual(true)} />;
 }
