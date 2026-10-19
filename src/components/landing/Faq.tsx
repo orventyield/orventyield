@@ -12,7 +12,7 @@ const FAQ = [
   },
   {
     q: "Is this affiliated with Ether.fi?",
-    a: "No. OrventYield is an independent interface that connects to Ether.fi's publicly deployed contracts. Ether.fi has not endorsed it.",
+    a: "No. OrventYield is an independent interface designed for Ether.fi Cash and runs no contracts of its own. Ether.fi has not endorsed it.",
   },
   {
     q: "Do I need KYC?",

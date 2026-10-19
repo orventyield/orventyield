@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SUPPORTED_TOKENS, type TokenOption } from "@/features/vault/useVaultState";
+import { SUPPORTED_TOKENS, TIME_SCALES, type TimeScale, type TokenOption } from "@/features/vault/useVaultState";
 import { type HealthStatus } from "@/utils/math";
 
 interface VaultOverviewProps {
@@ -15,7 +15,11 @@ interface VaultOverviewProps {
   healthFactor: number;
   healthStatus: HealthStatus;
   microBuffer: number;
-  onDeposit: (amount: number) => void;
+  advanceUsd: number;
+  advanceRoom: number;
+  timeScale: TimeScale;
+  onTimeScale: (s: TimeScale) => void;
+  onDeposit: (amount: number) => { success: boolean; error?: string };
   onWithdraw: (amount: number) => { success: boolean; error?: string };
   onRepayWithYield: () => { success: boolean; repaidAmount: number };
 }
@@ -31,6 +35,10 @@ export function VaultOverview({
   healthFactor,
   healthStatus,
   microBuffer,
+  advanceUsd,
+  advanceRoom,
+  timeScale,
+  onTimeScale,
   onDeposit,
   onWithdraw,
   onRepayWithYield,
@@ -48,7 +56,11 @@ export function VaultOverview({
       setModalError("Please enter a valid amount");
       return;
     }
-    onDeposit(val);
+    const res = onDeposit(val);
+    if (!res.success) {
+      setModalError(res.error ?? "Deposit failed");
+      return;
+    }
     setDepositAmount("");
     setActiveModal(null);
     setModalError(null);
@@ -83,7 +95,7 @@ export function VaultOverview({
     <div className="space-y-6">
       {/* Repay alert banner */}
       {repayNotification && (
-        <div className="bg-emerald/10 border border-emerald/30 text-emerald text-sm rounded-xl px-4 py-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+        <div className="bg-emerald/10 border border-emerald/30 text-emerald text-sm rounded-xl px-4 py-3 flex items-center justify-between ">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald animate-ping" />
             <span>{repayNotification}</span>
@@ -103,7 +115,7 @@ export function VaultOverview({
         <div className="bg-surface border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:border-white/10 transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-mono uppercase tracking-wider text-muted">
-              Collateral Vault (Ether.fi Safe)
+              Collateral Vault (sandbox)
             </span>
             <div className="flex items-center gap-1.5 bg-emerald/10 border border-emerald/20 text-emerald text-xs px-2 py-0.5 rounded-full font-medium">
               <span>+{selectedToken.apyPercent}% APY</span>
@@ -116,12 +128,13 @@ export function VaultOverview({
             </span>
           </div>
           <div className="text-xs text-muted font-mono mb-4">
-            {collateralAmount.toFixed(4)} {selectedToken.symbol} @ ${selectedToken.priceUsd.toLocaleString()}/token
+            Held: {collateralAmount.toFixed(4)} {selectedToken.symbol} @ ${selectedToken.priceUsd.toLocaleString()} (sandbox price)
           </div>
 
           {/* Asset Selector & Vault Buttons */}
           <div className="flex items-center gap-2">
             <button
+              data-testid="open-deposit"
               onClick={() => {
                 setActiveModal("deposit");
                 setModalError(null);
@@ -131,6 +144,7 @@ export function VaultOverview({
               + Deposit
             </button>
             <button
+              data-testid="open-withdraw"
               onClick={() => {
                 setActiveModal("withdraw");
                 setModalError(null);
@@ -140,6 +154,8 @@ export function VaultOverview({
               Withdraw
             </button>
             <select
+              aria-label="Collateral asset"
+              data-testid="asset-select"
               value={selectedToken.symbol}
               onChange={(e) => {
                 const key = e.target.value as keyof typeof SUPPORTED_TOKENS;
@@ -163,20 +179,41 @@ export function VaultOverview({
             </span>
             <span className="flex items-center gap-1.5 text-xs text-emerald font-mono">
               <span className="h-2 w-2 rounded-full bg-emerald animate-pulse" />
-              Streaming Live
+              Accruing · sandbox rate
             </span>
           </div>
 
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-extrabold tracking-tight text-emerald tabular text-shimmer">
-              ${accruedYieldUsd.toFixed(4)}
+            <span data-testid="yield-value" className="text-3xl font-extrabold tracking-tight text-emerald tabular">
+              ${accruedYieldUsd.toFixed(6)}
             </span>
           </div>
           <div className="text-xs text-muted font-mono mb-4">
-            Accumulating continuously from staked principal
+            Accrues continuously from your collateral at the blended sandbox APY
+          </div>
+
+          <div className="mb-3 flex items-center justify-between text-[11px] font-mono text-muted">
+            <span id="speed-label">Demo speed</span>
+            <div role="group" aria-labelledby="speed-label" className="flex gap-1">
+              {TIME_SCALES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  data-testid={`speed-${t}`}
+                  aria-pressed={timeScale === t}
+                  onClick={() => onTimeScale(t)}
+                  className={`rounded-md border px-2 py-0.5 ${
+                    timeScale === t ? "border-cyan/50 bg-cyan/15 text-cyan" : "border-white/10 text-muted hover:text-fg"
+                  }`}
+                >
+                  {t.toLocaleString()}×
+                </button>
+              ))}
+            </div>
           </div>
 
           <button
+            data-testid="autopilot-repay"
             onClick={handleRepayClick}
             disabled={activeDebtUsd <= 0 || accruedYieldUsd <= 0}
             className={`w-full text-xs font-semibold py-2 rounded-xl border transition-all text-center ${
@@ -186,7 +223,7 @@ export function VaultOverview({
             }`}
           >
             {activeDebtUsd > 0
-              ? `Auto-Repay Debt with Yield ($${Math.min(activeDebtUsd, accruedYieldUsd).toFixed(2)})`
+              ? `Auto-Pilot: repay debt with yield ($${Math.min(activeDebtUsd, accruedYieldUsd).toFixed(2)})`
               : "No Active Debt to Repay"}
           </button>
         </div>
@@ -203,18 +240,18 @@ export function VaultOverview({
           </div>
 
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-extrabold tracking-tight text-fg tabular">
+            <span data-testid="limit-value" className="text-3xl font-extrabold tracking-tight text-fg tabular">
               ${availableLimit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="text-xs text-muted font-mono mb-4 flex items-center justify-between">
-            <span>Active Debt: ${activeDebtUsd.toFixed(2)}</span>
-            <span className="text-cyan/80">Buffer: +${microBuffer.toFixed(2)}</span>
+            <span data-testid="debt-value">Active Debt: ${activeDebtUsd.toFixed(2)}</span>
+            <span className="text-cyan/80">Advance: ${advanceUsd.toFixed(2)}</span>
           </div>
 
           <div className="w-full bg-surface-2 border border-white/5 rounded-xl px-3 py-1.5 flex items-center justify-between text-xs font-mono">
             <span className="text-muted">7-Day Micro-Buffer:</span>
-            <span className="text-cyan font-semibold">${microBuffer.toFixed(2)} advance</span>
+            <span className="text-cyan font-semibold">${advanceRoom.toFixed(2)} of ${microBuffer.toFixed(2)} free</span>
           </div>
         </div>
       </div>
@@ -230,11 +267,11 @@ export function VaultOverview({
               </span>
             </h3>
             <p className="text-xs text-muted mt-0.5">
-              Ether.fi Cash Module liquidation trigger occurs when Health Factor drops below 1.05x.
+              Sandbox rule: a spend, voucher or payout that would leave Health Factor below 1.20x is declined.
             </p>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black font-mono text-fg tabular">
+            <span data-testid="hf-value" className="text-2xl font-black font-mono text-fg tabular">
               {healthFactor >= 999 ? "∞ Safe" : `${healthFactor.toFixed(2)}x`}
             </span>
           </div>
@@ -267,7 +304,7 @@ export function VaultOverview({
 
       {/* Modal: Deposit */}
       {activeModal === "deposit" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-surface border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-fg">Deposit Collateral</h3>
@@ -279,7 +316,7 @@ export function VaultOverview({
               </button>
             </div>
             <p className="text-xs text-muted mb-4">
-              Supply {selectedToken.name} into your non-custodial Ether.fi Safe vault. You retain 100% ownership of your keys and principal.
+              Sandbox deposit of {selectedToken.name}. Balances are simulated; no tokens move and no transaction is sent.
             </p>
 
             <form onSubmit={handleDepositSubmit} className="space-y-4">
@@ -289,6 +326,7 @@ export function VaultOverview({
                 </label>
                 <div className="relative">
                   <input
+                    data-testid="deposit-input"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
@@ -346,6 +384,7 @@ export function VaultOverview({
                 </button>
                 <button
                   type="submit"
+                  data-testid="deposit-confirm"
                   className="flex-1 py-2.5 rounded-xl bg-cyan text-bg text-xs font-semibold hover:brightness-110 shadow-sm shadow-cyan/30"
                 >
                   Confirm Deposit
@@ -358,7 +397,7 @@ export function VaultOverview({
 
       {/* Modal: Withdraw */}
       {activeModal === "withdraw" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-surface border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-fg">Withdraw Collateral</h3>
@@ -370,7 +409,7 @@ export function VaultOverview({
               </button>
             </div>
             <p className="text-xs text-muted mb-4">
-              Withdraw {selectedToken.symbol} back to your wallet. You must maintain Health Factor &gt; 1.20x if you have active card debt.
+              Sandbox withdrawal of {selectedToken.symbol}. With active debt, Health Factor must stay at or above 1.20x.
             </p>
 
             <form onSubmit={handleWithdrawSubmit} className="space-y-4">
@@ -381,6 +420,7 @@ export function VaultOverview({
                 </div>
                 <div className="relative">
                   <input
+                    data-testid="withdraw-input"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
@@ -399,7 +439,7 @@ export function VaultOverview({
               </div>
 
               {modalError && (
-                <div className="bg-danger/10 border border-danger/30 rounded-xl p-3 text-xs text-danger font-mono">
+                <div role="alert" data-testid="modal-error" className="bg-danger/10 border border-danger/30 rounded-xl p-3 text-xs text-danger font-mono">
                   {modalError}
                 </div>
               )}
@@ -414,6 +454,7 @@ export function VaultOverview({
                 </button>
                 <button
                   type="submit"
+                  data-testid="withdraw-confirm"
                   className="flex-1 py-2.5 rounded-xl bg-cyan text-bg text-xs font-semibold hover:brightness-110 shadow-sm shadow-cyan/30"
                 >
                   Confirm Withdrawal

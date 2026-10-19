@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import type { VoucherBrandId } from "@/utils/card";
 
 interface VoucherCenterProps {
   accruedYieldUsd: number;
   availableLimit: number;
   onRedeemVoucher: (
-    brand: string,
+    brand: VoucherBrandId,
+    label: string,
     amountUsd: number,
-    useYield: boolean
+    fundWith: "yield" | "credit"
   ) => { success: boolean; voucherCode?: string; error?: string };
 }
 
 interface VoucherProduct {
-  id: string;
+  id: VoucherBrandId;
   brand: string;
   category: string;
   denominations: number[];
@@ -23,7 +25,7 @@ interface VoucherProduct {
 
 const CATALOG: VoucherProduct[] = [
   {
-    id: "amzn",
+    id: "amazon",
     brand: "Amazon Gift Card",
     category: "Shopping",
     denominations: [10, 25, 50, 100],
@@ -82,7 +84,7 @@ export function VoucherCenter({
 
   const handleRedeem = () => {
     setRedeemError(null);
-    const result = onRedeemVoucher(selectedProduct.brand, selectedAmount, useYieldPayment);
+    const result = onRedeemVoucher(selectedProduct.id, selectedProduct.brand, selectedAmount, useYieldPayment ? "yield" : "credit");
     if (!result.success) {
       setRedeemError(result.error || "Redemption failed");
       setRedeemedCode(null);
@@ -93,7 +95,7 @@ export function VoucherCenter({
 
   const copyToClipboard = () => {
     if (!redeemedCode) return;
-    navigator.clipboard.writeText(redeemedCode);
+    void navigator.clipboard?.writeText(redeemedCode).catch(() => undefined);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -103,13 +105,17 @@ export function VoucherCenter({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h3 className="text-base font-bold text-fg flex items-center gap-2">
-            Zero-License Voucher Store
+            Digital Voucher Store
             <span className="text-xs px-2 py-0.5 rounded-full bg-emerald/10 border border-emerald/20 text-emerald font-mono">
-              Bitrefill Architecture
+              Bitrefill-style · demo
             </span>
           </h3>
           <p className="text-xs text-muted mt-0.5">
-            Redeem digital gift cards directly from accrued yield. No card rails or KYC required.
+            Buy digital gift cards with accrued yield or your credit line.
+          </p>
+          <p className="mt-2 rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+            Demo: codes are generated locally and are not redeemable at any real merchant. A live store would be
+            fulfilled by a licensed voucher provider.
           </p>
         </div>
 
@@ -190,6 +196,8 @@ export function VoucherCenter({
             <div className="flex gap-2">
               <button
                 type="button"
+                data-testid="fund-yield"
+                aria-pressed={useYieldPayment}
                 onClick={() => setUseYieldPayment(true)}
                 className={`flex-1 p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
                   useYieldPayment
@@ -198,15 +206,17 @@ export function VoucherCenter({
                 }`}
               >
                 <div className="font-bold flex items-center gap-1">
-                  <span>⚡ Accrued Yield</span>
+                  <span>⚡ Fund with Accrued Yield</span>
                 </div>
                 <div className="text-[10px] opacity-80 mt-0.5">
-                  $0 Debt • Free Spend
+                  $0 debt · collateral untouched
                 </div>
               </button>
 
               <button
                 type="button"
+                data-testid="fund-credit"
+                aria-pressed={!useYieldPayment}
                 onClick={() => setUseYieldPayment(false)}
                 className={`flex-1 p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
                   !useYieldPayment
@@ -214,9 +224,9 @@ export function VoucherCenter({
                     : "bg-surface-2 border-white/5 text-muted hover:text-fg"
                 }`}
               >
-                <div className="font-bold">🏦 Credit Line</div>
+                <div className="font-bold">🏦 Fund with Credit Line</div>
                 <div className="text-[10px] opacity-80 mt-0.5">
-                  Backed by Collateral
+                  Borrows against collateral (HF ≥ 1.20x)
                 </div>
               </button>
             </div>
@@ -235,28 +245,29 @@ export function VoucherCenter({
           </div>
 
           {redeemError && (
-            <div className="bg-danger/10 border border-danger/30 text-danger text-xs font-mono p-2.5 rounded-lg">
+            <div role="alert" data-testid="voucher-error" className="bg-danger/10 border border-danger/30 text-danger text-xs font-mono p-2.5 rounded-lg">
               {redeemError}
             </div>
           )}
 
           <button
             type="button"
+            data-testid="voucher-redeem"
             onClick={handleRedeem}
             className="w-full py-3 rounded-xl bg-cyan text-bg font-bold text-xs uppercase tracking-wider hover:brightness-110 shadow-lg shadow-cyan/25 transition-all"
           >
-            Instant Voucher Redeem (${selectedAmount})
+            Buy voucher (${selectedAmount})
           </button>
 
           {/* Generated Code Reveal */}
           {redeemedCode && (
             <div className="mt-2 bg-black border border-emerald/40 rounded-xl p-3.5 space-y-2 animate-in fade-in">
               <div className="flex items-center justify-between text-xs font-mono text-emerald font-bold">
-                <span>VOUCHER CODE GENERATED:</span>
-                <span>READY</span>
+                <span>DEMO VOUCHER CODE</span>
+                <span>SIMULATED</span>
               </div>
               <div className="flex items-center justify-between bg-surface-2 px-3 py-2 rounded-lg font-mono text-sm font-bold text-cyan">
-                <span>{redeemedCode}</span>
+                <span data-testid="voucher-code">{redeemedCode}</span>
                 <button
                   type="button"
                   onClick={copyToClipboard}
@@ -266,7 +277,7 @@ export function VoucherCenter({
                 </button>
               </div>
               <div className="text-[10px] font-mono text-muted text-center">
-                Redeemable instantly on {selectedProduct.brand} app or checkout.
+                Demo code for {selectedProduct.brand}. Not redeemable.
               </div>
             </div>
           )}

@@ -13,7 +13,7 @@ const GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
     items: [
       { q: "What is OrventYield?", a: "A web interface for Ether.fi Cash. You deposit collateral, watch yield accrue, and spend through a virtual card, vouchers or cashout, while repaying with yield instead of selling your principal." },
       { q: "When can I use it?", a: "Early access is opening soon. Use the Get early access button to be first in line." },
-      { q: "Is this affiliated with Ether.fi?", a: "No. OrventYield is independent and connects to Ether.fi's publicly deployed contracts. Ether.fi has not endorsed it." },
+      { q: "Is this affiliated with Ether.fi?", a: "No. OrventYield is independent and is designed for Ether.fi Cash and runs no contracts of its own. Ether.fi has not endorsed it." },
     ],
   },
   {

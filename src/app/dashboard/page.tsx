@@ -9,6 +9,7 @@ import { PosSimulator } from "@/components/dashboard/PosSimulator";
 import { VoucherCenter } from "@/components/dashboard/VoucherCenter";
 import { BankCashout } from "@/components/dashboard/BankCashout";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { ContractStatus } from "@/components/dashboard/ContractStatus";
 
 type DashboardTab = "overview" | "pos" | "vouchers" | "cashout" | "activity";
 
@@ -19,11 +20,10 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-bg text-fg flex flex-col font-sans">
       {/* Top Header */}
-      <DashboardHeader
-        isSandboxMode={vault.isSandboxMode}
-        setIsSandboxMode={vault.setIsSandboxMode}
-        onResetDemo={vault.resetToDemo}
-      />
+      <DashboardHeader onResetDemo={vault.resetToDemo} />
+      <div role="note" data-testid="sandbox-banner" className="border-b border-amber/20 bg-amber/5 px-4 py-2 text-center text-[11px] font-mono text-amber">
+        Sandbox: balances, card, vouchers and payouts are simulated. Nothing here moves real funds or sends a transaction.
+      </div>
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -68,6 +68,10 @@ export default function DashboardPage() {
               healthFactor={vault.healthFactor}
               healthStatus={vault.healthStatus}
               microBuffer={vault.microBuffer}
+              advanceUsd={vault.advanceUsd}
+              advanceRoom={vault.advanceRoom}
+              timeScale={vault.timeScale}
+              onTimeScale={vault.setTimeScale}
               onDeposit={vault.deposit}
               onWithdraw={vault.withdraw}
               onRepayWithYield={vault.repayDebtWithYield}
@@ -76,6 +80,9 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-6">
                 <CardManager
+                  card={vault.card}
+                  advanceUsd={vault.advanceUsd}
+                  advanceRoom={vault.advanceRoom}
                   isCardFrozen={vault.isCardFrozen}
                   onToggleFreeze={() => vault.setIsCardFrozen(!vault.isCardFrozen)}
                   monthlyLimit={vault.monthlyLimit}
@@ -88,10 +95,11 @@ export default function DashboardPage() {
 
               <div className="lg:col-span-6">
                 <PosSimulator
+                  card={vault.card}
                   isCardFrozen={vault.isCardFrozen}
                   availableLimit={vault.availableLimit}
                   microBuffer={vault.microBuffer}
-                  healthFactor={vault.healthFactor}
+                  accruedYieldUsd={vault.accruedYieldUsd}
                   onSpendCard={vault.spendCard}
                 />
               </div>
@@ -99,6 +107,7 @@ export default function DashboardPage() {
 
             {/* Recent Ledger preview */}
             <ActivityFeed transactions={vault.transactions.slice(0, 5)} />
+            <ContractStatus />
           </div>
         )}
 
@@ -106,10 +115,11 @@ export default function DashboardPage() {
         {activeTab === "pos" && (
           <div className="space-y-6">
             <PosSimulator
+              card={vault.card}
               isCardFrozen={vault.isCardFrozen}
               availableLimit={vault.availableLimit}
               microBuffer={vault.microBuffer}
-              healthFactor={vault.healthFactor}
+              accruedYieldUsd={vault.accruedYieldUsd}
               onSpendCard={vault.spendCard}
             />
             <ActivityFeed

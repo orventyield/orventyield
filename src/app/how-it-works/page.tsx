@@ -37,7 +37,7 @@ const STEPS = [
   {
     icon: <Layers />,
     title: "Create your Safe",
-    you: "Approve one transaction to create your personal EtherFiSafe through Ether.fi's official factory.",
+    you: "Approve one transaction to create your personal EtherFiSafe through the Ether.fi Cash Safe factory.",
     chain: "A new smart-contract wallet is deployed for you. You are its owner, and we have no keys to it.",
     see: "Your Safe address. If you already have one, we find it and skip this step.",
   },
@@ -67,7 +67,7 @@ const STEPS = [
 const HOLDS = [
   ["You", "Your wallet keys and the decision to sign every transaction."],
   ["Your Safe", "Your collateral and your debt position, controlled by you."],
-  ["Ether.fi contracts", "The rules: limits, interest, prices and settlement. Already deployed and public."],
+  ["Ether.fi contracts", "The rules: limits, interest, prices and settlement. Set by Ether.fi Cash, not by us."],
   ["OrventYield", "Nothing. We are only the interface, with no funds, keys, servers or database."],
 ];
 

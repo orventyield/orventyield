@@ -27,3 +27,10 @@ test-results/
 npm-debug.log*
 *.log
 
+
+# local Anvil fork
+.anvil.pid
+.anvil.log
+.next-e2e
+.next-build
+.next-dev

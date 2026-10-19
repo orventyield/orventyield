@@ -1,184 +1,191 @@
 "use client";
 
 import { useState } from "react";
+import { RAILS, validateDestination, type Rail } from "@/utils/payments";
 
 interface BankCashoutProps {
   accruedYieldUsd: number;
   availableLimit: number;
   onCashout: (
     amountUsd: number,
-    rail: string,
-    identifier: string
+    rail: Rail["id"],
+    destination: string,
+    allowCredit: boolean
   ) => { success: boolean; error?: string };
 }
 
-interface RailOption {
-  id: string;
-  name: string;
-  currency: string;
-  rate: number;
-  placeholder: string;
-}
+const money = (n: number) => `$${n.toFixed(2)}`;
 
-const RAILS: RailOption[] = [
-  { id: "upi", name: "UPI Instant (India)", currency: "INR", rate: 84.5, placeholder: "e.g. yourname@oksbi" },
-  { id: "sepa", name: "SEPA Instant (EU / UK)", currency: "EUR", rate: 0.92, placeholder: "e.g. DE89 3704 0044 0532 0130 00" },
-  { id: "ach", name: "ACH Direct (US)", currency: "USD", rate: 1.0, placeholder: "e.g. Routing + Account number" },
-];
-
-export function BankCashout({
-  accruedYieldUsd,
-  availableLimit,
-  onCashout,
-}: BankCashoutProps) {
-  const [selectedRail, setSelectedRail] = useState<RailOption>(RAILS[0]!);
+export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: BankCashoutProps) {
+  const [rail, setRail] = useState<Rail>(RAILS[0]!);
   const [amountUsd, setAmountUsd] = useState("50");
-  const [identifier, setIdentifier] = useState("");
-  const [cashoutSuccess, setCashoutSuccess] = useState<string | null>(null);
+  const [destination, setDestination] = useState("");
+  const [allowCredit, setAllowCredit] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const parsedAmount = parseFloat(amountUsd) || 0;
-  const fiatEquivalent = parsedAmount * selectedRail.rate;
+  const amount = parseFloat(amountUsd);
+  const amountValid = Number.isFinite(amount) && amount > 0;
+  const fiat = amountValid ? amount * rail.rate : 0;
+  const fromYield = amountValid ? Math.min(amount, accruedYieldUsd) : 0;
+  const fromCredit = amountValid ? Math.max(0, amount - fromYield) : 0;
+  const destCheck = destination.trim() ? validateDestination(rail.id, destination) : null;
+  const destError = touched && destCheck && !destCheck.ok ? destCheck.error : null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched(true);
     setErrorMsg(null);
-    setCashoutSuccess(null);
-
-    if (parsedAmount <= 0) {
-      setErrorMsg("Please enter a valid amount");
-      return;
-    }
-    if (!identifier.trim()) {
-      setErrorMsg("Please provide your account or UPI ID");
-      return;
-    }
-
-    const res = onCashout(parsedAmount, selectedRail.name, identifier.trim());
-    if (!res.success) {
-      setErrorMsg(res.error || "Cashout failed");
-    } else {
-      setCashoutSuccess(
-        `Sent ${fiatEquivalent.toLocaleString()} ${selectedRail.currency} to ${identifier.trim()} via ${selectedRail.name}!`
-      );
-      setIdentifier("");
-      setTimeout(() => setCashoutSuccess(null), 6000);
-    }
+    setSuccess(null);
+    if (!amountValid) return setErrorMsg("Enter an amount greater than $0.");
+    if (!destination.trim()) return setErrorMsg(`Enter your ${rail.id === "upi" ? "UPI ID" : rail.id === "sepa" ? "IBAN" : "routing and account number"}.`);
+    // Invalid destinations are reported inline under the field only (no duplicate banner).
+    if (!validateDestination(rail.id, destination).ok) return;
+    const res = onCashout(amount, rail.id, destination, allowCredit);
+    if (!res.success) return setErrorMsg(res.error ?? "Cashout failed.");
+    setSuccess(`Simulated payout of ${fiat.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${rail.currency} via ${rail.name}. No real money moved.`);
+    setDestination("");
+    setTouched(false);
   };
 
   return (
     <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-5">
       <div>
-        <h3 className="text-base font-bold text-fg flex items-center gap-2">
-          1-Click Bank & UPI Cashout
+        <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
+          1-Click Bank &amp; UPI Cashout
           <span className="text-xs px-2 py-0.5 rounded-full bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            Zero-Fee Off-Ramp
+            sandbox
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
-          Send accrued yield directly to your local bank or UPI without selling your collateral.
+          Pay out accrued yield to a bank account without selling your collateral.
+        </p>
+        <p className="mt-2 rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+          Simulated payout: no real money moves. FX rates are fixed sandbox values. A live off-ramp would be run by a
+          licensed provider.
         </p>
       </div>
 
-      {cashoutSuccess && (
-        <div className="bg-emerald/10 border border-emerald/30 text-emerald text-xs rounded-xl p-3.5 flex items-center gap-2 animate-in fade-in">
-          <span className="h-2 w-2 rounded-full bg-emerald animate-ping" />
-          <span>{cashoutSuccess}</span>
+      {success && (
+        <div role="status" data-testid="cashout-success" className="bg-emerald/10 border border-emerald/30 text-emerald text-xs rounded-xl p-3.5">
+          {success}
         </div>
       )}
-
       {errorMsg && (
-        <div className="bg-danger/10 border border-danger/30 text-danger text-xs font-mono p-3 rounded-xl">
+        <div role="alert" data-testid="cashout-error" className="bg-danger/10 border border-danger/30 text-danger text-xs font-mono p-3 rounded-xl">
           {errorMsg}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Rail Selection */}
-        <div>
-          <label className="text-xs font-mono text-muted block mb-1.5">
-            Select Destination Banking Rail
-          </label>
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        <fieldset>
+          <legend className="text-xs font-mono text-muted mb-1.5">Payout rail</legend>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {RAILS.map((r) => {
-              const active = selectedRail.id === r.id;
+              const active = rail.id === r.id;
               return (
                 <button
                   key={r.id}
                   type="button"
+                  data-testid={`rail-${r.id}`}
+                  aria-pressed={active}
                   onClick={() => {
-                    setSelectedRail(r);
+                    setRail(r);
                     setErrorMsg(null);
+                    setTouched(false);
                   }}
                   className={`p-3 rounded-xl border text-left text-xs transition-all ${
-                    active
-                      ? "bg-cyan/10 border-cyan/40 text-fg shadow-sm shadow-cyan/20"
-                      : "bg-surface-2 border-white/5 text-muted hover:text-fg"
+                    active ? "bg-cyan/10 border-cyan/40 text-fg shadow-sm shadow-cyan/20" : "bg-surface-2 border-white/5 text-muted hover:text-fg"
                   }`}
                 >
                   <div className="font-bold">{r.name}</div>
-                  <div className="text-[11px] font-mono text-cyan mt-1">
-                    1 USD = {r.rate} {r.currency}
-                  </div>
+                  <div className="text-[11px] font-mono text-cyan mt-1">1 USD = {r.rate} {r.currency}</div>
                 </button>
               );
             })}
           </div>
-        </div>
+        </fieldset>
 
-        {/* Amount & Account Input */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <div className="flex justify-between text-xs font-mono text-muted mb-1">
+            <label htmlFor="cashout-amount" className="flex justify-between text-xs font-mono text-muted mb-1">
               <span>Amount (USD)</span>
-              <span>Yield: ${accruedYieldUsd.toFixed(2)} | Credit: ${availableLimit.toFixed(2)}</span>
-            </div>
+              <span>Yield {money(accruedYieldUsd)} · Credit {money(availableLimit)}</span>
+            </label>
             <input
+              id="cashout-amount"
+              data-testid="cashout-amount"
               type="number"
+              min="0"
               step="1"
+              inputMode="decimal"
               value={amountUsd}
               onChange={(e) => setAmountUsd(e.target.value)}
               className="w-full bg-surface-2 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-fg outline-none focus:border-cyan"
             />
           </div>
-
           <div>
-            <div className="text-xs font-mono text-muted mb-1">
-              Destination ({selectedRail.currency})
-            </div>
+            <label htmlFor="cashout-dest" className="block text-xs font-mono text-muted mb-1">
+              {rail.id === "upi" ? "UPI ID" : rail.id === "sepa" ? "IBAN" : "Routing / account"} ({rail.currency})
+            </label>
             <input
+              id="cashout-dest"
+              data-testid="cashout-dest"
               type="text"
-              placeholder={selectedRail.placeholder}
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full bg-surface-2 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-fg outline-none focus:border-cyan"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={rail.placeholder}
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              onBlur={() => setTouched(true)}
+              aria-invalid={destError ? true : undefined}
+              aria-describedby={destError ? "cashout-dest-err" : undefined}
+              className={`w-full bg-surface-2 border rounded-xl px-3.5 py-2.5 text-sm font-mono text-fg outline-none focus:border-cyan ${
+                destError ? "border-danger/60" : "border-white/10"
+              }`}
             />
+            {destError && (
+              <p id="cashout-dest-err" className="mt-1 text-[11px] text-danger font-mono">{destError}</p>
+            )}
+            {touched && destCheck?.ok && <p className="mt-1 text-[11px] text-emerald font-mono">Looks valid</p>}
           </div>
         </div>
 
-        {/* Conversion breakdown */}
+        <label className="flex items-start gap-2 text-xs text-muted cursor-pointer">
+          <input
+            type="checkbox"
+            data-testid="allow-credit"
+            checked={allowCredit}
+            onChange={(e) => setAllowCredit(e.target.checked)}
+            className="mt-0.5 accent-cyan"
+          />
+          <span>
+            Allow a credit advance if my yield is not enough{" "}
+            <span className="text-muted/60">(borrows against collateral; HF must stay ≥ 1.20x)</span>
+          </span>
+        </label>
+
         <div className="bg-[#090b10] border border-white/5 rounded-xl p-3 text-xs font-mono text-muted space-y-1">
           <div className="flex justify-between">
-            <span>You Receive:</span>
+            <span>Recipient gets</span>
             <span className="text-emerald font-bold">
-              {fiatEquivalent.toLocaleString()} {selectedRail.currency}
+              {fiat.toLocaleString(undefined, { maximumFractionDigits: 2 })} {rail.currency}
             </span>
           </div>
+          <div className="flex justify-between text-[11px]"><span>From accrued yield</span><span>{money(fromYield)}</span></div>
           <div className="flex justify-between text-[11px]">
-            <span>Funding Priority:</span>
-            <span>Accrued Yield First, then Credit Line</span>
-          </div>
-          <div className="flex justify-between text-[11px]">
-            <span>Network Fee:</span>
-            <span className="text-emerald font-bold">Free ($0.00)</span>
+            <span>From credit advance</span>
+            <span className={fromCredit > 0 && !allowCredit ? "text-danger" : ""}>{money(fromCredit)}</span>
           </div>
         </div>
 
         <button
           type="submit"
+          data-testid="cashout-submit"
           className="w-full py-3 rounded-xl bg-cyan text-bg font-bold text-xs uppercase tracking-wider hover:brightness-110 shadow-lg shadow-cyan/25 transition-all"
         >
-          Confirm 1-Click Cashout ({fiatEquivalent.toLocaleString()} {selectedRail.currency})
+          Confirm cashout ({fiat.toLocaleString(undefined, { maximumFractionDigits: 2 })} {rail.currency})
         </button>
       </form>
     </div>

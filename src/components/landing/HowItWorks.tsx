@@ -14,7 +14,7 @@ const STEPS: { icon: ReactElement; title: string; body: string }[] = [
   {
     icon: <Layers />,
     title: "Create your Safe",
-    body: "One transaction sets up your own smart-contract Safe through the official Ether.fi factory. You hold the keys.",
+    body: "One transaction sets up your own smart-contract Safe through the Ether.fi Cash Safe factory. You hold the keys.",
   },
   {
     icon: <Bolt />,
@@ -44,7 +44,7 @@ export function HowItWorks() {
           <Reveal delay={0.2}>
             <p className="mt-5 max-w-sm text-muted">
               No custody, no KYC at our layer, no waiting for approval. Everything happens on-chain between you and
-              Ether.fi&rsquo;s deployed contracts.
+              Ether.fi Cash.
             </p>
           </Reveal>
         </div>

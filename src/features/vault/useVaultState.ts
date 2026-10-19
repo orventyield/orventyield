@@ -1,14 +1,36 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount, useChainId } from "wagmi";
+import { calculateHealthFactor, getHealthStatus, type HealthStatus } from "@/utils/math";
 import {
-  calculateAvailableLimit,
-  calculateHealthFactor,
-  getHealthStatus,
-  calculateMicroBuffer,
-  type HealthStatus,
-} from "@/utils/math";
+  accrueYield,
+  advanceRoom as advanceRoomOf,
+  authorizeCardSpend,
+  availableLimit as availableLimitOf,
+  cashOut,
+  microBuffer as microBufferOf,
+  purchaseVoucher,
+  repayDebtWithYield as repayEngine,
+  type AccountState,
+  type DeclineCode,
+  type Funding,
+} from "@/utils/engine";
+import { ASSETS, checkWithdraw, positionFromHoldings, type AssetInfo, type AssetSymbol, type Holdings } from "@/utils/portfolio";
+import {
+  authCode,
+  generateCardDetails,
+  generateVoucherCode,
+  simTxHash,
+  type CardDetails,
+  type VoucherBrandId,
+} from "@/utils/card";
+import { RAILS, maskDestination, validateDestination, type RailId } from "@/utils/payments";
+
+/** Everything in this file is a SANDBOX simulation: no funds move and no transaction hits a chain. */
+
+export type TokenOption = AssetInfo;
+export const SUPPORTED_TOKENS = ASSETS;
 
 export interface Transaction {
   id: string;
@@ -17,335 +39,327 @@ export interface Transaction {
   merchant?: string;
   amountUsd: number;
   timestamp: number;
+  /** Simulated 32-byte hash (not on-chain). */
   txHash: string;
+  simulated: true;
   status: "confirmed" | "pending";
   voucherCode?: string;
   rail?: string;
+  funding?: Funding;
 }
 
-export interface TokenOption {
-  symbol: "weETH" | "USDC" | "wstETH";
-  name: string;
-  priceUsd: number;
-  apyPercent: number;
-  maxLtv: number;
+export interface Receipt {
+  authCode: string;
+  timestampIso: string;
+  merchant: string;
+  amountUsd: number;
+  healthAfter: number;
+  txHash: string;
+  funding: Funding;
 }
 
-export const SUPPORTED_TOKENS = {
-  weETH: {
-    symbol: "weETH" as const,
-    name: "Ether.fi weETH",
-    priceUsd: 3450,
-    apyPercent: 8.4,
-    maxLtv: 0.75,
-  },
-  USDC: {
-    symbol: "USDC" as const,
-    name: "USD Coin",
-    priceUsd: 1.0,
-    apyPercent: 11.8,
-    maxLtv: 0.85,
-  },
-  wstETH: {
-    symbol: "wstETH" as const,
-    name: "Lido wstETH",
-    priceUsd: 3980,
-    apyPercent: 3.6,
-    maxLtv: 0.75,
-  },
-} satisfies Record<string, TokenOption>;
+export interface SpendResult {
+  success: boolean;
+  /** Terminal-style reason, e.g. "CARD FROZEN". */
+  error?: string;
+  code?: DeclineCode;
+  receipt?: Receipt;
+}
 
-const INITIAL_DEMO_TRANSACTIONS: Transaction[] = [
-  {
-    id: "tx-1",
-    type: "deposit",
-    title: "Initial Collateral Vault Deposit",
-    amountUsd: 3450.0,
-    timestamp: Date.now() - 86400000 * 3,
-    txHash: "0x8fa3...c4e1",
-    status: "confirmed",
-  },
-  {
-    id: "tx-2",
-    type: "card_spend",
-    title: "Card Swipe - Starbucks Coffee",
-    merchant: "Starbucks",
-    amountUsd: 4.85,
-    timestamp: Date.now() - 86400000 * 1.5,
-    txHash: "0x1b2c...e890",
-    status: "confirmed",
-  },
-  {
-    id: "tx-3",
-    type: "voucher_redeem",
-    title: "Gift Voucher - Amazon Prime",
-    merchant: "Amazon",
-    amountUsd: 25.0,
-    timestamp: Date.now() - 86400000 * 0.8,
-    txHash: "0x3e4f...11a2",
-    status: "confirmed",
-    voucherCode: "AMZN-YLD-9281-KX92",
-  },
-];
+interface Core {
+  holdings: Holdings;
+  debtUsd: number;
+  advanceUsd: number;
+  yieldUsd: number;
+  frozen: boolean;
+  monthlyLimitUsd: number;
+  spentThisMonthUsd: number;
+}
+
+const INITIAL_CORE: Core = {
+  holdings: { weETH: 2, USDC: 0, wstETH: 0 },
+  debtUsd: 350,
+  advanceUsd: 0,
+  yieldUsd: 48.25,
+  frozen: false,
+  monthlyLimitUsd: 1500,
+  spentThisMonthUsd: 0,
+};
+
+const DEMO_SEED = "orventyield-demo";
+export const TIME_SCALES = [1, 100, 10_000] as const;
+export type TimeScale = (typeof TIME_SCALES)[number];
+
+function toAccount(c: Core): AccountState {
+  const p = positionFromHoldings(c.holdings);
+  return {
+    collateralUsd: p.collateralUsd,
+    maxLtv: p.maxLtv,
+    apyPercent: p.apyPercent,
+    debtUsd: c.debtUsd,
+    advanceUsd: c.advanceUsd,
+    yieldUsd: c.yieldUsd,
+    frozen: c.frozen,
+    monthlyLimitUsd: c.monthlyLimitUsd,
+    spentThisMonthUsd: c.spentThisMonthUsd,
+  };
+}
+
+function fromAccount(c: Core, a: AccountState): Core {
+  return {
+    ...c,
+    debtUsd: a.debtUsd,
+    advanceUsd: a.advanceUsd,
+    yieldUsd: a.yieldUsd,
+    frozen: a.frozen,
+    monthlyLimitUsd: a.monthlyLimitUsd,
+    spentThisMonthUsd: a.spentThisMonthUsd,
+  };
+}
+
+const fmt = (n: number) => `$${n.toFixed(2)}`;
+
+function friendly(code: DeclineCode, a: AccountState, what: "voucher" | "cashout"): string {
+  switch (code) {
+    case "INVALID_AMOUNT":
+      return "Enter an amount greater than $0.";
+    case "MONTHLY_LIMIT":
+      return `Exceeds your monthly spending limit of ${fmt(a.monthlyLimitUsd)} (${fmt(a.spentThisMonthUsd)} used).`;
+    case "INSUFFICIENT_YIELD":
+      return what === "voucher"
+        ? `Not enough accrued yield (${fmt(a.yieldUsd)} available). Pick a smaller voucher or fund it from the credit line.`
+        : `Not enough accrued yield (${fmt(a.yieldUsd)} available). Turn on "Allow credit advance" to cover the rest.`;
+    case "INSUFFICIENT_LIMIT":
+      return `Not enough credit limit (${fmt(availableLimitOf(a))} available).`;
+    case "HEALTH_FACTOR":
+      return "Declined: this would push your Health Factor below 1.20x. Repay some debt first.";
+    case "CARD_FROZEN":
+      return "Card is frozen.";
+  }
+}
 
 export function useVaultState() {
   const { isConnected, address } = useAccount();
   const chainId = useChainId();
 
-  // Selected collateral asset
-  const [selectedToken, setSelectedToken] = useState<TokenOption>(SUPPORTED_TOKENS.weETH);
+  const [core, setCore] = useState<Core>(INITIAL_CORE);
+  const coreRef = useRef<Core>(INITIAL_CORE);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<AssetSymbol>("weETH");
+  const [timeScale, setTimeScale] = useState<TimeScale>(1);
+  const counter = useRef(0);
+  const isSandboxMode = true;
 
-  // Vault balances
-  const [collateralAmount, setCollateralAmount] = useState<number>(2.0); // 2 weETH = $6,900 default demo
-  const [activeDebtUsd, setActiveDebtUsd] = useState<number>(350.0);
-  const [accruedYieldUsd, setAccruedYieldUsd] = useState<number>(48.25);
+  /** Synchronous read-modify-write so callers always decide against the latest state. */
+  const commit = useCallback((next: Core) => {
+    coreRef.current = next;
+    setCore(next);
+  }, []);
 
-  // Card Controls
-  const [isCardFrozen, setIsCardFrozen] = useState<boolean>(false);
-  const [monthlyLimit, setMonthlyLimit] = useState<number>(1500);
-  const [isSandboxMode, setIsSandboxMode] = useState<boolean>(true); // default true for $0 cost interactive exploration
+  const record = useCallback((tx: Omit<Transaction, "id" | "timestamp" | "txHash" | "simulated" | "status">): Transaction => {
+    counter.current += 1;
+    const now = Date.now();
+    const seed = `${tx.type}:${counter.current}:${tx.amountUsd}:${now}`;
+    const full: Transaction = {
+      ...tx,
+      id: `tx-${counter.current}-${now}`,
+      timestamp: now,
+      txHash: simTxHash(seed),
+      simulated: true,
+      status: "confirmed",
+    };
+    setTransactions((prev) => [full, ...prev]);
+    return full;
+  }, []);
 
-  // Transactions Ledger
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_DEMO_TRANSACTIONS);
+  const account = useMemo(() => toAccount(core), [core]);
+  const position = useMemo(() => positionFromHoldings(core.holdings), [core.holdings]);
+  const selectedToken = ASSETS[selectedSymbol];
+  const collateralAmount = core.holdings[selectedSymbol];
 
-  // Derived financial computations
-  const collateralUsd = collateralAmount * selectedToken.priceUsd;
-  const availableLimit = calculateAvailableLimit(collateralUsd, activeDebtUsd, selectedToken.maxLtv);
-  const healthFactor = calculateHealthFactor(collateralUsd, activeDebtUsd, selectedToken.maxLtv);
+  const availableLimit = availableLimitOf(account);
+  const microBuffer = microBufferOf(account);
+  const advanceRoom = advanceRoomOf(account);
+  const healthFactor = calculateHealthFactor(position.collateralUsd, core.debtUsd, position.maxLtv);
   const healthStatus: HealthStatus = getHealthStatus(healthFactor);
-  const microBuffer = calculateMicroBuffer(collateralUsd, selectedToken.apyPercent, 7);
 
-  // Spent this month sum
-  const spentThisMonth = transactions
-    .filter((tx) => tx.type === "card_spend" || tx.type === "voucher_redeem" || tx.type === "cashout")
-    .reduce((sum, tx) => sum + tx.amountUsd, 0);
+  const card: CardDetails = useMemo(() => generateCardDetails(address ?? DEMO_SEED), [address]);
 
-  // Real-time continuous yield accrual ticking
+  // Real-time yield accrual (ticks every 250 ms; `timeScale` is a labelled demo accelerator).
   useEffect(() => {
-    if (collateralUsd <= 0) return;
-
-    const interval = setInterval(() => {
-      // Yield accrued every 250ms = (collateralUsd * (APY/100) * (0.25 / 31536000))
-      const deltaYield = (collateralUsd * (selectedToken.apyPercent / 100) * 0.25) / 31536000;
-      setAccruedYieldUsd((prev) => prev + deltaYield);
+    if (position.collateralUsd <= 0) return;
+    const id = setInterval(() => {
+      const c = coreRef.current;
+      const p = positionFromHoldings(c.holdings);
+      const delta = (p.collateralUsd * (p.apyPercent / 100) * 0.25 * timeScale) / 31_536_000;
+      commit(fromAccount(c, accrueYield(toAccount(c), delta)));
     }, 250);
+    return () => clearInterval(id);
+  }, [position.collateralUsd, timeScale, commit]);
 
-    return () => clearInterval(interval);
-  }, [collateralUsd, selectedToken.apyPercent]);
+  const deposit = useCallback(
+    (amount: number): { success: boolean; error?: string } => {
+      if (!Number.isFinite(amount) || amount <= 0) return { success: false, error: "Enter a valid amount" };
+      const c = coreRef.current;
+      commit({ ...c, holdings: { ...c.holdings, [selectedSymbol]: c.holdings[selectedSymbol] + amount } });
+      record({ type: "deposit", title: `Deposited ${amount} ${selectedSymbol}`, amountUsd: amount * ASSETS[selectedSymbol].priceUsd });
+      return { success: true };
+    },
+    [selectedSymbol, commit, record],
+  );
 
-  // Actions
-  const deposit = useCallback((amount: number) => {
-    if (amount <= 0) return;
-    setCollateralAmount((prev) => prev + amount);
-    const newTx: Transaction = {
-      id: "tx-" + Date.now(),
-      type: "deposit",
-      title: `Deposited ${amount} ${selectedToken.symbol}`,
-      amountUsd: amount * selectedToken.priceUsd,
-      timestamp: Date.now(),
-      txHash: "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 6),
-      status: "confirmed",
-    };
-    setTransactions((prev) => [newTx, ...prev]);
-  }, [selectedToken]);
-
-  const withdraw = useCallback((amount: number): { success: boolean; error?: string } => {
-    if (amount <= 0) return { success: false, error: "Invalid amount" };
-    if (amount > collateralAmount) return { success: false, error: "Insufficient collateral balance" };
-
-    const newCollateral = collateralAmount - amount;
-    const newCollateralUsd = newCollateral * selectedToken.priceUsd;
-    const newHf = calculateHealthFactor(newCollateralUsd, activeDebtUsd, selectedToken.maxLtv);
-
-    if (activeDebtUsd > 0 && newHf < 1.2) {
-      return {
-        success: false,
-        error: `Withdrawal rejected: Health Factor would drop to ${newHf.toFixed(2)}x (minimum safe threshold is 1.20x). Repay some debt first!`,
-      };
-    }
-
-    setCollateralAmount(newCollateral);
-    const newTx: Transaction = {
-      id: "tx-" + Date.now(),
-      type: "withdraw",
-      title: `Withdrew ${amount} ${selectedToken.symbol}`,
-      amountUsd: amount * selectedToken.priceUsd,
-      timestamp: Date.now(),
-      txHash: "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 6),
-      status: "confirmed",
-    };
-    setTransactions((prev) => [newTx, ...prev]);
-    return { success: true };
-  }, [collateralAmount, selectedToken, activeDebtUsd]);
+  const withdraw = useCallback(
+    (amount: number): { success: boolean; error?: string } => {
+      const c = coreRef.current;
+      const check = checkWithdraw(c.holdings, selectedSymbol, amount, c.debtUsd);
+      if (!check.ok) return { success: false, error: check.reason };
+      commit({ ...c, holdings: { ...c.holdings, [selectedSymbol]: c.holdings[selectedSymbol] - amount } });
+      record({ type: "withdraw", title: `Withdrew ${amount} ${selectedSymbol}`, amountUsd: amount * ASSETS[selectedSymbol].priceUsd });
+      return { success: true };
+    },
+    [selectedSymbol, commit, record],
+  );
 
   const spendCard = useCallback(
-    (amountUsd: number, merchant: string): { success: boolean; error?: string; tx?: Transaction } => {
-      if (amountUsd <= 0) return { success: false, error: "Amount must be greater than $0" };
-      if (isCardFrozen) return { success: false, error: "Transaction declined: Card is currently frozen" };
-      if (spentThisMonth + amountUsd > monthlyLimit) {
-        return {
-          success: false,
-          error: `Transaction declined: Exceeds monthly card spend limit of $${monthlyLimit.toLocaleString()}`,
-        };
-      }
-
-      // Check available limit + micro buffer
-      const totalCapacity = availableLimit + microBuffer;
-      if (amountUsd > totalCapacity) {
-        return {
-          success: false,
-          error: `Insufficient limit. Available: $${availableLimit.toFixed(2)} + $${microBuffer.toFixed(2)} buffer`,
-        };
-      }
-
-      // Simulate execution
-      setActiveDebtUsd((prev) => prev + amountUsd);
-      const newTx: Transaction = {
-        id: "tx-" + Date.now(),
+    (amountUsd: number, merchant: string): SpendResult => {
+      const c = coreRef.current;
+      const d = authorizeCardSpend(toAccount(c), amountUsd);
+      if (!d.ok) return { success: false, error: d.message, code: d.code };
+      commit(fromAccount(c, d.next));
+      const tx = record({
         type: "card_spend",
         title: `Card Swipe - ${merchant}`,
         merchant,
         amountUsd,
-        timestamp: Date.now(),
-        txHash: "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 6),
-        status: "confirmed",
+        funding: d.funding,
+      });
+      return {
+        success: true,
+        receipt: {
+          authCode: authCode(tx.id),
+          timestampIso: new Date(tx.timestamp).toISOString(),
+          merchant,
+          amountUsd,
+          healthAfter: d.healthAfter,
+          txHash: tx.txHash,
+          funding: d.funding,
+        },
       };
-      setTransactions((prev) => [newTx, ...prev]);
-      return { success: true, tx: newTx };
     },
-    [isCardFrozen, spentThisMonth, monthlyLimit, availableLimit, microBuffer]
+    [commit, record],
   );
 
   const redeemVoucher = useCallback(
-    (brand: string, amountUsd: number, useYield: boolean): { success: boolean; voucherCode?: string; error?: string } => {
-      if (amountUsd <= 0) return { success: false, error: "Invalid voucher amount" };
-
-      if (useYield) {
-        if (accruedYieldUsd < amountUsd) {
-          return {
-            success: false,
-            error: `Insufficient accrued yield ($${accruedYieldUsd.toFixed(2)} available). Choose a smaller voucher or switch to Credit Line.`,
-          };
-        }
-        setAccruedYieldUsd((prev) => prev - amountUsd);
-      } else {
-        if (amountUsd > availableLimit) {
-          return {
-            success: false,
-            error: `Insufficient credit limit ($${availableLimit.toFixed(2)} available).`,
-          };
-        }
-        setActiveDebtUsd((prev) => prev + amountUsd);
-      }
-
-      const randomCode = `${brand.slice(0, 4).toUpperCase()}-YLD-${Math.floor(1000 + Math.random() * 9000)}-${Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase()}`;
-
-      const newTx: Transaction = {
-        id: "tx-" + Date.now(),
+    (
+      brand: VoucherBrandId,
+      label: string,
+      amountUsd: number,
+      fundWith: "yield" | "credit",
+    ): { success: boolean; voucherCode?: string; error?: string } => {
+      const c = coreRef.current;
+      const a = toAccount(c);
+      const d = purchaseVoucher(a, amountUsd, fundWith);
+      if (!d.ok) return { success: false, error: friendly(d.code, a, "voucher") };
+      commit(fromAccount(c, d.next));
+      const seed = `${brand}:${counter.current + 1}:${Date.now()}`;
+      const code = generateVoucherCode(brand, seed);
+      record({
         type: "voucher_redeem",
-        title: `Gift Voucher - ${brand} ($${amountUsd})`,
-        merchant: brand,
+        title: `Gift Voucher - ${label} ($${amountUsd})`,
+        merchant: label,
         amountUsd,
-        timestamp: Date.now(),
-        txHash: "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 6),
-        status: "confirmed",
-        voucherCode: randomCode,
-      };
-
-      setTransactions((prev) => [newTx, ...prev]);
-      return { success: true, voucherCode: randomCode };
+        voucherCode: code,
+        funding: d.funding,
+      });
+      return { success: true, voucherCode: code };
     },
-    [accruedYieldUsd, availableLimit]
+    [commit, record],
   );
 
   const cashoutBank = useCallback(
-    (amountUsd: number, rail: string, identifier: string): { success: boolean; error?: string } => {
-      if (amountUsd <= 0) return { success: false, error: "Amount must be greater than $0" };
-      if (amountUsd > accruedYieldUsd + availableLimit) {
-        return { success: false, error: "Insufficient available yield or credit limit" };
-      }
-
-      // Prioritize paying from accrued yield first, then credit limit
-      if (accruedYieldUsd >= amountUsd) {
-        setAccruedYieldUsd((prev) => prev - amountUsd);
-      } else {
-        const creditUsed = amountUsd - accruedYieldUsd;
-        setAccruedYieldUsd(0);
-        setActiveDebtUsd((prev) => prev + creditUsed);
-      }
-
-      const newTx: Transaction = {
-        id: "tx-" + Date.now(),
+    (amountUsd: number, rail: RailId, destination: string, allowCredit: boolean): { success: boolean; error?: string } => {
+      const railInfo = RAILS.find((r) => r.id === rail);
+      if (!railInfo) return { success: false, error: "Unknown payout rail" };
+      const v = validateDestination(rail, destination);
+      if (!v.ok) return { success: false, error: v.error };
+      const c = coreRef.current;
+      const a = toAccount(c);
+      const d = cashOut(a, amountUsd, allowCredit);
+      if (!d.ok) return { success: false, error: friendly(d.code, a, "cashout") };
+      commit(fromAccount(c, d.next));
+      record({
         type: "cashout",
-        title: `Bank Transfer (${rail}) to ${identifier.slice(0, 4)}***`,
+        title: `Bank Transfer (${railInfo.name}) to ${maskDestination(rail, v.normalized)}`,
         amountUsd,
-        timestamp: Date.now(),
-        txHash: "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 6),
-        status: "confirmed",
-        rail,
-      };
-
-      setTransactions((prev) => [newTx, ...prev]);
+        rail: railInfo.name,
+        funding: d.funding,
+      });
       return { success: true };
     },
-    [accruedYieldUsd, availableLimit]
+    [commit, record],
   );
 
   const repayDebtWithYield = useCallback((): { success: boolean; repaidAmount: number } => {
-    if (activeDebtUsd <= 0 || accruedYieldUsd <= 0) return { success: false, repaidAmount: 0 };
+    const c = coreRef.current;
+    const r = repayEngine(toAccount(c));
+    if (!r.ok) return { success: false, repaidAmount: 0 };
+    commit(fromAccount(c, r.next));
+    record({ type: "yield_repay", title: "Auto-Pilot: repaid debt with accrued yield", amountUsd: r.repaidUsd });
+    return { success: true, repaidAmount: r.repaidUsd };
+  }, [commit, record]);
 
-    const repayAmount = Math.min(activeDebtUsd, accruedYieldUsd);
-    setActiveDebtUsd((prev) => Math.max(0, prev - repayAmount));
-    setAccruedYieldUsd((prev) => Math.max(0, prev - repayAmount));
+  const setIsCardFrozen = useCallback(
+    (frozen: boolean) => {
+      commit({ ...coreRef.current, frozen });
+    },
+    [commit],
+  );
 
-    const newTx: Transaction = {
-      id: "tx-" + Date.now(),
-      type: "yield_repay",
-      title: `Auto-Repayed Debt with Accrued Yield`,
-      amountUsd: repayAmount,
-      timestamp: Date.now(),
-      txHash: "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 6),
-      status: "confirmed",
-    };
-    setTransactions((prev) => [newTx, ...prev]);
-    return { success: true, repaidAmount: repayAmount };
-  }, [activeDebtUsd, accruedYieldUsd]);
+  const setMonthlyLimit = useCallback(
+    (limit: number) => {
+      commit({ ...coreRef.current, monthlyLimitUsd: limit });
+    },
+    [commit],
+  );
 
   const resetToDemo = useCallback(() => {
-    setSelectedToken(SUPPORTED_TOKENS.weETH);
-    setCollateralAmount(2.0);
-    setActiveDebtUsd(350.0);
-    setAccruedYieldUsd(48.25);
-    setIsCardFrozen(false);
-    setMonthlyLimit(1500);
-    setTransactions(INITIAL_DEMO_TRANSACTIONS);
-  }, []);
+    commit(INITIAL_CORE);
+    setTransactions([]);
+    setSelectedSymbol("weETH");
+    setTimeScale(1);
+  }, [commit]);
+
+  const setSelectedToken = useCallback((t: TokenOption) => setSelectedSymbol(t.symbol), []);
 
   return {
     isConnected,
     address,
     chainId,
     isSandboxMode,
-    setIsSandboxMode,
     selectedToken,
     setSelectedToken,
+    holdings: core.holdings,
     collateralAmount,
-    collateralUsd,
-    activeDebtUsd,
-    accruedYieldUsd,
+    collateralUsd: position.collateralUsd,
+    blendedApy: position.apyPercent,
+    blendedLtv: position.maxLtv,
+    activeDebtUsd: core.debtUsd,
+    advanceUsd: core.advanceUsd,
+    accruedYieldUsd: core.yieldUsd,
     availableLimit,
     healthFactor,
     healthStatus,
     microBuffer,
-    isCardFrozen,
+    advanceRoom,
+    card,
+    isCardFrozen: core.frozen,
     setIsCardFrozen,
-    monthlyLimit,
+    monthlyLimit: core.monthlyLimitUsd,
     setMonthlyLimit,
-    spentThisMonth,
+    spentThisMonth: core.spentThisMonthUsd,
     transactions,
+    timeScale,
+    setTimeScale,
     deposit,
     withdraw,
     spendCard,

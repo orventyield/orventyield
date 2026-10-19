@@ -38,7 +38,7 @@ export function Hero() {
               <span className="absolute h-2 w-2 animate-pulse-ring rounded-full bg-emerald" />
               <span className="h-2 w-2 rounded-full bg-emerald" />
             </span>
-            Built on Ether.fi Cash rails · Non-custodial
+            Designed for Ether.fi Cash · Non-custodial
           </motion.div>
 
           <h1 className="mt-6 text-[clamp(2.4rem,9vw,4.4rem)] lg:text-[clamp(3.2rem,5.1vw,4.9rem)] font-extrabold leading-[0.98] tracking-[-0.045em]">

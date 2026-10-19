@@ -17,7 +17,7 @@ const FEATURES = [
     points: [
       "MetaMask, Rainbow, Coinbase Wallet, WalletConnect",
       "Detects an existing EtherFiSafe automatically",
-      "One-click Safe creation through the official factory",
+      "One-click Safe creation through the Ether.fi Cash Safe factory",
       "Clear wrong-network handling",
     ],
   },

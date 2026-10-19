@@ -8,7 +8,7 @@ const STATS = [
 ];
 
 const POINTS = [
-  "Built on Ether.fi's deployed cash-v3 contracts",
+  "Designed around Ether.fi Cash, with no contracts of our own",
   "Every transaction is simulated before you sign it",
   "Exact-amount approvals only, never unlimited",
   "You always see the contract, function and amount",

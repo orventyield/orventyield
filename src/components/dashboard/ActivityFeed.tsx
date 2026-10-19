@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { type Transaction } from "@/features/vault/useVaultState";
+import { shortHash } from "@/utils/card";
 
 interface ActivityFeedProps {
   transactions: Transaction[];
 }
 
 export function ActivityFeed({ transactions }: ActivityFeedProps) {
-  const [filter, setFilter] = useState<"all" | "card_spend" | "voucher_redeem" | "deposit" | "yield_repay" | "cashout">("all");
+  const [filter, setFilter] = useState<"all" | "card_spend" | "voucher_redeem" | "deposit" | "withdraw" | "yield_repay" | "cashout">("all");
 
   const filtered = transactions.filter((t) => {
     if (filter === "all") return true;
@@ -54,13 +55,13 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-fg flex items-center gap-2">
-            Non-Custodial Ledger & Activity
+            Sandbox Ledger
             <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-muted font-mono">
               {transactions.length} Total
             </span>
           </h3>
           <p className="text-xs text-muted mt-0.5">
-            Immutable log of all card swipes, voucher redemptions, and smart contract state changes.
+            Log of simulated card swipes, vouchers, payouts and vault actions from this session.
           </p>
         </div>
 
@@ -72,6 +73,7 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
               { id: "card_spend", label: "Cards" },
               { id: "voucher_redeem", label: "Vouchers" },
               { id: "deposit", label: "Deposits" },
+              { id: "withdraw", label: "Withdrawals" },
               { id: "yield_repay", label: "Repayments" },
               { id: "cashout", label: "Cashouts" },
             ] as const
@@ -95,12 +97,13 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
       <div className="space-y-2">
         {filtered.length === 0 ? (
           <div className="py-12 text-center text-xs font-mono text-muted">
-            No transactions found for this filter.
+            No activity yet. Try a card swipe, voucher or deposit.
           </div>
         ) : (
           filtered.map((tx) => (
             <div
               key={tx.id}
+              data-testid="ledger-row"
               className="bg-surface-2 border border-white/5 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-all group"
             >
               <div className="flex items-center gap-3">
@@ -117,7 +120,7 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
                   <div className="text-[11px] font-mono text-muted/70 flex items-center gap-3 mt-0.5">
                     <span>{new Date(tx.timestamp).toLocaleString()}</span>
                     <span>•</span>
-                    <span className="text-cyan/80">Tx: {tx.txHash}</span>
+                    <span className="text-cyan/80" title={tx.txHash}>Sim tx: {shortHash(tx.txHash)}</span>
                     {tx.voucherCode && (
                       <>
                         <span>•</span>
@@ -130,11 +133,11 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
 
               <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
                 <span className="text-sm font-bold font-mono text-fg tabular">
-                  {tx.type === "deposit" || tx.type === "yield_repay" ? "+" : "-"}
+                  {tx.type === "deposit" ? "+" : tx.type === "yield_repay" ? "↺" : "-"}
                   ${tx.amountUsd.toFixed(2)}
                 </span>
                 <span className="text-[10px] text-emerald font-mono flex items-center gap-1">
-                  ✓ Ether.fi Verified
+                  Simulated
                 </span>
               </div>
             </div>
