@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { useAppMode } from "@/features/mode/AppModeProvider";
 import { fmtUsdc, fmtUsdc4 } from "@/lib/aave/format";
@@ -220,7 +221,7 @@ export function MainnetDashboard() {
       </div>
 
       {tab === "vault" && <Vault a={a} open={openModal} />}
-      {tab === "card" && <Locked title="Your virtual card" body="Verify your phone, complete a quick identity check with the card issuer, and get a virtual Mastercard funded only from your yield." />}
+      {tab === "card" && <CardPanel yieldBaseUnits={snap?.yieldAvailable ?? 0n} />}
       {tab === "vouchers" && <Locked title="Spend yield on vouchers" body="Buy Amazon, Uber, Zomato and Swiggy vouchers straight from the yield you have earned. Your principal is never used." />}
       {tab === "cashout" && <Locked title="Cash out yield to your bank" body="Move earned yield to a bank account or UPI through a regulated off-ramp. Only yield, never principal." />}
 

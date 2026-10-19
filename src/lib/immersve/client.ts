@@ -134,6 +134,12 @@ export class ImmersveClient {
     return str(r.cardId, "cardId");
   }
 
+  /** First page only: one OrventYield account holds one card, so that is all we need. */
+  async listCards(): Promise<Card[]> {
+    const r = await this.request<{ items: Card[] }>("GET", `/api/accounts/${this.accountId}/cards`);
+    return r.items ?? [];
+  }
+
   getCard(cardId: string): Promise<Card> {
     return this.request<Card>("GET", `/api/cards/${cardId}`);
   }

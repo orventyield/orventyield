@@ -42,10 +42,16 @@ export interface Prerequisite {
 export interface Card {
   id: string;
   type: string;
+  /** Seen in the sandbox: "active". */
   status: string;
+  isBlocked?: boolean;
+  /** YYYYMM, e.g. "203006". */
   expiry: string;
   panFirst6: string;
   panLast4: string;
+  regionCode?: string;
+  cardholderName?: string;
+  fundingSourceIds?: string[];
 }
 
 /** Sensitive data. Hold in component state only; never log, persist or send to our own servers. */
