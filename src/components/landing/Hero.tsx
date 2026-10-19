@@ -53,8 +53,8 @@ export function Hero() {
             transition={{ delay: 1, duration: 0.8 }}
             className="mt-6 max-w-xl text-[clamp(1.02rem,2.6vw,1.2rem)] leading-relaxed text-muted"
           >
-            Stake once. A virtual card borrows against your collateral, and your live yield pays it back. No selling your
-            ETH, no tax-triggering exits, no middlemen holding your keys.
+            Deposit your principal into your own Safe, earn yield on Aave v3, and spend only the yield on vouchers, cashout or a
+            virtual card. Your principal stays locked. No selling, no middlemen holding your keys.
           </motion.p>
 
           <motion.div
@@ -81,8 +81,8 @@ export function Hero() {
           >
             {[
               ["0", "contracts we deploy"],
-              ["0", "servers or databases"],
-              ["$0", "to run"],
+              ["0", "keys we hold"],
+              ["100%", "yield-only spending"],
             ].map(([n, l]) => (
               <div key={l}>
                 <dt className="font-mono text-2xl font-bold text-fg sm:text-3xl">{n}</dt>
@@ -120,10 +120,10 @@ export function Hero() {
             transition={{ delay: 1.7, duration: 0.9 }}
             className="glass absolute right-3 top-[-58px] rounded-2xl px-4 py-3 shadow-2xl sm:-right-4"
           >
-            <p className="text-[11px] uppercase tracking-widest text-muted">Health factor</p>
+            <p className="text-[11px] uppercase tracking-widest text-muted">Principal · example</p>
             <p className="flex items-center gap-2 font-mono text-xl font-bold text-cyan">
-              <span className="h-2 w-2 rounded-full bg-emerald" /> 2.14x
-              <span className="text-xs font-medium text-emerald">Safe</span>
+              <span className="h-2 w-2 rounded-full bg-emerald" /> $5,000
+              <span className="text-xs font-medium text-emerald">Locked</span>
             </p>
           </motion.div>
         </motion.div>

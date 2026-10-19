@@ -6,7 +6,7 @@ import { Reveal } from "@/components/ui/motion";
 
 export const metadata: Metadata = {
   title: "Features · OrventYield",
-  description: "Everything in the first version: onboarding, vault, credit line, virtual card and spend center.",
+  description: "Everything in the first version: onboarding, yield vault, virtual card and spend center.",
 };
 
 const FEATURES = [
@@ -23,10 +23,10 @@ const FEATURES = [
   },
   {
     icon: <Bolt />,
-    title: "Collateral vault & live yield",
-    what: "Deposit and watch your yield accrue in real time, with the numbers read straight from the contracts.",
+    title: "Yield vault & live yield",
+    what: "Deposit USDC and watch your yield accrue in real time, with the numbers read straight from the contracts.",
     points: [
-      "ETH, WETH, weETH and USDC",
+      "USDC supplied to Aave v3 from your own Safe",
       "Exact-amount approvals, never unlimited",
       "Live APY from the contracts",
       "Ticking counter of accrued yield",
@@ -34,12 +34,12 @@ const FEATURES = [
   },
   {
     icon: <Check />,
-    title: "Credit line & health factor",
-    what: "See what you can spend and how safe you are, before you spend it.",
+    title: "Principal lock & spendable yield",
+    what: "See exactly what you can spend, and know your principal is not part of it.",
     points: [
-      "Available limit = collateral × max LTV − debt",
-      "Health gauge: Safe above 1.5x, Warning below 1.2x",
-      "Stale or zero oracle prices are flagged, never guessed",
+      "Spendable = aUSDC balance − principal, read on-chain",
+      "Only earned yield can be withdrawn through the spend flow",
+      "Your principal can always be withdrawn by you alone",
     ],
   },
   {
@@ -47,10 +47,10 @@ const FEATURES = [
     title: "Virtual card dashboard",
     what: "A 3D card plus the stats that matter, with simple controls.",
     points: [
-      "Collateral locked, spendable yield, spent this month",
-      "Net APY earned vs borrow rate",
-      "Freeze / unfreeze toggle",
-      "Monthly spending limit slider",
+      "Principal locked, spendable yield, live APY",
+      "Phone verification, then the card issuer's identity check",
+      "Card numbers revealed with a one-time link, hidden after 30 seconds",
+      "Spend allowance equals your live yield",
     ],
   },
   {
@@ -60,7 +60,7 @@ const FEATURES = [
     points: [
       "Gift vouchers (Swiggy, Zomato, Amazon, Uber, Netflix) via Bitrefill",
       "Bank / UPI cashout via a non-custodial off-ramp widget",
-      "One-tap “Repay using accrued yield”",
+      "Everything is paid from earned yield, never from principal",
     ],
   },
 ];

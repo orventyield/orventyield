@@ -12,7 +12,7 @@ const GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
     title: "The basics",
     items: [
       { q: "What is OrventYield?", a: "A non-custodial yield neobank. You deposit USDC into your own Safe, it earns yield on Aave v3, and you spend only that yield through vouchers, cashout or a virtual card. Your principal stays locked." },
-      { q: "When can I use it?", a: "Early access is opening soon. Use the Get early access button to be first in line." },
+      { q: "When can I use it?", a: "OrventYield is in testing on Arbitrum One. Try the Playground now; the live account opens as the card and spending rails go through production approval." },
       { q: "Is this affiliated with Safe, Aave or Immersve?", a: "No. OrventYield is independent. It uses the audited Safe smart account and Aave v3 contracts as they are, and deploys no contracts of its own. Safe, Aave and Immersve have not endorsed it." },
     ],
   },
@@ -22,13 +22,13 @@ const GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
       { q: "Is OrventYield custodial?", a: "No. Your assets live in your own Safe smart account and you sign every transaction from your own wallet. We hold no keys and no funds." },
       { q: "What if the site goes down?", a: "Your funds are in your Safe on-chain, not on our servers. You can still interact with the contracts through other interfaces." },
       { q: "Do you ever ask for my seed phrase?", a: "Never. If anything asks for it, it is not us." },
-      { q: "What are the risks?", a: "Liquidation if collateral falls, smart-contract and oracle risk, and third-party service risk. See the Security page for the full list. Nothing here is financial advice." },
+      { q: "What are the risks?", a: "Variable and non-guaranteed yield, smart-contract risk in Safe and Aave, stablecoin (USDC) risk, and third-party service risk. See the Security page for the full list. Nothing here is financial advice." },
     ],
   },
   {
     title: "Money",
     items: [
-      { q: "Do I need KYC?", a: "OrventYield does not collect KYC or run accounts. Third-party services you use through it, such as card issuers, voucher stores or off-ramps, can have their own requirements." },
+      { q: "Do I need KYC?", a: "OrventYield never sees your ID documents. We check your phone number once, so one person gets one card, and store only a salted hash of it. The card issuer, Immersve, runs the identity check for the card, and voucher or cashout providers can have their own requirements." },
       { q: "What does it cost?", a: "The interface is free to use. You pay network gas, and any fees charged by Aave, the card issuer or other third-party providers. Exact figures will be shown before you sign." },
       { q: "Does spending touch my principal?", a: "No. Only accrued yield can be spent. Your principal stays in your Safe. Yield is variable and not guaranteed, and a bug or exploit in the underlying protocols could still cause loss of funds." },
     ],

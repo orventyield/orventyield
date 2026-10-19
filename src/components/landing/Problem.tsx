@@ -8,9 +8,9 @@ const OLD = [
   "Rebuy later at a worse price",
 ];
 const NEW = [
-  "Keep your collateral staked and earning",
-  "Spend through a credit line, not a sale",
-  "Yield pays the balance back over time",
+  "Your principal stays locked and earning on Aave",
+  "Spend only the yield, never a sale",
+  "Yield keeps refilling what you can spend",
   "Your keys, your Safe, always",
 ];
 

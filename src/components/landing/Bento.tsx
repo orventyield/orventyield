@@ -1,6 +1,6 @@
 "use client";
 
-import { animate, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Bank, Bolt, Gift, Repeat, Shield, Snow } from "../ui/Icons";
 import { Reveal, SplitWords, YieldTicker } from "../ui/motion";
@@ -47,70 +47,44 @@ function Label({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   );
 }
 
-/* ---------- Health gauge ---------- */
-const BASE_HF = 2.14;
+/* ---------- Principal lock ---------- */
+const PRINCIPAL = 5000;
+const MONTH_YIELD = 14.6; // example: $5,000 at about 3.5% APY
 
-function HealthGauge({ value }: { value: number }) {
-  const min = 0.8;
-  const max = 3;
-  const t = Math.min(1, Math.max(0, (value - min) / (max - min)));
-  const color = value >= 1.5 ? "#10B981" : value >= 1.2 ? "#F59E0B" : "#EF4444";
-  const status = value >= 1.5 ? "Safe" : value >= 1.2 ? "Warning" : "At risk";
-  return (
-    <div className="relative mx-auto w-full max-w-[260px]">
-      <svg viewBox="0 0 200 118" className="w-full" role="img" aria-label={`Health factor ${value.toFixed(2)}, ${status}`}>
-        <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="14" strokeLinecap="round" />
-        <motion.path
-          d="M20 100 A80 80 0 0 1 180 100"
-          fill="none"
-          strokeWidth="14"
-          strokeLinecap="round"
-          initial={false}
-          animate={{ pathLength: t, stroke: color }}
-          transition={{ type: "spring", stiffness: 90, damping: 18 }}
-          style={{ filter: `drop-shadow(0 0 8px ${color})` }}
-        />
-      </svg>
-      <div className="absolute inset-x-0 bottom-0 text-center">
-        <p className="font-mono text-4xl font-extrabold tabular" style={{ color }}>
-          {value.toFixed(2)}x
-        </p>
-        <p className="text-xs font-medium uppercase tracking-widest" style={{ color }}>
-          {status}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function HealthTile() {
-  const [drop, setDrop] = useState(0);
-  const hf = BASE_HF * (1 - drop / 100);
+function PrincipalTile() {
+  const [spend, setSpend] = useState(6);
   return (
     <>
-      <Label icon={<Shield />}>Health factor</Label>
-      <h3 className="mt-3 text-xl font-bold tracking-tight">Know your risk before the market does.</h3>
-      <div className="mt-6">
-        <HealthGauge value={hf} />
+      <Label icon={<Shield />}>Principal lock</Label>
+      <h3 className="mt-3 text-xl font-bold tracking-tight">Spend the yield. Your principal never moves.</h3>
+      <div className="mt-6 rounded-2xl border border-line bg-black/20 p-4">
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>Principal · locked</span>
+          <span className="text-emerald">Unchanged</span>
+        </div>
+        <p data-testid="demo-principal" className="tabular mt-1 font-mono text-3xl font-extrabold">${PRINCIPAL.toLocaleString("en-US")}.00</p>
+        <p className="mt-3 text-xs text-muted">Yield left this month</p>
+        <p className="tabular font-mono text-xl font-bold text-emerald">${(MONTH_YIELD - spend).toFixed(2)}</p>
       </div>
       <div className="mt-6">
         <div className="mb-2 flex justify-between text-sm">
-          <label htmlFor="drop" className="text-muted">
-            Simulate ETH price drop
+          <label htmlFor="spend" className="text-muted">
+            Spend from yield
           </label>
-          <span className="font-mono font-bold">−{drop}%</span>
+          <span className="font-mono font-bold">${spend.toFixed(2)}</span>
         </div>
         <input
-          id="drop"
+          id="spend"
           type="range"
           min={0}
-          max={60}
-          value={drop}
-          onChange={(e) => setDrop(Number(e.target.value))}
-          style={{ "--fill": `${(drop / 60) * 100}%` } as CSSProperties}
+          max={MONTH_YIELD}
+          step={0.1}
+          value={spend}
+          onChange={(e) => setSpend(Number(e.target.value))}
+          style={{ "--fill": `${(spend / MONTH_YIELD) * 100}%` } as CSSProperties}
           className="w-full"
         />
-        <p className="mt-3 text-xs text-muted">Example. Safe above 1.5x, warning below 1.2x.</p>
+        <p className="mt-3 text-xs text-muted">Example values. You can only spend what you have earned.</p>
       </div>
     </>
   );
@@ -247,47 +221,34 @@ function SpendTile() {
   );
 }
 
-/* ---------- Repay ---------- */
-function RepayTile() {
-  const START = 240;
-  const [debt, setDebt] = useState(START);
-  const [busy, setBusy] = useState(false);
-  const repay = () => {
-    if (busy || debt === 0) {
-      setDebt(START);
-      return;
-    }
-    setBusy(true);
-    animate(debt, 0, {
-      duration: 1.6,
-      ease: [0.16, 1, 0.3, 1],
-      onUpdate: (v) => setDebt(Math.round(v)),
-      onComplete: () => setBusy(false),
-    });
-  };
+/* ---------- Yield refills ---------- */
+function RefillTile() {
+  const START = 14;
+  const [left, setLeft] = useState(START);
+  const spend = () => setLeft((v) => (v < 5 ? START : v - 5));
   return (
     <>
-      <Label icon={<Repeat />}>Repay with yield</Label>
-      <h3 className="mt-3 text-xl font-bold tracking-tight">Clear your balance. Touch nothing else.</h3>
+      <Label icon={<Repeat />}>Yield refills</Label>
+      <h3 className="mt-3 text-xl font-bold tracking-tight">Spend it. Aave refills it.</h3>
       <div className="mt-5 flex items-end justify-between">
         <div>
-          <p className="text-xs text-muted">Outstanding</p>
-          <p className="tabular font-mono text-3xl font-extrabold">${debt}</p>
+          <p className="text-xs text-muted">Spendable yield · example</p>
+          <p className="tabular font-mono text-3xl font-extrabold">${left.toFixed(2)}</p>
         </div>
         <p className="text-xs text-emerald">Principal untouched</p>
       </div>
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/10">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-cyan to-emerald transition-[width] duration-100"
-          style={{ width: `${(debt / START) * 100}%` }}
+          className="h-full rounded-full bg-gradient-to-r from-cyan to-emerald transition-[width] duration-300"
+          style={{ width: `${(left / START) * 100}%` }}
         />
       </div>
       <button
         type="button"
-        onClick={repay}
+        onClick={spend}
         className="mt-5 min-h-12 w-full rounded-full bg-white/10 px-5 text-sm font-semibold transition hover:bg-cyan hover:text-bg active:scale-[0.98]"
       >
-        {debt === 0 ? "Reset demo" : busy ? "Repaying…" : "Repay using accrued yield"}
+        {left < 5 ? "Let a few days pass" : "Spend $5 of yield"}
       </button>
     </>
   );
@@ -320,7 +281,7 @@ export function BentoGrid({ className = "" }: { className?: string }) {
             <CardTile />
           </Tile>
           <Tile delay={0.08}>
-            <HealthTile />
+            <PrincipalTile />
           </Tile>
           <Tile delay={0.04}>
             <YieldTile />
@@ -329,7 +290,7 @@ export function BentoGrid({ className = "" }: { className?: string }) {
             <SpendTile />
           </Tile>
           <Tile delay={0.12}>
-            <RepayTile />
+            <RefillTile />
           </Tile>
           <Tile className="md:col-span-3">
             <SafeTile />

@@ -67,7 +67,7 @@ export function Footer() {
       </div>
       <p className="mx-auto mt-10 max-w-6xl border-t border-line pt-6 text-xs leading-relaxed text-muted/80">
         OrventYield is an independent, non-custodial interface and is not affiliated with or endorsed by Safe, Aave or Immersve. Figures
-        shown are examples. Crypto and borrowing involve risk, including loss of funds. Nothing here is financial,
+        shown are examples. Crypto involves risk, including loss of funds. Nothing here is financial,
         legal or tax advice.
       </p>
     </footer>

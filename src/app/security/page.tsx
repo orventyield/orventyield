@@ -12,16 +12,16 @@ export const metadata: Metadata = {
 const THREATS = [
   ["Signing the wrong thing", "Every write is simulated first, and you see the contract, function, amount and chain before signing. Approvals are exact-amount only."],
   ["Fake or wrong addresses", "Every contract address comes from a single configuration file and is checked against the official Safe and Aave deployment lists. The app only ever talks to those addresses, never to anything a user or a link supplies."],
-  ["Misleading numbers", "No invented APY, limit or health values. Stale or zero oracle prices are flagged on screen."],
+  ["Misleading numbers", "No invented APY or balance. Yield and balances are read from Aave and your Safe on-chain, and demos are labelled as examples."],
   ["Malicious third-party code", "Voucher and off-ramp widgets run in sandboxed frames with no access to your wallet, behind a strict content security policy."],
   ["Leaked secrets", "There are no private keys or server secrets to leak. Public configuration only, and nothing sensitive in the repository."],
   ["Vulnerable dependencies", "Dependencies are locked and checked on every release, and every change that touches the chain goes through a dedicated security review."],
 ];
 
 const RISKS = [
-  ["Liquidation", "If your collateral falls in value, your position can be liquidated. Keep your health factor comfortably above 1.5x."],
+  ["Variable yield", "Aave's rate moves with market demand and can fall to near zero. Yield is never guaranteed."],
   ["Smart-contract risk", "Safe and Aave contracts are battle-tested and audited, but not risk-free. Bugs can cause loss of funds."],
-  ["Oracle risk", "Prices come from oracles. Wrong or delayed prices can affect limits and liquidations."],
+  ["Stablecoin risk", "USDC is a stablecoin issued by Circle. If it loses its peg or is frozen, your balance can lose value or become hard to move."],
   ["Third-party services", "Card, voucher and off-ramp providers have their own terms, fees, availability and KYC requirements."],
   ["Regulation & tax", "Rules differ by country. You are responsible for yours. Nothing here is legal or tax advice."],
 ];
@@ -31,7 +31,7 @@ const CHECKLIST = [
   "Read the transaction in your wallet. It should match what the app showed.",
   "Start with a small amount the first time.",
   "Never share your seed phrase. We will never ask.",
-  "Keep health factor above 1.5x and repay early if prices drop.",
+  "Only spend the yield. Your principal is meant to stay in Aave.",
   "Revoke approvals you no longer need.",
 ];
 
@@ -84,7 +84,7 @@ export default function SecurityPage() {
         </ul>
         <div className="mt-6">
           <Notice tone="warn">
-            OrventYield is independent and not affiliated with or endorsed by Safe, Aave or Immersve. Crypto and borrowing involve risk,
+            OrventYield is independent and not affiliated with or endorsed by Safe, Aave or Immersve. Crypto involves risk,
             including loss of funds.
           </Notice>
         </div>

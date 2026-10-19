@@ -19,12 +19,12 @@ const STEPS: { icon: ReactElement; title: string; body: string }[] = [
   {
     icon: <Bolt />,
     title: "Deposit and earn",
-    body: "Add weETH, ETH, WETH or USDC as collateral. Watch the yield tick up live, straight from the contracts.",
+    body: "Deposit USDC into Aave v3 from your Safe. Watch the yield tick up live, straight from the contracts.",
   },
   {
     icon: <CardIcon />,
-    title: "Spend, repay with yield",
-    body: "Use the virtual card, buy vouchers or cash out to UPI. One tap repays the balance with accrued yield.",
+    title: "Spend only the yield",
+    body: "Buy vouchers, cash out to UPI or use the virtual card. Only earned yield can leave; your principal stays locked.",
   },
 ];
 

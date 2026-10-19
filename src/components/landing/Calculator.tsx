@@ -53,10 +53,10 @@ export function Slider({
 }
 
 export function CalculatorCard({ className = "" }: { className?: string }) {
-  const [collateral, setCollateral] = useState(50_000);
+  const [principal, setPrincipal] = useState(50_000);
   const [apy, setApy] = useState(3.5);
 
-  const yearly = collateral * (apy / 100);
+  const yearly = principal * (apy / 100);
   const monthly = yearly / 12;
   const perSecond = yearly / (365 * 24 * 3600);
 
@@ -67,14 +67,14 @@ export function CalculatorCard({ className = "" }: { className?: string }) {
             <div className="relative grid gap-10 lg:grid-cols-2 lg:gap-14">
               <div className="space-y-9">
                 <Slider
-                  id="collateral"
-                  label="Collateral deposited"
-                  value={collateral}
+                  id="principal"
+                  label="Principal deposited"
+                  value={principal}
                   min={1_000}
                   max={250_000}
                   step={1_000}
-                  display={`$${fmt(collateral)}`}
-                  onChange={setCollateral}
+                  display={`$${fmt(principal)}`}
+                  onChange={setPrincipal}
                 />
                 <Slider
                   id="apy"
@@ -94,12 +94,12 @@ export function CalculatorCard({ className = "" }: { className?: string }) {
                   <div className="flex h-3 overflow-hidden rounded-full bg-white/10">
                     <motion.div
                       className="h-full bg-white/30"
-                      animate={{ width: `${(collateral / (collateral + yearly)) * 100}%` }}
+                      animate={{ width: `${(principal / (principal + yearly)) * 100}%` }}
                       transition={{ type: "spring", stiffness: 120, damping: 20 }}
                     />
                     <motion.div
                       className="h-full bg-gradient-to-r from-cyan to-emerald shadow-[0_0_20px_rgba(0,240,255,0.8)]"
-                      animate={{ width: `${(yearly / (collateral + yearly)) * 100}%` }}
+                      animate={{ width: `${(yearly / (principal + yearly)) * 100}%` }}
                       transition={{ type: "spring", stiffness: 120, damping: 20 }}
                     />
                   </div>
@@ -125,13 +125,13 @@ export function CalculatorCard({ className = "" }: { className?: string }) {
                   </div>
                   <div>
                     <p className="text-xs text-muted">Principal stays</p>
-                    <p className="tabular font-mono text-xl font-bold">${fmt(collateral)}</p>
+                    <p className="tabular font-mono text-xl font-bold">${fmt(principal)}</p>
                   </div>
                 </div>
                 <div className="rounded-2xl bg-white/[0.04] p-4">
                   <p className="text-xs text-muted">Earning right now (per second)</p>
                   <YieldTicker
-                    key={`${collateral}-${apy}`}
+                    key={`${principal}-${apy}`}
                     start={0}
                     perSecond={perSecond}
                     decimals={7}

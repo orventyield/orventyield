@@ -11,18 +11,18 @@ export const metadata: Metadata = {
 const IDEA = [
   {
     icon: <Layers />,
-    title: "1. Collateral stays yours",
-    body: "You deposit into a smart-contract Safe that only you control. Staked assets like weETH keep earning yield while they sit there.",
+    title: "1. Principal stays yours",
+    body: "You deposit USDC into a smart-contract Safe that only you control. It is supplied to Aave v3, where it earns yield while it sits there.",
   },
   {
     icon: <CardIcon />,
-    title: "2. The card borrows against it",
-    body: "Spending draws on a credit line backed by your collateral, so you never have to sell. Your limit is collateral value × max LTV, minus what you already owe.",
+    title: "2. Spend only the yield",
+    body: "Vouchers, cashout and the virtual card are paid from earned yield only. Your spend allowance is your aUSDC balance minus your principal.",
   },
   {
     icon: <Repeat />,
-    title: "3. Yield pays it back",
-    body: "Accrued yield is used to repay what you spent, one tap at a time. Your principal is never the thing being spent.",
+    title: "3. Yield refills it",
+    body: "Aave keeps paying yield every second, so your spendable amount grows back on its own. Your principal is never the thing being spent.",
   },
 ];
 
@@ -44,23 +44,23 @@ const STEPS = [
   {
     icon: <Bolt />,
     title: "Deposit and earn",
-    you: "Choose ETH, WETH, weETH or USDC and an amount. Approve the exact amount, then deposit.",
-    chain: "Tokens move into your Safe. Staked assets accrue yield natively; the APY is read from the contracts.",
-    see: "Collateral value in USD, live APY, and a ticking counter of yield accrued.",
+    you: "Enter a USDC amount. Approve exactly that amount, then deposit.",
+    chain: "Your USDC is supplied to the Aave v3 Pool on behalf of your Safe. The APY is read from Aave.",
+    see: "Principal, live APY, and a ticking counter of yield accrued.",
   },
   {
     icon: <CardIcon />,
     title: "Spend",
-    you: "Use the virtual card, buy a voucher, or cash out to a bank or UPI through a third-party widget.",
-    chain: "Spending creates debt against your collateral. Your available limit and health factor update.",
-    see: "Available limit, total spent this month, and a health gauge with Safe / Warning / At-risk zones.",
+    you: "Withdraw yield to spend it, buy a voucher, cash out to a bank or UPI, or use the virtual card.",
+    chain: "Your Safe withdraws only the yield from Aave. The contract refuses to give back more than the balance.",
+    see: "Spendable yield, principal unchanged, and a transaction link for every step.",
   },
   {
     icon: <Repeat />,
-    title: "Repay with yield",
-    you: "Tap “Repay using accrued yield” whenever you like.",
-    chain: "Accrued yield is applied to your debt. Principal is untouched.",
-    see: "Debt goes down, available limit goes up, health improves.",
+    title: "Yield refills",
+    you: "Nothing. Come back whenever you want to spend again.",
+    chain: "Aave keeps accruing yield on your principal every second.",
+    see: "Your spendable yield ticking up again.",
   },
 ];
 
@@ -68,7 +68,7 @@ const HOLDS = [
   ["You", "Your wallet keys and the decision to sign every transaction."],
   ["Your Safe", "Your principal and your Aave position, controlled by you."],
   ["Aave v3", "The rules: yield rates, prices and withdrawals. Set by the Aave protocol, not by us."],
-  ["OrventYield", "Nothing. We are only the interface, with no funds, keys, servers or database."],
+  ["OrventYield", "Nothing of yours. We are only the interface: no funds, no keys. A small verification service checks a phone number once so one person gets one card."],
 ];
 
 const CONTRACTS = [
@@ -76,7 +76,6 @@ const CONTRACTS = [
   ["Aave Pool", "Where your USDC is supplied to earn yield."],
   ["aUSDC", "A receipt token whose balance grows as yield accrues."],
   ["USDC", "The stablecoin you deposit and earn on."],
-  ["PriceProvider", "Oracle prices used to value collateral and compute safety."],
 ];
 
 export default function HowItWorksPage() {

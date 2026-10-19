@@ -16,11 +16,11 @@ const FAQ = [
   },
   {
     q: "Do I need KYC?",
-    a: "OrventYield does not collect KYC or run accounts. Third-party services you may use through it, like card issuers, voucher stores or off-ramps, can have their own requirements.",
+    a: "OrventYield never sees your ID documents. We check your phone number once, so one person gets one card, and store only a salted hash of it. The card issuer runs the identity check for the card, and voucher or cashout providers can have their own requirements.",
   },
   {
     q: "What are the risks?",
-    a: "Borrowing against collateral can lead to liquidation if prices fall, and smart contracts always carry risk. The health gauge helps you stay safe, but nothing here is financial advice.",
+    a: "Yield is variable and not guaranteed, and a bug or exploit in Safe, Aave or the USDC stablecoin could cause loss of funds. Nothing here is financial advice.",
   },
   {
     q: "Which chains and assets?",
@@ -28,7 +28,7 @@ const FAQ = [
   },
   {
     q: "When can I use it?",
-    a: "Early access is opening soon. Use the Get early access button to be first in line.",
+    a: "OrventYield is in testing on Arbitrum One. Try the Playground now; the live account opens as the card and spending rails go through production approval.",
   },
 ];
 
