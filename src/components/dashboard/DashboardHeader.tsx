@@ -8,7 +8,7 @@ import { useAccount, useBalance, useChainId, useDisconnect, useReadContract } fr
 import { Logo } from "@/components/ui/Icons";
 import { useAppMode, type AppMode } from "@/features/mode/AppModeProvider";
 import { erc20Abi } from "@/lib/contracts/abis";
-import { verifiedAddress } from "@/lib/contracts/etherfi";
+import { ARBITRUM } from "@/lib/contracts/arbitrum";
 import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 
 /** Real ETH/USDC balances of the connected wallet when pointed at the local Anvil fork. */
@@ -16,17 +16,17 @@ function ForkWalletBadge() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const active = LOCAL_FORK_ENABLED && isConnected && chainId === LOCAL_FORK_CHAIN_ID;
-  // The fork mirrors Arbitrum One, so token addresses come from the Arbitrum registry entry.
-  const usdc = verifiedAddress(42161, "USDC");
+  // The fork mirrors Arbitrum One, so token addresses are the Arbitrum ones.
+  const usdc = ARBITRUM.usdc;
 
   const eth = useBalance({ address, chainId: LOCAL_FORK_CHAIN_ID, query: { enabled: active, refetchInterval: 5000 } });
   const usdcBal = useReadContract({
-    address: usdc ?? undefined,
+    address: usdc,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     chainId: LOCAL_FORK_CHAIN_ID,
-    query: { enabled: active && !!usdc && !!address, refetchInterval: 5000 },
+    query: { enabled: active && !!address, refetchInterval: 5000 },
   });
 
   if (!active) return null;
@@ -188,7 +188,7 @@ export function DashboardHeader({ onResetDemo }: { onResetDemo?: () => void }) {
           {mode === "mainnet" && (
             <span data-testid="network-pill" className="hidden items-center gap-2 rounded-lg border border-white/5 bg-surface-2 px-2.5 py-1.5 font-mono text-xs text-fg sm:flex">
               <span className="h-2 w-2 rounded-full bg-emerald" aria-hidden="true" />
-              Optimism
+              Arbitrum One
             </span>
           )}
           {mode === "playground" && onResetDemo && (

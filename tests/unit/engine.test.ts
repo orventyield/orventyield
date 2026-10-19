@@ -182,8 +182,8 @@ describe("authorizeCardSpend", () => {
   });
 });
 
-describe("Ether.fi risk model: LTV sets the borrow limit, liquidation threshold sets the health factor", () => {
-  // weETH on Ether.fi Cash: LTV 55%, liquidation threshold 75%.
+describe("Collateral risk model: LTV sets the borrow limit, liquidation threshold sets the health factor", () => {
+  // weETH: LTV 55%, liquidation threshold 75%.
   const weeth = (over: Partial<AccountState> = {}) => base({ maxLtv: 0.55, liqThreshold: 0.75, ...over });
 
   it("borrow limit uses LTV: 1000 of weETH can borrow 550, not 750", () => {
@@ -200,7 +200,7 @@ describe("Ether.fi risk model: LTV sets the borrow limit, liquidation threshold 
     if (d.ok) expect(d.healthAfter).toBeCloseTo(750 / 550, 10);
   });
 
-  // USDC on Ether.fi Cash: LTV 90%, liquidation threshold 95%. Here the 1.20x floor binds before the LTV cap.
+  // USDC: LTV 90%, liquidation threshold 95%. Here the 1.20x floor binds before the LTV cap.
   const usdc = (over: Partial<AccountState> = {}) => base({ maxLtv: 0.9, liqThreshold: 0.95, ...over });
 
   it("for stable collateral the 1.20x floor binds before the LTV cap", () => {

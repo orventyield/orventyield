@@ -1,8 +1,7 @@
 /**
- * Multi-asset collateral helpers. Risk parameters mirror Ether.fi Cash's DebtManager on Optimism
- * (src/lib/contracts/etherfi.ts): each asset has an LTV (borrow limit) and a liquidation threshold (health factor).
- * The account uses value-weighted ("blended") values. Prices and APYs are SANDBOX assumptions
- * (prices snapshotted from the Ether.fi PriceProvider on 2026-10-19; APYs are illustrative).
+ * Multi-asset collateral helpers: each asset has an LTV (borrow limit) and a liquidation threshold (health factor).
+ * The account uses value-weighted ("blended") values. Risk parameters, prices and APYs are SANDBOX assumptions for the
+ * Playground (illustrative; the live Aave numbers will be read on-chain).
  */
 import { MIN_HEALTH_FACTOR, healthFactor, r6 } from "./engine";
 
@@ -20,7 +19,7 @@ export interface AssetInfo {
 }
 
 export const ASSETS: Record<AssetSymbol, AssetInfo> = {
-  weETH: { symbol: "weETH", name: "Ether.fi weETH", priceUsd: 2681.15, apyPercent: 3.1, maxLtv: 0.55, liqThreshold: 0.75 },
+  weETH: { symbol: "weETH", name: "Wrapped eETH", priceUsd: 2681.15, apyPercent: 3.1, maxLtv: 0.55, liqThreshold: 0.75 },
   USDC: { symbol: "USDC", name: "USD Coin", priceUsd: 1, apyPercent: 4.0, maxLtv: 0.9, liqThreshold: 0.95 },
   WETH: { symbol: "WETH", name: "Wrapped Ether", priceUsd: 2428.27, apyPercent: 0, maxLtv: 0.55, liqThreshold: 0.75 },
 };
@@ -61,7 +60,7 @@ export interface WithdrawCheck {
 }
 
 /**
- * Can `amount` of `symbol` be withdrawn? Like Ether.fi, the remaining position must still cover the debt at the
+ * Can `amount` of `symbol` be withdrawn? Like a lending market, the remaining position must still cover the debt at the
  * LTV borrow limit, and this sandbox additionally keeps HF >= 1.20x.
  */
 export function checkWithdraw(

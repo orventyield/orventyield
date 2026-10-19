@@ -5,7 +5,7 @@
  * Nothing here touches the chain: it models the rules a card rail would enforce so they can be
  * unit-tested. Amounts are USD, rounded to 6 decimals to avoid float drift.
  *
- * Risk model mirrors Ether.fi Cash (DebtManager): the borrow limit uses each asset's LTV, the health factor
+ * Risk model: the borrow limit uses each asset's LTV, the health factor
  * uses its liquidation threshold (HF = collateral x liqThreshold / debt).
  *
  * Funding waterfall for a card spend (first match wins, each leg is capped):

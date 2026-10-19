@@ -69,7 +69,7 @@ describe("portfolio", () => {
   const W = ASSETS.weETH;
   const U = ASSETS.USDC;
 
-  it("uses Ether.fi's real risk parameters", () => {
+  it("uses the documented risk parameters", () => {
     expect([W.maxLtv, W.liqThreshold]).toEqual([0.55, 0.75]);
     expect([U.maxLtv, U.liqThreshold]).toEqual([0.9, 0.95]);
     expect(ASSETS.WETH.maxLtv).toBe(0.55);

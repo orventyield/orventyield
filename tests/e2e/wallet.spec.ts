@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import jsQR from "jsqr";
 
@@ -5,7 +6,7 @@ const ACCOUNT = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const WC_URI =
   "wc:7f6e504bfad60b485450578e05678ed3e8e8c4751d3c6160be17160d63ec90f9@2?relay-protocol=irn&symKey=587d5484ce2a2a6ee3ba1962fdd7e8588e06200c46823bd18fbd67def96ad303";
 
-/** A minimal EIP-6963 wallet on Optimism that approves connections and answers nothing else. */
+/** A minimal EIP-6963 wallet on Arbitrum One that approves connections and answers nothing else. */
 async function installMockWallet(page: Page) {
   await page.addInitScript((account) => {
     const info = {
@@ -23,7 +24,7 @@ async function installMockWallet(page: Page) {
           return [account];
         }
         if (method === "eth_accounts") return authorized ? [account] : [];
-        if (method === "eth_chainId") return "0xa";
+        if (method === "eth_chainId") return "0xa4b1";
         if (method === "wallet_switchEthereumChain") return null;
         throw Object.assign(new Error("unsupported by mock"), { code: 4200 });
       },
@@ -87,8 +88,14 @@ test.describe("wallet modal", () => {
 
   test("WalletConnect (QR) is offered only when a project id is configured", async ({ page }) => {
     await page.getByTestId("connect-wallet").click();
-    // The test environment has no NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID, so the row must be hidden, not broken.
-    await expect(page.getByTestId("wallet-option-walletconnect")).toHaveCount(process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ? 1 : 0);
+    // The dev server reads .env.local, so the test must too: row shown with an id, hidden (not broken) without one.
+    let id = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+    try {
+      id ||= /^NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=(.+)$/m.exec(readFileSync(".env.local", "utf8"))?.[1]?.trim() ?? "";
+    } catch {
+      /* no .env.local */
+    }
+    await expect(page.getByTestId("wallet-option-walletconnect")).toHaveCount(id ? 1 : 0);
   });
 
   test("the QR pane renders a scannable code for the pairing URI, with working deep links and copy", async ({ page, context }) => {
@@ -159,9 +166,9 @@ test.describe("wallet modal", () => {
     await expect(page.getByTestId("account-button")).toContainText("0xf39F…2266");
     await expect(page.getByTestId("wallet-modal")).toHaveCount(0);
     await expect(page.getByTestId("mode-mainnet")).toHaveAttribute("aria-checked", "true");
-    // Mainnet now finds the account itself: no address to paste.
-    await expect(page.getByTestId("link-safe")).toHaveCount(0);
-    await expect(page.getByTestId("finding-account").or(page.getByTestId("no-account"))).toBeVisible({ timeout: 60_000 });
+    // Mainnet shows the connected wallet itself: no address to paste, nothing sends the user elsewhere.
+    await expect(page.getByTestId("mainnet-connected")).toBeVisible();
+    await expect(page.getByTestId("network-pill")).toContainText("Arbitrum One");
 
     await page.getByTestId("account-button").click();
     await page.getByTestId("disconnect").click();

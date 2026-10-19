@@ -20,7 +20,8 @@ export default defineConfig({
   webServer: [
     {
       // Empty value beats .env.local so e2e never talks to the live verify Worker (real SMS, 429s).
-      command: `NEXT_PUBLIC_VERIFY_API_URL= npm run dev -- -p ${PORT}`,
+      // Own dist dir so a bundle compiled with the live Worker URL (the normal dev cache) is never reused.
+      command: `NEXT_DIST_DIR=.next-e2e NEXT_PUBLIC_VERIFY_API_URL= npm run dev -- -p ${PORT}`,
       url: `${BASE}/dashboard`,
       reuseExistingServer: true,
       timeout: 120_000,

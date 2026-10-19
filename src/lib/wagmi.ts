@@ -1,6 +1,6 @@
 import { defineChain, type Chain } from "viem";
 import { http, createConfig, type Transport } from "wagmi";
-import { arbitrum, base, optimism, scroll } from "wagmi/chains";
+import { arbitrum } from "wagmi/chains";
 // Subpath imports avoid the connectors barrel, which pulls in optional SDKs we do not use.
 import { coinbaseWallet } from "wagmi/connectors/coinbaseWallet";
 import { injected } from "wagmi/connectors/injected";
@@ -20,8 +20,8 @@ export const LOCAL_FORK_ENABLED: boolean = FORK;
 /** Anvil's default chain id. */
 export const LOCAL_FORK_CHAIN_ID = 31337;
 
-/** Ether.fi Cash runs on Optimism; Arbitrum/Base/Scroll are only used for top-ups and legacy accounts. */
-export const CASH_CHAIN_ID = optimism.id;
+/** The chain OrventYield runs on: Safe v1.4.1 + Aave v3 on Arbitrum One. */
+export const APP_CHAIN_ID = arbitrum.id;
 
 /** Free project id from https://cloud.reown.com. Without it the WalletConnect (QR) option is hidden. */
 export const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
@@ -35,13 +35,10 @@ const forkChain: Chain | null = FORK
     })
   : null;
 
-const publicChains = [optimism, arbitrum, base, scroll] as const;
+const publicChains = [arbitrum] as const;
 
 const transports: Record<number, Transport> = {
-  [optimism.id]: http(process.env.NEXT_PUBLIC_RPC_OPTIMISM || undefined),
   [arbitrum.id]: http(process.env.NEXT_PUBLIC_RPC_ARBITRUM || undefined),
-  [base.id]: http(process.env.NEXT_PUBLIC_RPC_BASE || undefined),
-  [scroll.id]: http(process.env.NEXT_PUBLIC_RPC_SCROLL || undefined),
 };
 if (forkChain) transports[forkChain.id] = http();
 
@@ -72,9 +69,6 @@ export const wagmiConfig = createConfig({
 });
 
 export const CHAIN_OPTIONS = [
-  { id: optimism.id as number, label: "Optimism" },
   { id: arbitrum.id as number, label: "Arbitrum One" },
-  { id: base.id as number, label: "Base" },
-  { id: scroll.id as number, label: "Scroll" },
   ...(FORK ? [{ id: LOCAL_FORK_CHAIN_ID, label: "Local Anvil fork" }] : []),
 ];

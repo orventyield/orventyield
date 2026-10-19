@@ -54,7 +54,6 @@ test.describe("playground dashboard", () => {
     await expect(page.getByTestId("mode-mainnet")).toHaveAttribute("aria-checked", "false");
     await expect(page.getByTestId("sandbox-banner")).toHaveCount(0);
     await expect(page.getByText("Nothing here moves real funds")).toHaveCount(0);
-    await expect(page.getByText("Ether.fi Verified")).toHaveCount(0);
     await expect(page.getByTestId("connect-wallet")).toBeEnabled();
   });
 
@@ -246,17 +245,6 @@ test.describe("playground dashboard", () => {
     await deposit(page, "USDC", "1000");
     const after = await money(page, "limit-value");
     expect(after - before).toBeCloseTo(900, 0); // 1000 USDC at 90% LTV, not "1000 weETH"
-  });
-
-  test("contract status lists the verified Ether.fi deployment topology", async ({ page }) => {
-    await page.getByTestId("contract-status").locator("summary").click();
-    const panel = page.getByTestId("contract-status");
-    await expect(panel).toContainText("Optimism");
-    await expect(panel).toContainText("Live Cash deployment");
-    await expect(panel).toContainText("Top-up source chain");
-    await expect(panel).toContainText("CashModule");
-    await expect(panel).toContainText("0x7Ca0b75E67E33c0014325B739A8d019C4FE445F0");
-    await expect(panel).toContainText("verified");
   });
 
   test("mobile layout has no horizontal scroll on any tab", async ({ page }) => {

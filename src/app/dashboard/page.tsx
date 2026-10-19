@@ -1,6 +1,5 @@
 "use client";
 
-import { ContractStatus } from "@/components/dashboard/ContractStatus";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MainnetDashboard } from "@/components/dashboard/MainnetDashboard";
 import { PlaygroundDashboard } from "@/components/dashboard/PlaygroundDashboard";
@@ -59,7 +58,6 @@ export default function DashboardPage() {
 
       <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6">
         {mode === "playground" ? <PlaygroundDashboard vault={vault} /> : <MainnetDashboard />}
-        <ContractStatus />
       </main>
     </div>
   );

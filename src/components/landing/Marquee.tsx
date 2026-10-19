@@ -1,9 +1,7 @@
 const ITEMS = [
   "Aave v3",
-  "weETH",
+  "Safe",
   "Arbitrum",
-  "Base",
-  "Scroll",
   "USDC",
   "MetaMask",
   "Rainbow",

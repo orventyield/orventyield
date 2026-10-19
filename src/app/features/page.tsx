@@ -70,7 +70,7 @@ const NOT_V1 = [
   "Any backend, database or user accounts",
   "Custody of funds, or KYC collected by us",
   "A native mobile app",
-  "Chains beyond Arbitrum, Base and Scroll",
+  "Chains beyond Arbitrum One",
 ];
 
 export default function FeaturesPage() {

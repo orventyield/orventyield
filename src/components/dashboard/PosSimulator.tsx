@@ -4,8 +4,6 @@ import { useState } from "react";
 import type { Receipt, SpendResult } from "@/features/vault/useVaultState";
 import { shortHash, type CardDetails } from "@/utils/card";
 
-export type PosVariant = "playground" | "mainnet";
-
 interface PosSimulatorProps {
   card: CardDetails;
   isCardFrozen: boolean;
@@ -13,8 +11,6 @@ interface PosSimulatorProps {
   microBuffer: number;
   accruedYieldUsd: number;
   onSpendCard: (amountUsd: number, merchant: string) => SpendResult | Promise<SpendResult>;
-  /** "mainnet" asks the live Ether.fi contracts instead of the local simulator. */
-  variant?: PosVariant;
   /** Overrides the balance rows under the merchant list. */
   summary?: { k: string; v: number }[];
 }
@@ -44,10 +40,8 @@ export function PosSimulator({
   microBuffer,
   accruedYieldUsd,
   onSpendCard,
-  variant = "playground",
   summary,
 }: PosSimulatorProps) {
-  const live = variant === "mainnet";
   const [selectedMerchant, setSelectedMerchant] = useState<string>(PRESET_MERCHANTS[0]!.name);
   const [amountInput, setAmountInput] = useState<string>(PRESET_MERCHANTS[0]!.amount.toString());
   const [customMerchant, setCustomMerchant] = useState("");
@@ -79,7 +73,6 @@ export function PosSimulator({
     }
     const t0 = performance.now();
     setChecking(true);
-    if (live) setTerminal({ text: "CHECKING WITH ETHER.FI…", tone: "idle" });
     const result = await onSpendCard(amount, merchantName);
     setChecking(false);
     setLatencyMs(result.latencyMs ?? performance.now() - t0);
@@ -103,14 +96,10 @@ export function PosSimulator({
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           POS Merchant Terminal
           <span className="text-xs px-2 py-0.5 rounded bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            {live ? "live check" : "playground"}
+            playground
           </span>
         </h3>
-        <p className="text-xs text-muted mt-0.5">
-          {live
-            ? "Asks Ether.fi's CashLens contract whether this swipe would be authorized for your Safe. Nothing is sent."
-            : "Simulates a contactless swipe against your yield, micro-buffer and credit line."}
-        </p>
+        <p className="text-xs text-muted mt-0.5">Simulates a contactless swipe against your yield, micro-buffer and credit line.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -205,7 +194,7 @@ export function PosSimulator({
         <div className="lg:col-span-6 flex flex-col justify-between bg-[#050608] border border-white/10 rounded-2xl p-4 shadow-inner">
           <div className="bg-[#0b100d] border border-emerald/20 rounded-xl p-3 font-mono text-xs space-y-1.5">
             <div className="flex justify-between border-b border-emerald/20 pb-1 text-[11px] text-emerald/80">
-              <span>{live ? "ORVENT-POS (LIVE)" : "ORVENT-POS"}</span>
+              <span>ORVENT-POS</span>
               <span>{card.network === "visa" ? "VISA" : "MASTERCARD"}</span>
             </div>
             <div className="text-center py-2">
@@ -241,7 +230,7 @@ export function PosSimulator({
             <div className="flex justify-between text-[11px] font-mono text-muted/70 px-1">
               <span data-testid="pos-latency">
                 {latencyMs === null ? "Auth latency: n/a" : `Auth latency: ${latencyMs.toFixed(1)} ms`}
-                {latencyMs !== null && !live && (
+                {latencyMs !== null && (
                   <span className={within ? " text-emerald" : " text-danger"}>
                     {" "}
                     ({within ? "<" : "≥"} {LATENCY_BUDGET_MS} ms)
@@ -250,7 +239,7 @@ export function PosSimulator({
               </span>
               <span>Fee: $0.00</span>
             </div>
-            <p className="px-1 text-[10px] text-muted/50">{live ? "Includes a round trip to a public Optimism RPC." : "Local decision time."}</p>
+            <p className="px-1 text-[10px] text-muted/50">Local decision time.</p>
           </div>
 
           {receipt && (
@@ -273,7 +262,7 @@ export function PosSimulator({
               )}
               <Row
                 k="Verified by"
-                v={receipt.source === "on-chain" ? "Ether.fi CashLens" : receipt.source === "engine-fallback" ? "OrventYield engine" : "Playground engine"}
+                v={receipt.source === "engine-fallback" ? "OrventYield engine" : "Playground engine"}
                 testId="receipt-source"
               />
               {receipt.txHash ? (
@@ -283,7 +272,7 @@ export function PosSimulator({
                 </div>
               ) : null}
               <div className="pt-1 text-[10px] text-muted/70 border-t border-white/5">
-                {receipt.source === "sandbox" ? "Playground: no on-chain transaction was sent." : "Live preview: nothing was sent from your Safe."}
+                Playground: no on-chain transaction was sent.
               </div>
             </div>
           )}

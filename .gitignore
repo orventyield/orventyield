@@ -38,7 +38,3 @@ npm-debug.log*
 worker/.dev.vars
 .wrangler/
 .next-dev-api
-
-# generated Safe index and its cache
-public/safe-index/
-.cache/
