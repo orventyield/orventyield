@@ -17,12 +17,12 @@
     {
       "binding": "DB",
       "database_name": "orventyield-verify",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "d1af791f-eea0-40fc-9249-1d12caabb088",
       "migrations_dir": "migrations"
     }
   ],
   "vars": {
     "OTP_PROVIDER": "twilio",
-    "ALLOWED_ORIGINS": "https://orventyield.tech,https://www.orventyield.tech"
+    "ALLOWED_ORIGINS": "https://orventyield.tech,https://www.orventyield.tech,http://localhost:3000"
   }
 }
