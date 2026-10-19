@@ -42,16 +42,18 @@ export interface Transaction {
   merchant?: string;
   amountUsd: number;
   timestamp: number;
-  /** Simulated 32-byte hash (not on-chain). */
+  /** Simulated 32-byte hash in the Playground; the real transaction hash on Mainnet (empty when unknown). */
   txHash: string;
-  simulated: true;
+  simulated: boolean;
+  /** Block explorer link for a real transaction. */
+  explorerUrl?: string;
   status: "confirmed" | "pending";
   voucherCode?: string;
   rail?: string;
   funding?: Funding;
 }
 
-export type VerdictSource = "sandbox" | "on-chain" | "engine-fallback";
+export type VerdictSource = "sandbox" | "on-chain" | "engine-fallback" | "mainnet-preview";
 
 export interface Receipt {
   authCode: string;

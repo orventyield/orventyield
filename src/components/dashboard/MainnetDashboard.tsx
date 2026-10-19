@@ -1,19 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
-import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
+import { useMemo, useState } from "react";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { BankCashout } from "@/components/dashboard/BankCashout";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
-import { useAppMode } from "@/features/mode/AppModeProvider";
-import { fmtUsdc, fmtUsdc4 } from "@/lib/aave/format";
-import { maxPrincipalWithdrawal, maxYieldWithdrawal } from "@/lib/aave/position";
+import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
+import { MainnetVaultOverview, type VaultModal } from "@/components/dashboard/mainnet/MainnetVaultOverview";
+import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
+import { PosSimulator } from "@/components/dashboard/PosSimulator";
 import { useSafeAccount } from "@/features/account/useSafeAccount";
+import { useCardSuite } from "@/features/card/useCardSuite";
+import { buildLedger } from "@/features/ledger/mainnetLedger";
+import { useAppMode } from "@/features/mode/AppModeProvider";
+import type { SpendResult } from "@/features/vault/useVaultState";
+import { useVoucherShop } from "@/features/vouchers/useVoucherShop";
+import { maxPrincipalWithdrawal, maxYieldWithdrawal } from "@/lib/aave/position";
+import { formatExpiry } from "@/lib/immersve/stage";
+import { authCode, type CardDetails } from "@/utils/card";
 
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const EXPLORER = "https://arbiscan.io";
 
-type Tab = "vault" | "card" | "vouchers" | "cashout";
-type Modal = "deposit" | "yield" | "principal" | null;
+// Same five tabs, in the same order, as the Playground.
+type Tab = "overview" | "pos" | "vouchers" | "cashout" | "activity";
+type Modal = VaultModal;
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`relative overflow-hidden rounded-2xl border border-white/5 bg-surface p-5 transition-all hover:border-white/10 ${className}`}>{children}</div>;
@@ -57,105 +66,19 @@ function Skeleton() {
   );
 }
 
-function Notice({ tone, children, testId }: { tone: "warn" | "danger"; children: React.ReactNode; testId?: string }) {
-  const c = tone === "danger" ? "border-danger/30 bg-danger/10 text-danger" : "border-amber/30 bg-amber/10 text-amber";
-  return (
-    <div role="alert" data-testid={testId} className={`rounded-xl border p-3 text-sm ${c}`}>
-      {children}
-    </div>
-  );
-}
-
-function Locked({ title, body }: { title: string; body: string }) {
-  return (
-    <Card className="mx-auto max-w-2xl text-center">
-      <div data-testid="tab-locked" className="space-y-2 py-6">
-        <span className="rounded-full border border-white/10 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-muted">Soon</span>
-        <h3 className="pt-2 text-lg font-bold text-fg">{title}</h3>
-        <p className="mx-auto max-w-md text-sm text-muted">{body}</p>
-      </div>
-    </Card>
-  );
-}
-
-function Vault({ a, open }: { a: ReturnType<typeof useSafeAccount>; open: (m: Modal) => void }) {
-  const snap = a.snapshot;
-  const principal = snap?.principal ?? 0n;
-  const hasPosition = (snap?.aBalance ?? 0n) > 0n;
-  const explorer = a.onFork ? undefined : EXPLORER;
-  const gasLow = a.walletEth === 0n;
-
-  return (
-    <div className="space-y-4">
-      {gasLow && (
-        <Notice tone="warn" testId="no-gas">
-          Your wallet has no ETH on Arbitrum One for network gas. Add a little ETH before depositing.
-        </Notice>
-      )}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-muted">Principal · locked</span>
-            <span className="rounded-full border border-cyan/20 bg-cyan/10 px-2 py-0.5 font-mono text-[11px] text-cyan">Aave v3</span>
-          </div>
-          <p data-testid="principal-value" className="mb-1 text-3xl font-extrabold tracking-tight text-fg tabular">${fmtUsdc(principal)}</p>
-          <p className="mb-4 font-mono text-xs text-muted">USDC supplied from your Safe. Only you can move it.</p>
-          <div className="flex gap-2">
-            <button type="button" data-testid="open-deposit" onClick={() => open("deposit")} className="min-h-11 flex-1 rounded-xl bg-cyan text-xs font-semibold text-bg shadow-sm shadow-cyan/30 hover:brightness-110">
-              + Deposit
-            </button>
-            <button type="button" data-testid="open-principal" disabled={principal <= 0n} onClick={() => open("principal")} className="min-h-11 flex-1 rounded-xl border border-white/10 bg-surface-2 text-xs font-semibold text-fg hover:bg-white/5 disabled:opacity-40">
-              Withdraw
-            </button>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-muted">Live yield</span>
-            <span className="flex items-center gap-1.5 font-mono text-xs text-emerald">
-              <span className={`h-2 w-2 rounded-full bg-emerald ${hasPosition ? "animate-pulse" : "opacity-40"}`} />
-              {hasPosition ? "Accruing" : "Waiting for a deposit"}
-            </span>
-          </div>
-          <p data-testid="yield-value" className="mb-1 text-3xl font-extrabold tracking-tight text-emerald tabular">${fmtUsdc4(a.tickingYield)}</p>
-          <p className="mb-4 font-mono text-xs text-muted" data-testid="apy-value">
-            {a.apy === null ? "APY shows after your first deposit" : `Aave pays ${(a.apy * 100).toFixed(2)}% APY right now (variable)`}
-          </p>
-          <button type="button" data-testid="open-yield" disabled={!snap || maxYieldWithdrawal(snap) <= 0n} onClick={() => open("yield")} className="min-h-11 w-full rounded-xl border border-emerald/30 bg-emerald/10 text-xs font-semibold text-emerald hover:bg-emerald/20 disabled:opacity-40">
-            Spend / withdraw yield
-          </button>
-        </Card>
-
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-muted">Your Safe</span>
-            <span data-testid="safe-status" className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${a.deployed ? "border-emerald/20 bg-emerald/10 text-emerald" : "border-white/10 text-muted"}`}>
-              {a.deployed ? "Active" : "Created on first deposit"}
-            </span>
-          </div>
-          <p data-testid="safe-address" className="mb-1 break-all font-mono text-sm text-fg">{a.safe ?? "…"}</p>
-          {a.safe && explorer && (
-            <a className="font-mono text-xs text-cyan hover:underline" href={`${explorer}/address/${a.safe}`} target="_blank" rel="noopener noreferrer">
-              View on Arbiscan ↗
-            </a>
-          )}
-          <dl className="mt-4 space-y-1 font-mono text-xs text-muted">
-            <div className="flex justify-between"><dt>Wallet USDC</dt><dd data-testid="wallet-usdc" className="text-fg">{fmtUsdc(a.walletUsdc)}</dd></div>
-            <div className="flex justify-between"><dt>Owner</dt><dd className="text-fg">{a.owner ? short(a.owner) : "…"}</dd></div>
-          </dl>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
 export function MainnetDashboard() {
   const a = useSafeAccount();
-  const [tab, setTab] = useState<Tab>("vault");
+  const [tab, setTab] = useState<Tab>("overview");
   const [modal, setModal] = useState<Modal>(null);
   const [toWallet, setToWallet] = useState(true);
   const explorer = a.onFork ? undefined : EXPLORER;
+  const snap = a.snapshot;
+  const yieldMax = snap ? maxYieldWithdrawal(snap) : 0n;
+
+  // One card flow and one voucher shop for the whole dashboard, so state survives tab switches.
+  const suite = useCardSuite(snap?.yieldAvailable ?? 0n);
+  const shop = useVoucherShop({ owner: a.owner, safe: a.safe, maxYield: yieldMax, pay: a.payFromYield, enabled: tab === "vouchers" });
+  const ledger = useMemo(() => (a.safe ? buildLedger(snap?.events ?? [], a.safe, shop.history, explorer) : []), [a.safe, snap?.events, shop.history, explorer]);
 
   const close = () => {
     if (a.busy) return;
@@ -165,6 +88,33 @@ export function MainnetDashboard() {
   const openModal = (m: Modal) => {
     a.clearMessages();
     setModal(m);
+  };
+
+  // The POS terminal tests a swipe against the yield the user has REALLY earned. It never charges anything.
+  const active = suite.stage.stage === "active" ? suite.stage.card : null;
+  const posCard: CardDetails | null = active
+    ? { pan: `${active.panFirst6}••••••${active.panLast4}`, cvv: "", expiry: formatExpiry(active.expiry), network: "mastercard" }
+    : null;
+  const allowanceUsd = suite.allowanceCents / 100;
+  const previewSpend = (amountUsd: number, merchant: string): SpendResult => {
+    if (!active) return { success: false, error: "CARD NOT ACTIVE" };
+    if (active.isBlocked) return { success: false, error: "CARD BLOCKED" };
+    if (amountUsd > allowanceUsd + 1e-9) return { success: false, error: "EXCEEDS EARNED YIELD" };
+    const now = new Date();
+    return {
+      success: true,
+      source: "mainnet-preview",
+      receipt: {
+        authCode: authCode(`${active.id}:${merchant}:${amountUsd}:${now.getTime()}`),
+        timestampIso: now.toISOString(),
+        merchant,
+        amountUsd,
+        healthAfter: Infinity,
+        txHash: null,
+        funding: { fromYield: amountUsd, fromAdvance: 0, fromCredit: 0 },
+        source: "mainnet-preview",
+      },
+    };
   };
 
   if (a.status === "disconnected") return <ConnectGate />;
@@ -194,41 +144,96 @@ export function MainnetDashboard() {
   }
   if (a.status === "loading") return <Skeleton />;
 
-  const snap = a.snapshot;
-  const yieldMax = snap ? maxYieldWithdrawal(snap) : 0n;
-
   return (
     <div className="space-y-6" data-testid="mainnet-dashboard">
+      {/* Navigation tabs: identical to the Playground */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-white/5 pb-2 font-mono text-xs">
         {([
-          ["vault", "Vault", "🏛️"],
-          ["card", "Card", "💳"],
-          ["vouchers", "Vouchers", "🎁"],
-          ["cashout", "Bank / UPI", "🏦"],
-        ] as const).map(([id, label, icon]) => (
+          ["overview", "Vault & Card", "🏛️", "tab-vault"],
+          ["pos", "POS Terminal Simulator", "💳", "tab-pos"],
+          ["vouchers", "Voucher Store", "🎁", "tab-vouchers"],
+          ["cashout", "1-Click Bank / UPI", "🏦", "tab-cashout"],
+          ["activity", `Ledger (${ledger.length})`, "📜", "tab-activity"],
+        ] as const).map(([id, label, icon, testId]) => (
           <button
             key={id}
             type="button"
-            data-testid={`tab-${id}`}
+            data-testid={testId}
             onClick={() => setTab(id)}
-            className={`flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-4 font-medium transition-all ${
+            className={`flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 font-medium transition-all ${
               tab === id ? "border border-cyan/40 bg-cyan/15 font-bold text-cyan shadow-sm shadow-cyan/20" : "border border-white/5 bg-surface text-muted hover:bg-surface-2 hover:text-fg"
             }`}
           >
             <span aria-hidden="true">{icon}</span>
-            {label}
+            <span>{label}</span>
           </button>
         ))}
       </div>
 
-      {/* Every panel stays mounted and is only hidden, so switching tabs never loses a card session, a pending
-          voucher payment or a delivery being waited for. */}
-      <div hidden={tab !== "vault"}><Vault a={a} open={openModal} /></div>
-      <div hidden={tab !== "card"}><CardPanel yieldBaseUnits={snap?.yieldAvailable ?? 0n} /></div>
-      <div hidden={tab !== "vouchers"}>
-        <VoucherPanel owner={a.owner} safe={a.safe} maxYield={yieldMax} tickingYield={a.tickingYield} pay={a.payFromYield} busy={a.busy} txError={a.error} steps={a.steps} explorer={explorer} active={tab === "vouchers"} />
+      {/* Card session, voucher purchase and ledger state live in hooks above, so switching tabs loses nothing. */}
+      {tab === "overview" && (
+      <div className="space-y-6">
+        <MainnetVaultOverview a={a} open={openModal} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-6"><CardPanel suite={suite} /></div>
+          <div className="lg:col-span-6">
+            {posCard ? (
+              <PosSimulator
+                card={posCard}
+                isCardFrozen={!!active?.isBlocked}
+                availableLimit={allowanceUsd}
+                microBuffer={0}
+                accruedYieldUsd={allowanceUsd}
+                onSpendCard={previewSpend}
+                summary={[{ k: "Earned yield you can spend", v: allowanceUsd }]}
+                live
+              />
+            ) : (
+              <div data-testid="pos-locked" className="h-full rounded-2xl border border-white/5 bg-surface p-5">
+                <h3 className="text-base font-bold text-fg">POS Merchant Terminal</h3>
+                <p className="mt-2 text-sm text-muted">Get your virtual card first. Then you can test a swipe at Uber, Starbucks or Amazon against the yield you have really earned.</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <ActivityFeed transactions={ledger.slice(0, 5)} live />
       </div>
-      {tab === "cashout" && <Locked title="Cash out yield to your bank" body="Move earned yield to a bank account or UPI through a regulated off-ramp. Only yield, never principal." />}
+      )}
+
+      {tab === "pos" && (
+      <div className="space-y-6">
+        {posCard ? (
+          <PosSimulator card={posCard} isCardFrozen={!!active?.isBlocked} availableLimit={allowanceUsd} microBuffer={0} accruedYieldUsd={allowanceUsd} onSpendCard={previewSpend} summary={[{ k: "Earned yield you can spend", v: allowanceUsd }]} live />
+        ) : (
+          <div className="rounded-2xl border border-white/5 bg-surface p-5 text-sm text-muted">Get your virtual card on the Vault &amp; Card tab to test spending here.</div>
+        )}
+        <ActivityFeed transactions={ledger.filter((t) => t.type === "card_spend")} live />
+      </div>
+      )}
+
+      {tab === "vouchers" && (
+      <div className="space-y-6">
+        <VoucherPanel shop={shop} maxYield={yieldMax} tickingYield={a.tickingYield} busy={a.busy} txError={a.error} steps={a.steps} explorer={explorer} />
+        <ActivityFeed transactions={ledger.filter((t) => t.type === "voucher_redeem")} live />
+      </div>
+      )}
+
+      {tab === "cashout" && (
+      <div className="space-y-6">
+        <BankCashout
+          accruedYieldUsd={Number(a.tickingYield) / 1_000_000}
+          availableLimit={0}
+          onCashout={() => ({ success: false, error: "Cashout is not available yet." })}
+          unavailable="Bank and UPI payouts need a regulated off-ramp partner, which isn't connected yet. Your earned yield stays safe in the meantime."
+        />
+      </div>
+      )}
+
+      {tab === "activity" && (
+      <div>
+        <ActivityFeed transactions={ledger} live />
+      </div>
+      )}
 
       <AmountDialog
         open={modal === "deposit"}
@@ -256,7 +261,7 @@ export function MainnetDashboard() {
         open={modal === "yield"}
         onClose={close}
         testId="yield-dialog"
-        title="Spend yield"
+        title="Withdraw yield"
         intro="Only the yield you have earned can leave. Your principal stays locked in Aave."
         max={yieldMax}
         maxLabel="Yield available"

@@ -12,11 +12,17 @@ interface BankCashoutProps {
     destination: string,
     allowCredit: boolean
   ) => { success: boolean; error?: string };
+  /**
+   * Mainnet: set to explain why payouts are not live yet. The form is shown (same experience) but disabled, and every
+   * credit-line option is hidden, because Mainnet only ever spends earned yield.
+   */
+  unavailable?: string;
 }
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
-export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: BankCashoutProps) {
+export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavailable }: BankCashoutProps) {
+  const live = unavailable !== undefined;
   const [rail, setRail] = useState<Rail>(RAILS[0]!);
   const [amountUsd, setAmountUsd] = useState("50");
   const [destination, setDestination] = useState("");
@@ -55,13 +61,19 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           1-Click Bank &amp; UPI Cashout
           <span className="text-xs px-2 py-0.5 rounded-full bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            playground
+            {live ? "coming soon" : "playground"}
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
-          Pay out accrued yield to a bank account without selling your collateral.
+          {live ? "Pay out earned yield to a bank account. Your principal is never touched." : "Pay out accrued yield to a bank account without selling your collateral."}
         </p>
       </div>
+
+      {live && (
+        <div role="status" data-testid="cashout-unavailable" className="rounded-xl border border-amber/30 bg-amber/10 p-3.5 text-xs text-amber">
+          {unavailable}
+        </div>
+      )}
 
       {success && (
         <div role="status" data-testid="cashout-success" className="bg-emerald/10 border border-emerald/30 text-emerald text-xs rounded-xl p-3.5">
@@ -75,6 +87,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
       )}
 
       <form onSubmit={submit} className="space-y-4" noValidate>
+        <fieldset disabled={live} className={live ? "space-y-4 opacity-60" : "space-y-4"}>
         <fieldset>
           <legend className="text-xs font-mono text-muted mb-1.5">Payout rail</legend>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -107,7 +120,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
           <div>
             <label htmlFor="cashout-amount" className="flex justify-between text-xs font-mono text-muted mb-1">
               <span>Amount (USD)</span>
-              <span>Yield {money(accruedYieldUsd)} · Credit {money(availableLimit)}</span>
+              <span>{live ? `Yield ${money(accruedYieldUsd)}` : `Yield ${money(accruedYieldUsd)} · Credit ${money(availableLimit)}`}</span>
             </label>
             <input
               id="cashout-amount"
@@ -148,7 +161,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
           </div>
         </div>
 
-        <label className="flex items-start gap-2 text-xs text-muted cursor-pointer">
+        {!live && <label className="flex items-start gap-2 text-xs text-muted cursor-pointer">
           <input
             type="checkbox"
             data-testid="allow-credit"
@@ -160,7 +173,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
             Allow a credit advance if my yield is not enough{" "}
             <span className="text-muted/60">(borrows against collateral; HF must stay ≥ 1.20x)</span>
           </span>
-        </label>
+        </label>}
 
         <div className="bg-[#090b10] border border-white/5 rounded-xl p-3 text-xs font-mono text-muted space-y-1">
           <div className="flex justify-between">
@@ -170,10 +183,12 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
             </span>
           </div>
           <div className="flex justify-between text-[11px]"><span>From accrued yield</span><span>{money(fromYield)}</span></div>
-          <div className="flex justify-between text-[11px]">
-            <span>From credit advance</span>
-            <span className={fromCredit > 0 && !allowCredit ? "text-danger" : ""}>{money(fromCredit)}</span>
-          </div>
+          {!live && (
+            <div className="flex justify-between text-[11px]">
+              <span>From credit advance</span>
+              <span className={fromCredit > 0 && !allowCredit ? "text-danger" : ""}>{money(fromCredit)}</span>
+            </div>
+          )}
         </div>
 
         <button
@@ -183,6 +198,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
         >
           Confirm cashout ({fiat.toLocaleString(undefined, { maximumFractionDigits: 2 })} {rail.currency})
         </button>
+        </fieldset>
       </form>
     </div>
   );

@@ -162,8 +162,35 @@ test.describe("mainnet card suite", () => {
     await rpc("evm_increaseTime", [30 * 24 * 3600]);
     await rpc("evm_mine");
 
+    // Parity with the Playground: the same five tabs in the same order, and the same cards in the same places
+    const tabs = ["tab-vault", "tab-pos", "tab-vouchers", "tab-cashout", "tab-activity"];
+    const want = ["Vault & Card", "POS Terminal Simulator", "Voucher Store", "1-Click Bank / UPI", "Ledger ("];
+    for (const [i, id] of tabs.entries()) await expect(page.getByTestId(id)).toContainText(want[i]!);
+    await expect(page.getByTestId("principal-value")).toBeVisible();
+    await expect(page.getByTestId("yield-value")).toBeVisible();
+    await expect(page.getByTestId("limit-value")).toBeVisible();
+    await expect(page.getByTestId("safety-value")).toHaveText("No debt"); // no borrowing, so no health factor to fake
+    await expect(page.getByText("Collateral Health Factor")).toHaveCount(0);
+    await expect(page.getByTestId("pos-locked")).toBeVisible(); // no card yet
+
+    // Ledger shows the real deposit, on-chain, with its transaction hash
+    await page.getByTestId("tab-activity").click();
+    await expect(page.getByTestId("ledger-row")).toHaveCount(1);
+    await expect(page.getByTestId("ledger-row").first()).toContainText("Deposited to Aave");
+    await expect(page.getByTestId("ledger-row").first()).toContainText("On-chain");
+    await expect(page.getByTestId("ledger-row").first()).toContainText(/Tx: 0x/);
+    await expect(page.getByTestId("ledger-row").first()).not.toContainText("Sim tx");
+
+    // Cashout is the same screen, honestly disabled, with no credit-line options
+    await page.getByTestId("tab-cashout").click();
+    await expect(page.getByTestId("cashout-unavailable")).toBeVisible();
+    await expect(page.getByTestId("cashout-submit")).toBeDisabled();
+    await expect(page.getByTestId("allow-credit")).toHaveCount(0);
+    await expect(page.getByText(/credit advance/i)).toHaveCount(0);
+    await page.getByTestId("tab-vault").click();
+
     // Step 1: phone first. Nothing of the issuer is touched before this is done.
-    await page.getByTestId("tab-card").click();
+    await page.getByTestId("tab-vault").click(); // the card lives on the Vault & Card tab
     await expect(page.getByTestId("card-step-phone")).toBeVisible();
     expect(issuer.logins).toBe(0);
     await verifyPhone(page);
@@ -188,6 +215,7 @@ test.describe("mainnet card suite", () => {
     await page.getByTestId("card-issue").click();
     await expect(page.getByTestId("card-active")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("virtual-card")).toBeVisible();
+    if (process.env.SHOT) await page.screenshot({ path: "/tmp/oy-main-overview.png", fullPage: true });
     await expect(page.getByRole("img", { name: "Mastercard" }).first()).toBeVisible();
     await expect(page.getByTestId("card-pan")).toHaveText("5288 54•• •••• 1179");
     await expect(page.getByTestId("card-cvv")).toHaveText("•••");
@@ -216,6 +244,22 @@ test.describe("mainnet card suite", () => {
     const allowance = Number(((await page.getByTestId("card-allowance").textContent()) ?? "").replace(/[^0-9.]/g, ""));
     expect(allowance).toBeLessThan(10); // far below the $1,000 principal
     expect(Math.max(...issuer.spendableAmounts)).toBeGreaterThanOrEqual(100); // never declares under $1.00
+
+    // POS terminal: the same terminal as the Playground, but it tests a swipe against REAL earned yield and charges nothing
+    await expect(page.getByTestId("pos-locked")).toHaveCount(0);
+    await page.getByTestId("tab-pos").click();
+    await page.getByTestId("preset-custom").click();
+    await page.getByTestId("custom-merchant").fill("Test Cafe");
+    await page.getByTestId("custom-amount").fill("1");
+    await page.getByTestId("pos-pay").click();
+    await expect(page.getByTestId("pos-terminal")).toContainText("APPROVED");
+    await expect(page.getByTestId("receipt-source")).toHaveText("Your live yield");
+    await expect(page.getByTestId("pos-receipt")).toContainText("Preview: nothing was charged");
+    await expect(page.getByTestId("receipt-hf")).toHaveCount(0); // no debt model on Mainnet
+    await page.getByTestId("custom-amount").fill("500");
+    await page.getByTestId("pos-pay").click();
+    await expect(page.getByTestId("pos-terminal")).toContainText("EXCEEDS EARNED YIELD");
+    if (process.env.SHOT) await page.screenshot({ path: "/tmp/oy-main-pos.png", fullPage: true });
     expect(errors).toEqual([]);
   });
 });

@@ -6,8 +6,10 @@ import { positionOf, type PoolEvent, type Position } from "./position";
 
 /** Public Arbitrum RPCs cap eth_getLogs at 10M blocks per call. */
 export const LOG_SPAN = 9_000_000n;
+/** How many of the newest pool events get a block timestamp for the ledger. */
+const LEDGER_EVENTS = 50;
 
-type Client = Pick<PublicClient, "readContract" | "getLogs" | "getBlockNumber">;
+type Client = Pick<PublicClient, "readContract" | "getLogs" | "getBlockNumber" | "getBlock">;
 
 /** Exact-amount approval for the Aave Pool (never unlimited). */
 export const approveData = (amount: bigint): Hex =>
@@ -64,12 +66,24 @@ export async function readPoolEvents(client: Client, safe: Address, fromBlock: b
   const withdrawals = await chunked(fromBlock, head, (a, b) =>
     client.getLogs({ address: ARBITRUM.aavePool, event: poolAbi[4], args: { reserve: ARBITRUM.usdc, user: safe }, fromBlock: a, toBlock: b }),
   );
-  return [
-    ...supplies.map((l) => ({ kind: "supply" as const, amount: l.args.amount!, counterparty: l.args.onBehalfOf!, block: l.blockNumber, idx: l.logIndex })),
-    ...withdrawals.map((l) => ({ kind: "withdraw" as const, amount: l.args.amount!, counterparty: l.args.to!, block: l.blockNumber, idx: l.logIndex })),
-  ]
-    .sort((x, y) => Number(x.block - y.block) || x.idx - y.idx)
-    .map(({ kind, amount, counterparty }) => ({ kind, amount, counterparty }));
+  const all = [
+    ...supplies.map((l) => ({ kind: "supply" as const, amount: l.args.amount!, counterparty: l.args.onBehalfOf!, block: l.blockNumber, idx: l.logIndex, txHash: l.transactionHash })),
+    ...withdrawals.map((l) => ({ kind: "withdraw" as const, amount: l.args.amount!, counterparty: l.args.to!, block: l.blockNumber, idx: l.logIndex, txHash: l.transactionHash })),
+  ].sort((x, y) => Number(x.block - y.block) || x.idx - y.idx);
+
+  // Block times for the most recent events only (the ledger shows recent activity); failures just leave the time unknown.
+  const recent = all.slice(-LEDGER_EVENTS);
+  const times = new Map<bigint, number>();
+  await Promise.all(
+    [...new Set(recent.map((e) => e.block))].map(async (b) => {
+      try {
+        times.set(b, Number((await client.getBlock({ blockNumber: b })).timestamp) * 1000);
+      } catch {
+        /* time unknown */
+      }
+    }),
+  );
+  return all.map(({ kind, amount, counterparty, block, txHash }) => ({ kind, amount, counterparty, txHash, timestamp: times.get(block) }));
 }
 
 export interface ReserveInfo {

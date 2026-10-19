@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { MastercardCard, MastercardMark } from "@/components/dashboard/mainnet/MastercardCard";
-import { useCardSuite } from "@/features/card/useCardSuite";
+import type { useCardSuite } from "@/features/card/useCardSuite";
 
 // Loaded on demand: it pulls in the phone-number metadata, which most visits never need.
 const ActivateCardDialog = dynamic(() => import("@/components/dashboard/ActivateCardDialog").then((m) => m.ActivateCardDialog), { ssr: false });
@@ -42,13 +42,12 @@ function Panel({ children, testId }: { children: React.ReactNode; testId: string
 const primary = "min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.25)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
 
 /** The unified card flow: phone OTP -> identity check -> virtual Mastercard -> single-use PAN/CVV reveal. */
-export function CardPanel({ yieldBaseUnits }: { yieldBaseUnits: bigint }) {
-  const s = useCardSuite(yieldBaseUnits);
+export function CardPanel({ suite: s }: { suite: ReturnType<typeof useCardSuite> }) {
   const [activating, setActivating] = useState(false);
   const st = s.stage;
 
   return (
-    <div className="mx-auto max-w-3xl rounded-2xl border border-white/5 bg-surface p-5 sm:p-6" data-testid="card-panel">
+    <div className="h-full rounded-2xl border border-white/5 bg-surface p-5" data-testid="card-panel">
       {activating && (
         <ActivateCardDialog
           open
@@ -121,7 +120,7 @@ export function CardPanel({ yieldBaseUnits }: { yieldBaseUnits: bigint }) {
       )}
 
       {st.stage === "active" && (
-        <div data-testid="card-active" className="grid gap-6 md:grid-cols-[minmax(0,24rem)_1fr]">
+        <div data-testid="card-active" className="grid gap-5">
           <MastercardCard card={st.card} secrets={s.secrets} blocked={!!st.card.isBlocked} />
           <div className="space-y-4">
             <div className="rounded-xl border border-emerald/20 bg-emerald/5 p-4">

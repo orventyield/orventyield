@@ -14,6 +14,10 @@ export interface PoolEvent {
   amount: bigint;
   /** Supply: onBehalfOf. Withdraw: `to`. Lower-case. */
   counterparty: string;
+  /** Where it happened, for the activity ledger. Absent in tests and when the RPC cannot say. */
+  txHash?: string;
+  /** Block time in milliseconds. */
+  timestamp?: number;
 }
 
 export interface Position {

@@ -6,9 +6,11 @@ import { shortHash } from "@/utils/card";
 
 interface ActivityFeedProps {
   transactions: Transaction[];
+  /** Real on-chain activity (Mainnet) instead of a simulated session. */
+  live?: boolean;
 }
 
-export function ActivityFeed({ transactions }: ActivityFeedProps) {
+export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) {
   const [filter, setFilter] = useState<"all" | "card_spend" | "voucher_redeem" | "deposit" | "withdraw" | "yield_repay" | "cashout">("all");
 
   const filtered = transactions.filter((t) => {
@@ -61,7 +63,7 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
             </span>
           </h3>
           <p className="text-xs text-muted mt-0.5">
-            Card swipes, vouchers, payouts and vault actions from this session.
+            {live ? "Deposits, yield withdrawals, vouchers and card activity from your Safe." : "Card swipes, vouchers, payouts and vault actions from this session."}
           </p>
         </div>
 
@@ -77,7 +79,9 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
               { id: "yield_repay", label: "Repayments" },
               { id: "cashout", label: "Cashouts" },
             ] as const
-          ).map((f) => (
+          )
+            .filter((f) => !live || (f.id !== "yield_repay" && f.id !== "cashout"))
+            .map((f) => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
@@ -118,9 +122,24 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
                     </span>
                   </div>
                   <div className="text-[11px] font-mono text-muted/70 flex items-center gap-3 mt-0.5">
-                    <span>{new Date(tx.timestamp).toLocaleString()}</span>
-                    <span>•</span>
-                    <span className="text-cyan/80" title={tx.txHash}>Sim tx: {shortHash(tx.txHash)}</span>
+                    <span>{tx.timestamp > 0 ? new Date(tx.timestamp).toLocaleString() : "Time unavailable"}</span>
+                    {tx.simulated ? (
+                      <>
+                        <span>•</span>
+                        <span className="text-cyan/80" title={tx.txHash}>Sim tx: {shortHash(tx.txHash)}</span>
+                      </>
+                    ) : tx.txHash ? (
+                      <>
+                        <span>•</span>
+                        {tx.explorerUrl ? (
+                          <a data-testid="ledger-tx-link" className="text-cyan hover:underline" href={tx.explorerUrl} target="_blank" rel="noopener noreferrer" title={tx.txHash}>
+                            Tx: {shortHash(tx.txHash)} ↗
+                          </a>
+                        ) : (
+                          <span className="text-cyan/80" title={tx.txHash}>Tx: {shortHash(tx.txHash)}</span>
+                        )}
+                      </>
+                    ) : null}
                     {tx.voucherCode && (
                       <>
                         <span>•</span>
@@ -137,7 +156,7 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
                   ${tx.amountUsd.toFixed(2)}
                 </span>
                 <span className="text-[10px] text-emerald font-mono flex items-center gap-1">
-                  Playground
+                  {tx.simulated ? "Playground" : "On-chain"}
                 </span>
               </div>
             </div>

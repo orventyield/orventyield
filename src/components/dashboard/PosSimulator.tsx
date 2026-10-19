@@ -13,6 +13,8 @@ interface PosSimulatorProps {
   onSpendCard: (amountUsd: number, merchant: string) => SpendResult | Promise<SpendResult>;
   /** Overrides the balance rows under the merchant list. */
   summary?: { k: string; v: number }[];
+  /** Mainnet: a preview against real earned yield. Nothing is charged. */
+  live?: boolean;
 }
 
 interface MerchantPreset {
@@ -41,6 +43,7 @@ export function PosSimulator({
   accruedYieldUsd,
   onSpendCard,
   summary,
+  live = false,
 }: PosSimulatorProps) {
   const [selectedMerchant, setSelectedMerchant] = useState<string>(PRESET_MERCHANTS[0]!.name);
   const [amountInput, setAmountInput] = useState<string>(PRESET_MERCHANTS[0]!.amount.toString());
@@ -96,10 +99,12 @@ export function PosSimulator({
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           POS Merchant Terminal
           <span className="text-xs px-2 py-0.5 rounded bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            playground
+            {live ? "live yield preview" : "playground"}
           </span>
         </h3>
-        <p className="text-xs text-muted mt-0.5">Simulates a contactless swipe against your yield, micro-buffer and credit line.</p>
+        <p className="text-xs text-muted mt-0.5">
+          {live ? "Tests a swipe against the yield you have really earned. Nothing is charged." : "Simulates a contactless swipe against your yield, micro-buffer and credit line."}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -252,17 +257,23 @@ export function PosSimulator({
               <Row k="Amount" v={money(receipt.amountUsd)} strong />
               <Row k="Auth code" v={receipt.authCode} testId="receipt-auth" />
               <Row k="Auth time" v={receipt.timestampIso} />
-              <Row k="Health factor (after)" v={hf(receipt.healthAfter)} testId="receipt-hf" />
-              {receipt.funding && (
+              {receipt.source === "mainnet-preview" ? (
+                receipt.funding && <Row k="Funded by earned yield" v={money(receipt.funding.fromYield)} />
+              ) : (
                 <>
-                  <Row k="Funded by yield" v={money(receipt.funding.fromYield)} />
-                  <Row k="Funded by advance" v={money(receipt.funding.fromAdvance)} />
-                  <Row k="Funded by credit" v={money(receipt.funding.fromCredit)} />
+                  <Row k="Health factor (after)" v={hf(receipt.healthAfter)} testId="receipt-hf" />
+                  {receipt.funding && (
+                    <>
+                      <Row k="Funded by yield" v={money(receipt.funding.fromYield)} />
+                      <Row k="Funded by advance" v={money(receipt.funding.fromAdvance)} />
+                      <Row k="Funded by credit" v={money(receipt.funding.fromCredit)} />
+                    </>
+                  )}
                 </>
               )}
               <Row
                 k="Verified by"
-                v={receipt.source === "engine-fallback" ? "OrventYield engine" : "Playground engine"}
+                v={receipt.source === "mainnet-preview" ? "Your live yield" : receipt.source === "engine-fallback" ? "OrventYield engine" : "Playground engine"}
                 testId="receipt-source"
               />
               {receipt.txHash ? (
@@ -272,7 +283,7 @@ export function PosSimulator({
                 </div>
               ) : null}
               <div className="pt-1 text-[10px] text-muted/70 border-t border-white/5">
-                Playground: no on-chain transaction was sent.
+                {receipt.source === "mainnet-preview" ? "Preview: nothing was charged and no transaction was sent." : "Playground: no on-chain transaction was sent."}
               </div>
             </div>
           )}
