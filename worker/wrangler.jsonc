@@ -1,0 +1,28 @@
+{
+  // Verification API (phone OTP + one-user-one-card). Deploy separately from the static site.
+  // One-time setup:
+  //   1. npx wrangler d1 create orventyield-verify              -> copy the database_id below
+  //   2. npx wrangler d1 migrations apply DB --remote --config worker/wrangler.jsonc
+  //   3. secrets (npx wrangler secret put NAME --config worker/wrangler.jsonc):
+  //        PEPPER (random 32+ chars; never change it, it keys every stored hash)
+  //        TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID
+  //      In the Twilio console: enable Verify Fraud Guard and restrict geo permissions to the countries you serve.
+  //   4. npx wrangler deploy --config worker/wrangler.jsonc, then serve it on a subdomain (e.g. verify.orventyield.tech)
+  //   5. build the web app with NEXT_PUBLIC_VERIFY_API_URL=https://verify.orventyield.tech
+  // Never set ALLOW_MOCK_OTP in production: it enables the fixed test code.
+  "name": "orventyield-verify",
+  "main": "index.ts",
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "orventyield-verify",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "OTP_PROVIDER": "twilio",
+    "ALLOWED_ORIGINS": "https://orventyield.tech,https://www.orventyield.tech"
+  }
+}

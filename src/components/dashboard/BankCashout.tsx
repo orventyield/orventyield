@@ -44,7 +44,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
     if (!validateDestination(rail.id, destination).ok) return;
     const res = onCashout(amount, rail.id, destination, allowCredit);
     if (!res.success) return setErrorMsg(res.error ?? "Cashout failed.");
-    setSuccess(`Simulated payout of ${fiat.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${rail.currency} via ${rail.name}. No real money moved.`);
+    setSuccess(`Payout of ${fiat.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${rail.currency} queued via ${rail.name}. Playground payout: no real money moved.`);
     setDestination("");
     setTouched(false);
   };
@@ -55,15 +55,11 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout }: Bank
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           1-Click Bank &amp; UPI Cashout
           <span className="text-xs px-2 py-0.5 rounded-full bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            sandbox
+            playground
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
           Pay out accrued yield to a bank account without selling your collateral.
-        </p>
-        <p className="mt-2 rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-          Simulated payout: no real money moves. FX rates are fixed sandbox values. A live off-ramp would be run by a
-          licensed provider.
         </p>
       </div>
 

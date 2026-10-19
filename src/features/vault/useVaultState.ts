@@ -12,10 +12,13 @@ import {
   microBuffer as microBufferOf,
   purchaseVoucher,
   repayDebtWithYield as repayEngine,
+  issueCard,
   type AccountState,
+  type CardRegistry,
   type DeclineCode,
   type Funding,
 } from "@/utils/engine";
+import { emptyRegistry, type ClaimRejection } from "@/lib/identity/registry";
 import { ASSETS, checkWithdraw, positionFromHoldings, type AssetInfo, type AssetSymbol, type Holdings } from "@/utils/portfolio";
 import {
   authCode,
@@ -48,14 +51,20 @@ export interface Transaction {
   funding?: Funding;
 }
 
+export type VerdictSource = "sandbox" | "on-chain" | "engine-fallback";
+
 export interface Receipt {
   authCode: string;
   timestampIso: string;
   merchant: string;
   amountUsd: number;
   healthAfter: number;
-  txHash: string;
-  funding: Funding;
+  /** Simulated hash in the playground; null when nothing was sent (live preview). */
+  txHash: string | null;
+  funding: Funding | null;
+  source: VerdictSource;
+  /** Measured decision time in milliseconds, when the source measured it. */
+  latencyMs?: number;
 }
 
 export interface SpendResult {
@@ -64,9 +73,13 @@ export interface SpendResult {
   error?: string;
   code?: DeclineCode;
   receipt?: Receipt;
+  source?: VerdictSource;
+  latencyMs?: number;
 }
 
 interface Core {
+  /** Card activated through phone verification (one user = one card). */
+  cardActive: boolean;
   holdings: Holdings;
   debtUsd: number;
   advanceUsd: number;
@@ -77,7 +90,8 @@ interface Core {
 }
 
 const INITIAL_CORE: Core = {
-  holdings: { weETH: 2, USDC: 0, wstETH: 0 },
+  cardActive: false,
+  holdings: { weETH: 2, USDC: 0, WETH: 0 },
   debtUsd: 350,
   advanceUsd: 0,
   yieldUsd: 48.25,
@@ -95,10 +109,12 @@ function toAccount(c: Core): AccountState {
   return {
     collateralUsd: p.collateralUsd,
     maxLtv: p.maxLtv,
+    liqThreshold: p.liqThreshold,
     apyPercent: p.apyPercent,
     debtUsd: c.debtUsd,
     advanceUsd: c.advanceUsd,
     yieldUsd: c.yieldUsd,
+    cardActive: c.cardActive,
     frozen: c.frozen,
     monthlyLimitUsd: c.monthlyLimitUsd,
     spentThisMonthUsd: c.spentThisMonthUsd,
@@ -135,6 +151,8 @@ function friendly(code: DeclineCode, a: AccountState, what: "voucher" | "cashout
       return "Declined: this would push your Health Factor below 1.20x. Repay some debt first.";
     case "CARD_FROZEN":
       return "Card is frozen.";
+    case "CARD_NOT_ACTIVE":
+      return "Activate your card first.";
   }
 }
 
@@ -148,6 +166,8 @@ export function useVaultState() {
   const [selectedSymbol, setSelectedSymbol] = useState<AssetSymbol>("weETH");
   const [timeScale, setTimeScale] = useState<TimeScale>(1);
   const counter = useRef(0);
+  // Engine-level mirror of the one-user-one-card rule (the verification server is the authority).
+  const registryRef = useRef<CardRegistry>(emptyRegistry());
   const isSandboxMode = true;
 
   /** Synchronous read-modify-write so callers always decide against the latest state. */
@@ -180,7 +200,7 @@ export function useVaultState() {
   const availableLimit = availableLimitOf(account);
   const microBuffer = microBufferOf(account);
   const advanceRoom = advanceRoomOf(account);
-  const healthFactor = calculateHealthFactor(position.collateralUsd, core.debtUsd, position.maxLtv);
+  const healthFactor = calculateHealthFactor(position.collateralUsd, core.debtUsd, position.liqThreshold);
   const healthStatus: HealthStatus = getHealthStatus(healthFactor);
 
   const card: CardDetails = useMemo(() => generateCardDetails(address ?? DEMO_SEED), [address]);
@@ -243,7 +263,9 @@ export function useVaultState() {
           healthAfter: d.healthAfter,
           txHash: tx.txHash,
           funding: d.funding,
+          source: "sandbox",
         },
+        source: "sandbox",
       };
     },
     [commit, record],
@@ -308,6 +330,29 @@ export function useVaultState() {
     return { success: true, repaidAmount: r.repaidUsd };
   }, [commit, record]);
 
+  /**
+   * Activate the card for a verified identity. Rejects a duplicate: the same identity on another owner
+   * ("Card already active for this verified identity.") or a second identity on the same owner.
+   */
+  const activateCard = useCallback(
+    (owner: string, identityId: string): { success: boolean; error?: string; code?: ClaimRejection } => {
+      const r = issueCard(registryRef.current, owner, identityId);
+      if (!r.ok) return { success: false, error: r.message, code: r.code };
+      registryRef.current = r.registry;
+      commit({ ...coreRef.current, cardActive: true });
+      return { success: true };
+    },
+    [commit],
+  );
+
+  /** Restore or clear activation from the verification service (e.g. on load or when the owner changes). */
+  const setCardActive = useCallback(
+    (active: boolean) => {
+      if (coreRef.current.cardActive !== active) commit({ ...coreRef.current, cardActive: active });
+    },
+    [commit],
+  );
+
   const setIsCardFrozen = useCallback(
     (frozen: boolean) => {
       commit({ ...coreRef.current, frozen });
@@ -323,7 +368,8 @@ export function useVaultState() {
   );
 
   const resetToDemo = useCallback(() => {
-    commit(INITIAL_CORE);
+    // Resetting balances never un-activates the card: that would let a verified identity re-claim.
+    commit({ ...INITIAL_CORE, cardActive: coreRef.current.cardActive });
     setTransactions([]);
     setSelectedSymbol("weETH");
     setTimeScale(1);
@@ -343,6 +389,7 @@ export function useVaultState() {
     collateralUsd: position.collateralUsd,
     blendedApy: position.apyPercent,
     blendedLtv: position.maxLtv,
+    blendedLiq: position.liqThreshold,
     activeDebtUsd: core.debtUsd,
     advanceUsd: core.advanceUsd,
     accruedYieldUsd: core.yieldUsd,
@@ -352,6 +399,9 @@ export function useVaultState() {
     microBuffer,
     advanceRoom,
     card,
+    cardActive: core.cardActive,
+    activateCard,
+    setCardActive,
     isCardFrozen: core.frozen,
     setIsCardFrozen,
     monthlyLimit: core.monthlyLimitUsd,

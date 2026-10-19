@@ -7,6 +7,7 @@ import {
   availableLimit,
   cashOut,
   healthFactor,
+  issueCard,
   microBuffer,
   purchaseVoucher,
   repayDebtWithYield,
@@ -16,6 +17,8 @@ import {
 const base = (over: Partial<AccountState> = {}): AccountState => ({
   collateralUsd: 1000,
   maxLtv: 0.75,
+  liqThreshold: 0.75,
+  cardActive: true,
   apyPercent: 0,
   debtUsd: 0,
   advanceUsd: 0,
@@ -24,6 +27,46 @@ const base = (over: Partial<AccountState> = {}): AccountState => ({
   monthlyLimitUsd: 100_000,
   spentThisMonthUsd: 0,
   ...over,
+});
+
+describe("one user = one card (engine)", () => {
+  const empty = { byPhone: {}, byOwner: {} };
+
+  it("a swipe on a card that is not activated is declined, before any other check", () => {
+    const d = authorizeCardSpend(base({ cardActive: false, frozen: true, yieldUsd: 500 }), 4.85);
+    expect(d.ok).toBe(false);
+    if (!d.ok) {
+      expect(d.code).toBe("CARD_NOT_ACTIVE");
+      expect(d.message).toBe("CARD NOT ACTIVATED");
+    }
+  });
+
+  it("activating makes the card usable", () => {
+    const s = base({ cardActive: false, yieldUsd: 50 });
+    expect(authorizeCardSpend(s, 5).ok).toBe(false);
+    expect(authorizeCardSpend({ ...s, cardActive: true }, 5).ok).toBe(true);
+  });
+
+  it("issueCard creates exactly one card per verified identity", () => {
+    const first = issueCard(empty, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "id-1");
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const dup = issueCard(first.registry, "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "id-1");
+    expect(dup.ok).toBe(false);
+    if (!dup.ok) {
+      expect(dup.code).toBe("PHONE_ALREADY_BOUND");
+      expect(dup.message).toBe("Card already active for this verified identity.");
+    }
+  });
+
+  it("issueCard rejects a second identity for the same owner and is idempotent for the same pair", () => {
+    const first = issueCard(empty, "guest:alice", "id-1");
+    if (!first.ok) throw new Error("setup");
+    const second = issueCard(first.registry, "guest:alice", "id-2");
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.code).toBe("OWNER_ALREADY_HAS_CARD");
+    expect(issueCard(first.registry, "guest:alice", "id-1")).toMatchObject({ ok: true, idempotent: true });
+  });
 });
 
 describe("authorizeCardSpend", () => {
@@ -136,6 +179,42 @@ describe("authorizeCardSpend", () => {
     const snapshot = JSON.stringify(s);
     authorizeCardSpend(s, 10);
     expect(JSON.stringify(s)).toBe(snapshot);
+  });
+});
+
+describe("Ether.fi risk model: LTV sets the borrow limit, liquidation threshold sets the health factor", () => {
+  // weETH on Ether.fi Cash: LTV 55%, liquidation threshold 75%.
+  const weeth = (over: Partial<AccountState> = {}) => base({ maxLtv: 0.55, liqThreshold: 0.75, ...over });
+
+  it("borrow limit uses LTV: 1000 of weETH can borrow 550, not 750", () => {
+    expect(availableLimit(weeth())).toBe(550);
+    expect(authorizeCardSpend(weeth(), 550).ok).toBe(true);
+    const d = authorizeCardSpend(weeth(), 551);
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.code).toBe("INSUFFICIENT_LIMIT");
+  });
+
+  it("health factor uses the liquidation threshold: debt 550 gives 750/550 = 1.36x", () => {
+    const d = authorizeCardSpend(weeth(), 550);
+    expect(d.ok).toBe(true);
+    if (d.ok) expect(d.healthAfter).toBeCloseTo(750 / 550, 10);
+  });
+
+  // USDC on Ether.fi Cash: LTV 90%, liquidation threshold 95%. Here the 1.20x floor binds before the LTV cap.
+  const usdc = (over: Partial<AccountState> = {}) => base({ maxLtv: 0.9, liqThreshold: 0.95, ...over });
+
+  it("for stable collateral the 1.20x floor binds before the LTV cap", () => {
+    // HF >= 1.2  <=>  debt <= 950 / 1.2 = 791.67 (while LTV would allow 900)
+    expect(authorizeCardSpend(usdc(), 791).ok).toBe(true);
+    const d = authorizeCardSpend(usdc(), 792);
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.code).toBe("HEALTH_FACTOR");
+  });
+
+  it("blended positions sit between the two assets", () => {
+    // 500 weETH-like + 500 USDC-like: ltv = (500*.55 + 500*.9)/1000 = .725, liq = .85
+    const mixed = base({ maxLtv: 0.725, liqThreshold: 0.85 });
+    expect(availableLimit(mixed)).toBe(725);
   });
 });
 

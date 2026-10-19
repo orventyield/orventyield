@@ -4,13 +4,19 @@ import { useState } from "react";
 import type { Receipt, SpendResult } from "@/features/vault/useVaultState";
 import { shortHash, type CardDetails } from "@/utils/card";
 
+export type PosVariant = "playground" | "mainnet";
+
 interface PosSimulatorProps {
   card: CardDetails;
   isCardFrozen: boolean;
   availableLimit: number;
   microBuffer: number;
   accruedYieldUsd: number;
-  onSpendCard: (amountUsd: number, merchant: string) => SpendResult;
+  onSpendCard: (amountUsd: number, merchant: string) => SpendResult | Promise<SpendResult>;
+  /** "mainnet" asks the live Ether.fi contracts instead of the local simulator. */
+  variant?: PosVariant;
+  /** Overrides the balance rows under the merchant list. */
+  summary?: { k: string; v: number }[];
 }
 
 interface MerchantPreset {
@@ -38,7 +44,10 @@ export function PosSimulator({
   microBuffer,
   accruedYieldUsd,
   onSpendCard,
+  variant = "playground",
+  summary,
 }: PosSimulatorProps) {
+  const live = variant === "mainnet";
   const [selectedMerchant, setSelectedMerchant] = useState<string>(PRESET_MERCHANTS[0]!.name);
   const [amountInput, setAmountInput] = useState<string>(PRESET_MERCHANTS[0]!.amount.toString());
   const [customMerchant, setCustomMerchant] = useState("");
@@ -48,6 +57,7 @@ export function PosSimulator({
   });
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [checking, setChecking] = useState(false);
 
   const isCustom = selectedMerchant === "Custom";
   const merchantName = isCustom ? customMerchant.trim() || "Retail Merchant" : selectedMerchant;
@@ -60,7 +70,7 @@ export function PosSimulator({
     setCustomMerchant("");
   };
 
-  const tap = () => {
+  const tap = async () => {
     if (!amountValid) {
       setTerminal({ text: "DECLINED: INVALID AMOUNT", tone: "declined" });
       setReceipt(null);
@@ -68,8 +78,11 @@ export function PosSimulator({
       return;
     }
     const t0 = performance.now();
-    const result = onSpendCard(amount, merchantName);
-    setLatencyMs(performance.now() - t0);
+    setChecking(true);
+    if (live) setTerminal({ text: "CHECKING WITH ETHER.FI…", tone: "idle" });
+    const result = await onSpendCard(amount, merchantName);
+    setChecking(false);
+    setLatencyMs(result.latencyMs ?? performance.now() - t0);
 
     if (!result.success) {
       setTerminal({ text: `DECLINED: ${result.error ?? "DECLINED"}`, tone: "declined" });
@@ -90,11 +103,13 @@ export function PosSimulator({
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           POS Merchant Terminal
           <span className="text-xs px-2 py-0.5 rounded bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            sandbox
+            {live ? "live check" : "playground"}
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
-          Simulates a contactless swipe against your yield, micro-buffer and credit line. No real network is contacted.
+          {live
+            ? "Asks Ether.fi's CashLens contract whether this swipe would be authorized for your Safe. Nothing is sent."
+            : "Simulates a contactless swipe against your yield, micro-buffer and credit line."}
         </p>
       </div>
 
@@ -172,9 +187,17 @@ export function PosSimulator({
           )}
 
           <div className="rounded-xl border border-white/5 bg-surface-2 p-3 text-[11px] font-mono text-muted space-y-1">
-            <div className="flex justify-between"><span>Settled yield</span><span className="text-emerald">{money(accruedYieldUsd)}</span></div>
-            <div className="flex justify-between"><span>Micro-buffer</span><span className="text-cyan">{money(microBuffer)}</span></div>
-            <div className="flex justify-between"><span>Credit available</span><span className="text-fg">{money(availableLimit)}</span></div>
+            {summary ? (
+              summary.map((r) => (
+                <div key={r.k} className="flex justify-between"><span>{r.k}</span><span className="text-fg">{money(r.v)}</span></div>
+              ))
+            ) : (
+              <>
+                <div className="flex justify-between"><span>Settled yield</span><span className="text-emerald">{money(accruedYieldUsd)}</span></div>
+                <div className="flex justify-between"><span>Micro-buffer</span><span className="text-cyan">{money(microBuffer)}</span></div>
+                <div className="flex justify-between"><span>Credit available</span><span className="text-fg">{money(availableLimit)}</span></div>
+              </>
+            )}
           </div>
         </div>
 
@@ -182,7 +205,7 @@ export function PosSimulator({
         <div className="lg:col-span-6 flex flex-col justify-between bg-[#050608] border border-white/10 rounded-2xl p-4 shadow-inner">
           <div className="bg-[#0b100d] border border-emerald/20 rounded-xl p-3 font-mono text-xs space-y-1.5">
             <div className="flex justify-between border-b border-emerald/20 pb-1 text-[11px] text-emerald/80">
-              <span>ORVENT-POS (SANDBOX)</span>
+              <span>{live ? "ORVENT-POS (LIVE)" : "ORVENT-POS"}</span>
               <span>{card.network === "visa" ? "VISA" : "MASTERCARD"}</span>
             </div>
             <div className="text-center py-2">
@@ -204,8 +227,9 @@ export function PosSimulator({
             <button
               type="button"
               data-testid="pos-pay"
-              onClick={tap}
-              className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+              onClick={() => void tap()}
+              disabled={checking}
+              className={`w-full py-3.5 disabled:cursor-wait disabled:opacity-70 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                 isCardFrozen
                   ? "bg-danger/20 border border-danger/40 text-danger hover:bg-danger/30"
                   : "bg-cyan text-bg hover:brightness-110 shadow-lg shadow-cyan/20"
@@ -217,7 +241,7 @@ export function PosSimulator({
             <div className="flex justify-between text-[11px] font-mono text-muted/70 px-1">
               <span data-testid="pos-latency">
                 {latencyMs === null ? "Auth latency: n/a" : `Auth latency: ${latencyMs.toFixed(1)} ms`}
-                {latencyMs !== null && (
+                {latencyMs !== null && !live && (
                   <span className={within ? " text-emerald" : " text-danger"}>
                     {" "}
                     ({within ? "<" : "≥"} {LATENCY_BUDGET_MS} ms)
@@ -226,7 +250,7 @@ export function PosSimulator({
               </span>
               <span>Fee: $0.00</span>
             </div>
-            <p className="px-1 text-[10px] text-muted/50">Latency is the local sandbox decision time, not a real card network.</p>
+            <p className="px-1 text-[10px] text-muted/50">{live ? "Includes a round trip to a public Optimism RPC." : "Local decision time."}</p>
           </div>
 
           {receipt && (
@@ -240,15 +264,26 @@ export function PosSimulator({
               <Row k="Auth code" v={receipt.authCode} testId="receipt-auth" />
               <Row k="Auth time" v={receipt.timestampIso} />
               <Row k="Health factor (after)" v={hf(receipt.healthAfter)} testId="receipt-hf" />
-              <Row k="Funded by yield" v={money(receipt.funding.fromYield)} />
-              <Row k="Funded by advance" v={money(receipt.funding.fromAdvance)} />
-              <Row k="Funded by credit" v={money(receipt.funding.fromCredit)} />
-              <div className="flex justify-between">
-                <span>Sim tx hash</span>
-                <span data-testid="receipt-hash" title={receipt.txHash} className="text-cyan">{shortHash(receipt.txHash)}</span>
-              </div>
+              {receipt.funding && (
+                <>
+                  <Row k="Funded by yield" v={money(receipt.funding.fromYield)} />
+                  <Row k="Funded by advance" v={money(receipt.funding.fromAdvance)} />
+                  <Row k="Funded by credit" v={money(receipt.funding.fromCredit)} />
+                </>
+              )}
+              <Row
+                k="Verified by"
+                v={receipt.source === "on-chain" ? "Ether.fi CashLens" : receipt.source === "engine-fallback" ? "OrventYield engine" : "Playground engine"}
+                testId="receipt-source"
+              />
+              {receipt.txHash ? (
+                <div className="flex justify-between">
+                  <span>Sim tx hash</span>
+                  <span data-testid="receipt-hash" title={receipt.txHash} className="text-cyan">{shortHash(receipt.txHash)}</span>
+                </div>
+              ) : null}
               <div className="pt-1 text-[10px] text-muted/70 border-t border-white/5">
-                Simulated: no on-chain transaction was sent. Principal untouched.
+                {receipt.source === "sandbox" ? "Playground: no on-chain transaction was sent." : "Live preview: nothing was sent from your Safe."}
               </div>
             </div>
           )}

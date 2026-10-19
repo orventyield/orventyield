@@ -42,9 +42,14 @@ test("connects to the local Anvil fork and shows the wallet's real ETH and USDC"
             if (j.error) throw Object.assign(new Error(j.error.message), { code: j.error.code });
             return j.result;
           });
+      let authorized = false; // like a real wallet: nothing is exposed until the user approves
       const provider = {
         request: async ({ method, params }: { method: string; params?: unknown[] }) => {
-          if (method === "eth_requestAccounts" || method === "eth_accounts") return [account];
+          if (method === "eth_requestAccounts") {
+            authorized = true;
+            return [account];
+          }
+          if (method === "eth_accounts") return authorized ? [account] : [];
           if (method === "eth_chainId") return "0x7a69";
           if (method === "wallet_switchEthereumChain") return null;
           return rpc(method, params ?? []);
@@ -61,12 +66,9 @@ test("connects to the local Anvil fork and shows the wallet's real ETH and USDC"
   );
 
   await page.goto("/dashboard");
-  // wagmi may reconnect an announced wallet on its own; click Connect only if it is still offered.
-  const connect = page.getByTestId("connect-wallet");
-  if (await connect.isVisible({ timeout: 2000 }).catch(() => false)) await connect.click();
-  await expect(page.getByRole("button", { name: "Disconnect" })).toBeVisible();
-
-  await expect(page.getByTestId("chain-select")).toHaveValue("31337");
+  await page.getByTestId("connect-wallet").click();
+  await page.getByTestId("wallet-option-test.anvil.wallet").click();
+  await expect(page.getByTestId("account-button")).toBeVisible();
   const badge = page.getByTestId("fork-wallet");
   await expect(badge).toBeVisible();
   await expect(badge).toContainText(/10,000(\.\d+)? ETH/);

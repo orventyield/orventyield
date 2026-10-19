@@ -55,13 +55,13 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-fg flex items-center gap-2">
-            Sandbox Ledger
+            Ledger
             <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-muted font-mono">
               {transactions.length} Total
             </span>
           </h3>
           <p className="text-xs text-muted mt-0.5">
-            Log of simulated card swipes, vouchers, payouts and vault actions from this session.
+            Card swipes, vouchers, payouts and vault actions from this session.
           </p>
         </div>
 
@@ -137,7 +137,7 @@ export function ActivityFeed({ transactions }: ActivityFeedProps) {
                   ${tx.amountUsd.toFixed(2)}
                 </span>
                 <span className="text-[10px] text-emerald font-mono flex items-center gap-1">
-                  Simulated
+                  Playground
                 </span>
               </div>
             </div>

@@ -1,11 +1,15 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useState } from "react";
 import { Logo } from "@/components/ui/Icons";
 import { formatPan, type CardDetails } from "@/utils/card";
 
 interface CardManagerProps {
   card: CardDetails;
+  /** Activated through phone verification (one user = one card). */
+  cardActive: boolean;
+  onActivate: () => void;
   isCardFrozen: boolean;
   onToggleFreeze: () => void;
   monthlyLimit: number;
@@ -33,8 +37,49 @@ function NetworkBadge({ network }: { network: CardDetails["network"] }) {
   );
 }
 
+function LockedCard({ onActivate }: { onActivate: () => void }) {
+  return (
+    <div data-testid="card-locked" className="space-y-5">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="relative h-52 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#121622] via-[#090b10] to-[#040608] p-5">
+          <div aria-hidden="true" className="select-none opacity-60 blur-[3px]">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-fg">Orvent<span className="text-cyan">Yield</span></span>
+              <span className="font-mono text-[11px] text-muted">DEBIT</span>
+            </div>
+            <div className="mt-8 h-7 w-10 rounded-md border border-amber-300/30 bg-amber-300/10" />
+            <p className="mt-6 font-mono text-[15px] tracking-[0.14em] text-fg">•••• •••• •••• ••••</p>
+            <p className="mt-2 font-mono text-[11px] text-muted">VALID THRU ••/••</p>
+          </div>
+          <div className="absolute inset-0 grid place-items-center bg-black/45 backdrop-blur-[2px]">
+            <div className="text-center">
+              <div className="mx-auto mb-2 grid h-11 w-11 place-items-center rounded-full border border-cyan/40 bg-cyan/10 text-lg" aria-hidden="true">🔒</div>
+              <p className="text-sm font-semibold text-fg">Your card is ready</p>
+              <p className="text-[11px] text-muted">Verify your mobile number to unlock it</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        data-testid="card-activate"
+        onClick={onActivate}
+        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.28)] transition hover:brightness-110"
+      >
+        Activate card
+      </button>
+      <ul className="space-y-1.5 text-[11px] text-muted">
+        <li>• One verified mobile number per card, so no duplicate or bot-made cards.</li>
+        <li>• We keep only a one-way fingerprint of your number, never the number itself.</li>
+      </ul>
+    </div>
+  );
+}
+
 export function CardManager({
   card,
+  cardActive,
+  onActivate,
   isCardFrozen,
   onToggleFreeze,
   monthlyLimit,
@@ -60,17 +105,20 @@ export function CardManager({
             <span
               data-testid="card-status"
               className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-medium border ${
-                isCardFrozen
-                  ? "bg-danger/10 text-danger border-danger/30"
-                  : "bg-emerald/10 text-emerald border-emerald/30"
+                !cardActive
+                  ? "bg-white/5 text-muted border-white/10"
+                  : isCardFrozen
+                    ? "bg-danger/10 text-danger border-danger/30"
+                    : "bg-emerald/10 text-emerald border-emerald/30"
               }`}
             >
-              {isCardFrozen ? "FROZEN" : "ACTIVE"}
+              {!cardActive ? "NOT ACTIVATED" : isCardFrozen ? "FROZEN" : "ACTIVE"}
             </span>
           </h3>
-          <p className="text-xs text-muted mt-0.5">Sandbox demo card. Not issued by any bank or network.</p>
+          <p className="text-xs text-muted mt-0.5">Playground card. Not a real payment card.</p>
         </div>
 
+        {cardActive && (
         <button
           type="button"
           data-testid="freeze-toggle"
@@ -84,8 +132,18 @@ export function CardManager({
         >
           {isCardFrozen ? "Unfreeze Card" : "Freeze Card"}
         </button>
+        )}
       </div>
 
+      {cardActive ? (
+        <motion.div
+          key="active"
+          data-testid="card-unlocked"
+          className="space-y-6"
+          initial={{ opacity: 0, scale: 0.92, filter: "blur(14px)" }}
+          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        >
       {/* 3D card: flips to show the CVV */}
       <div className="flex justify-center py-2">
         <div className="w-full max-w-sm" style={{ perspective: "1000px" }}>
@@ -174,7 +232,7 @@ export function CardManager({
                   </span>
                 </div>
                 <p className="font-mono text-[9px] leading-tight text-muted/70">
-                  Sandbox card for demonstration. Balances, spend and payouts are simulated. Not a real payment card.
+                  Playground card for demonstration. Not a real payment card.
                 </p>
               </div>
               <div className="flex items-center justify-between px-5 font-mono text-[10px] text-muted/60">
@@ -256,6 +314,10 @@ export function CardManager({
           </p>
         </div>
       </div>
+        </motion.div>
+      ) : (
+        <LockedCard onActivate={onActivate} />
+      )}
     </div>
   );
 }

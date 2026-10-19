@@ -113,10 +113,6 @@ export function VoucherCenter({
           <p className="text-xs text-muted mt-0.5">
             Buy digital gift cards with accrued yield or your credit line.
           </p>
-          <p className="mt-2 rounded-lg border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-            Demo: codes are generated locally and are not redeemable at any real merchant. A live store would be
-            fulfilled by a licensed voucher provider.
-          </p>
         </div>
 
         {/* Live Balance Pills */}
@@ -264,7 +260,7 @@ export function VoucherCenter({
             <div className="mt-2 bg-black border border-emerald/40 rounded-xl p-3.5 space-y-2 animate-in fade-in">
               <div className="flex items-center justify-between text-xs font-mono text-emerald font-bold">
                 <span>DEMO VOUCHER CODE</span>
-                <span>SIMULATED</span>
+                <span>PLAYGROUND</span>
               </div>
               <div className="flex items-center justify-between bg-surface-2 px-3 py-2 rounded-lg font-mono text-sm font-bold text-cyan">
                 <span data-testid="voucher-code">{redeemedCode}</span>

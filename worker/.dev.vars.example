@@ -1,0 +1,6 @@
+# Local development only (copy to worker/.dev.vars). Never use these values in production.
+PEPPER=local-dev-pepper-change-me-please
+OTP_PROVIDER=mock
+ALLOW_MOCK_OTP=1
+MOCK_OTP_CODE=123456
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3200

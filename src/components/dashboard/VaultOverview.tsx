@@ -115,7 +115,7 @@ export function VaultOverview({
         <div className="bg-surface border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:border-white/10 transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-mono uppercase tracking-wider text-muted">
-              Collateral Vault (sandbox)
+              Collateral Vault
             </span>
             <div className="flex items-center gap-1.5 bg-emerald/10 border border-emerald/20 text-emerald text-xs px-2 py-0.5 rounded-full font-medium">
               <span>+{selectedToken.apyPercent}% APY</span>
@@ -123,12 +123,12 @@ export function VaultOverview({
           </div>
 
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-extrabold tracking-tight text-fg tabular">
+            <span data-testid="collateral-value" className="text-3xl font-extrabold tracking-tight text-fg tabular">
               ${collateralUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="text-xs text-muted font-mono mb-4">
-            Held: {collateralAmount.toFixed(4)} {selectedToken.symbol} @ ${selectedToken.priceUsd.toLocaleString()} (sandbox price)
+            Held: {collateralAmount.toFixed(4)} {selectedToken.symbol} @ ${selectedToken.priceUsd.toLocaleString()}
           </div>
 
           {/* Asset Selector & Vault Buttons */}
@@ -166,7 +166,7 @@ export function VaultOverview({
             >
               <option value="weETH">weETH</option>
               <option value="USDC">USDC</option>
-              <option value="wstETH">wstETH</option>
+              <option value="WETH">WETH</option>
             </select>
           </div>
         </div>
@@ -179,7 +179,7 @@ export function VaultOverview({
             </span>
             <span className="flex items-center gap-1.5 text-xs text-emerald font-mono">
               <span className="h-2 w-2 rounded-full bg-emerald animate-pulse" />
-              Accruing · sandbox rate
+              Accruing
             </span>
           </div>
 
@@ -189,7 +189,7 @@ export function VaultOverview({
             </span>
           </div>
           <div className="text-xs text-muted font-mono mb-4">
-            Accrues continuously from your collateral at the blended sandbox APY
+            Accrues continuously from your collateral at the blended APY
           </div>
 
           <div className="mb-3 flex items-center justify-between text-[11px] font-mono text-muted">
@@ -267,7 +267,7 @@ export function VaultOverview({
               </span>
             </h3>
             <p className="text-xs text-muted mt-0.5">
-              Sandbox rule: a spend, voucher or payout that would leave Health Factor below 1.20x is declined.
+              Rule: a spend, voucher or payout that would leave Health Factor below 1.20x is declined.
             </p>
           </div>
           <div className="flex items-baseline gap-2">
@@ -316,7 +316,7 @@ export function VaultOverview({
               </button>
             </div>
             <p className="text-xs text-muted mb-4">
-              Sandbox deposit of {selectedToken.name}. Balances are simulated; no tokens move and no transaction is sent.
+              Add {selectedToken.name} to your playground vault. No tokens move.
             </p>
 
             <form onSubmit={handleDepositSubmit} className="space-y-4">
@@ -409,7 +409,7 @@ export function VaultOverview({
               </button>
             </div>
             <p className="text-xs text-muted mb-4">
-              Sandbox withdrawal of {selectedToken.symbol}. With active debt, Health Factor must stay at or above 1.20x.
+              Withdraw {selectedToken.symbol} from your playground vault. With active debt, Health Factor must stay at or above 1.20x.
             </p>
 
             <form onSubmit={handleWithdrawSubmit} className="space-y-4">

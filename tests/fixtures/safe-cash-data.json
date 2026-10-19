@@ -1,0 +1,1305 @@
+{
+ "chainId": 10,
+ "block": "158399484",
+ "capturedAt": "2026-10-19",
+ "safes": [
+  {
+   "safe": "0x4Ba0383f117B4892d6DFef5e647B610271657D40",
+   "raw": {
+    "mode": 1,
+    "collateralBalances": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1089235n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "17n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2000000000000000n"
+     }
+    ],
+    "borrows": [],
+    "tokenPrices": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "2681146651n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2424583800n"
+     },
+     {
+      "token": "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "2687807649n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "85449334825n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1183665n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "82898421938n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "1065720n"
+     },
+     {
+      "token": "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "amount": "1122455n"
+     },
+     {
+      "token": "0xd83E3d560bA6F05094d9D8B3EB8aaEA571D1864E",
+      "amount": "79780490n"
+     },
+     {
+      "token": "0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f",
+      "amount": "712010n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "858513n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "81605954n"
+     },
+     {
+      "token": "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "amount": "1149247n"
+     },
+     {
+      "token": "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e",
+      "amount": "1024170n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000042",
+      "amount": "126702n"
+     },
+     {
+      "token": "0xc1e636Aae7d6B46229FC2C362d562610519e8D7c",
+      "amount": "771226312n"
+     },
+     {
+      "token": "0x41a7f2bb9789199654c206f09392674c1Af6676c",
+      "amount": "4165080746n"
+     },
+     {
+      "token": "0x3c99d3a81b27583B2E26dbd387C10411f2763516",
+      "amount": "721649485n"
+     },
+     {
+      "token": "0x5F8b2D2b97aD4d63188f44965778F6004D5bc387",
+      "amount": "107990696n"
+     },
+     {
+      "token": "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xD4dD9e2F021BB459D5A5f6c24C12fE09c5D45553",
+      "amount": "1213724n"
+     },
+     {
+      "token": "0x5168E0cDeb3f308F47fDF0D9A2E250A2135C3cF5",
+      "amount": "4184900966n"
+     }
+    ],
+    "withdrawalRequest": {
+     "tokens": [],
+     "amounts": [],
+     "recipient": "0x0000000000000000000000000000000000000000",
+     "finalizeTime": "0n"
+    },
+    "totalCollateral": "5938419n",
+    "totalBorrow": "0n",
+    "maxBorrow": "3647367n",
+    "creditMaxSpend": "3647367n",
+    "spendingLimitAllowance": "100000000000n",
+    "totalCashbackEarnedInUsd": "0n",
+    "incomingModeStartTime": "0n",
+    "debitMaxSpend": {
+     "spendableTokens": [
+      "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "0x01bFF41798a0BcF287b996046Ca68b395DbC1071"
+     ],
+     "spendableAmounts": [
+      "1089235n",
+      "0n",
+      "0n",
+      "17n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "amountsInUsd": [
+      "1089235n",
+      "0n",
+      "0n",
+      "17n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "totalSpendableInUsd": "1089252n"
+    }
+   },
+   "liqMaxBorrow": "4671664n"
+  },
+  {
+   "safe": "0xA9FB321EA3A4F957fDEb82B8C76CD2Ea9E08850b",
+   "raw": {
+    "mode": 1,
+    "collateralBalances": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "384570040n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "400500128n"
+     }
+    ],
+    "borrows": [],
+    "tokenPrices": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "2681146651n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2424583800n"
+     },
+     {
+      "token": "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "2687807649n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "85449334825n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1183665n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "82898421938n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "1065720n"
+     },
+     {
+      "token": "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "amount": "1122455n"
+     },
+     {
+      "token": "0xd83E3d560bA6F05094d9D8B3EB8aaEA571D1864E",
+      "amount": "79780490n"
+     },
+     {
+      "token": "0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f",
+      "amount": "712010n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "858513n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "81605954n"
+     },
+     {
+      "token": "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "amount": "1149247n"
+     },
+     {
+      "token": "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e",
+      "amount": "1024170n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000042",
+      "amount": "126702n"
+     },
+     {
+      "token": "0xc1e636Aae7d6B46229FC2C362d562610519e8D7c",
+      "amount": "771226312n"
+     },
+     {
+      "token": "0x41a7f2bb9789199654c206f09392674c1Af6676c",
+      "amount": "4165080746n"
+     },
+     {
+      "token": "0x3c99d3a81b27583B2E26dbd387C10411f2763516",
+      "amount": "721649485n"
+     },
+     {
+      "token": "0x5F8b2D2b97aD4d63188f44965778F6004D5bc387",
+      "amount": "107990696n"
+     },
+     {
+      "token": "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xD4dD9e2F021BB459D5A5f6c24C12fE09c5D45553",
+      "amount": "1213724n"
+     },
+     {
+      "token": "0x5168E0cDeb3f308F47fDF0D9A2E250A2135C3cF5",
+      "amount": "4184900966n"
+     }
+    ],
+    "withdrawalRequest": {
+     "tokens": [],
+     "amounts": [],
+     "recipient": "0x0000000000000000000000000000000000000000",
+     "finalizeTime": "0n"
+    },
+    "totalCollateral": "785070168n",
+    "totalBorrow": "0n",
+    "maxBorrow": "706563151n",
+    "creditMaxSpend": "706563151n",
+    "spendingLimitAllowance": "100000000000n",
+    "totalCashbackEarnedInUsd": "477900n",
+    "incomingModeStartTime": "0n",
+    "debitMaxSpend": {
+     "spendableTokens": [
+      "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "0x01bFF41798a0BcF287b996046Ca68b395DbC1071"
+     ],
+     "spendableAmounts": [
+      "384570040n",
+      "0n",
+      "0n",
+      "400500128n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "amountsInUsd": [
+      "384570040n",
+      "0n",
+      "0n",
+      "400500128n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "totalSpendableInUsd": "785070168n"
+    }
+   },
+   "liqMaxBorrow": "745816659n"
+  },
+  {
+   "safe": "0x41ca6C07197F734B6FB979b813b71d76803E3722",
+   "raw": {
+    "mode": 1,
+    "collateralBalances": [],
+    "borrows": [],
+    "tokenPrices": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "2681146651n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2424583800n"
+     },
+     {
+      "token": "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "2687807649n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "85449334825n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1183665n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "82898421938n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "1065720n"
+     },
+     {
+      "token": "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "amount": "1122455n"
+     },
+     {
+      "token": "0xd83E3d560bA6F05094d9D8B3EB8aaEA571D1864E",
+      "amount": "79780490n"
+     },
+     {
+      "token": "0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f",
+      "amount": "712010n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "858513n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "81605954n"
+     },
+     {
+      "token": "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "amount": "1149247n"
+     },
+     {
+      "token": "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e",
+      "amount": "1024170n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000042",
+      "amount": "126702n"
+     },
+     {
+      "token": "0xc1e636Aae7d6B46229FC2C362d562610519e8D7c",
+      "amount": "771226312n"
+     },
+     {
+      "token": "0x41a7f2bb9789199654c206f09392674c1Af6676c",
+      "amount": "4165080746n"
+     },
+     {
+      "token": "0x3c99d3a81b27583B2E26dbd387C10411f2763516",
+      "amount": "721649485n"
+     },
+     {
+      "token": "0x5F8b2D2b97aD4d63188f44965778F6004D5bc387",
+      "amount": "107990696n"
+     },
+     {
+      "token": "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xD4dD9e2F021BB459D5A5f6c24C12fE09c5D45553",
+      "amount": "1213724n"
+     },
+     {
+      "token": "0x5168E0cDeb3f308F47fDF0D9A2E250A2135C3cF5",
+      "amount": "4184900966n"
+     }
+    ],
+    "withdrawalRequest": {
+     "tokens": [],
+     "amounts": [],
+     "recipient": "0x0000000000000000000000000000000000000000",
+     "finalizeTime": "0n"
+    },
+    "totalCollateral": "0n",
+    "totalBorrow": "0n",
+    "maxBorrow": "0n",
+    "creditMaxSpend": "0n",
+    "spendingLimitAllowance": "100000000000n",
+    "totalCashbackEarnedInUsd": "0n",
+    "incomingModeStartTime": "0n",
+    "debitMaxSpend": {
+     "spendableTokens": [
+      "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "0x01bFF41798a0BcF287b996046Ca68b395DbC1071"
+     ],
+     "spendableAmounts": [
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "amountsInUsd": [
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "totalSpendableInUsd": "0n"
+    }
+   },
+   "liqMaxBorrow": "0n"
+  },
+  {
+   "safe": "0x1d08F7DFd5b26bB7903F06125FA0Da911d0be60C",
+   "raw": {
+    "mode": 0,
+    "collateralBalances": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "4840258700n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "133130000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "991346000000000000n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "28489362847875805n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "4636726150244599407n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "5349305410n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "4500466737665977857069n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "115691028559370076925n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "670661867800000000n"
+     }
+    ],
+    "borrows": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "21033183591n"
+     }
+    ],
+    "tokenPrices": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "2681146651n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2424583800n"
+     },
+     {
+      "token": "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "2687807649n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "85449334825n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1183665n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "82898421938n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "1065720n"
+     },
+     {
+      "token": "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "amount": "1122455n"
+     },
+     {
+      "token": "0xd83E3d560bA6F05094d9D8B3EB8aaEA571D1864E",
+      "amount": "79780490n"
+     },
+     {
+      "token": "0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f",
+      "amount": "712010n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "858513n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "81605954n"
+     },
+     {
+      "token": "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "amount": "1149247n"
+     },
+     {
+      "token": "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e",
+      "amount": "1024170n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000042",
+      "amount": "126702n"
+     },
+     {
+      "token": "0xc1e636Aae7d6B46229FC2C362d562610519e8D7c",
+      "amount": "771226312n"
+     },
+     {
+      "token": "0x41a7f2bb9789199654c206f09392674c1Af6676c",
+      "amount": "4165080746n"
+     },
+     {
+      "token": "0x3c99d3a81b27583B2E26dbd387C10411f2763516",
+      "amount": "721649485n"
+     },
+     {
+      "token": "0x5F8b2D2b97aD4d63188f44965778F6004D5bc387",
+      "amount": "107990696n"
+     },
+     {
+      "token": "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xD4dD9e2F021BB459D5A5f6c24C12fE09c5D45553",
+      "amount": "1213724n"
+     },
+     {
+      "token": "0x5168E0cDeb3f308F47fDF0D9A2E250A2135C3cF5",
+      "amount": "4184900966n"
+     }
+    ],
+    "withdrawalRequest": {
+     "tokens": [],
+     "amounts": [],
+     "recipient": "0x0000000000000000000000000000000000000000",
+     "finalizeTime": "0n"
+    },
+    "totalCollateral": "31445110818n",
+    "totalBorrow": "21033183591n",
+    "maxBorrow": "21151399052n",
+    "creditMaxSpend": "118215461n",
+    "spendingLimitAllowance": "49212431150n",
+    "totalCashbackEarnedInUsd": "286086662n",
+    "incomingModeStartTime": "0n",
+    "debitMaxSpend": {
+     "spendableTokens": [
+      "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "0xE5d3854736e0D513aAE2D8D708Ad94d14Fd56A6a",
+      "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "0x01bFF41798a0BcF287b996046Ca68b395DbC1071"
+     ],
+     "spendableAmounts": [
+      "0n",
+      "0n",
+      "0n",
+      "131350512n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "amountsInUsd": [
+      "0n",
+      "0n",
+      "0n",
+      "131350512n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "totalSpendableInUsd": "131350512n"
+    }
+   },
+   "liqMaxBorrow": "25591542837n"
+  },
+  {
+   "safe": "0x6bD06d485679A8512cf9B76370D9214383Fa9FA4",
+   "raw": {
+    "mode": 0,
+    "collateralBalances": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "920000n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "114261088759875587097n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "7382972851332519n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "416725n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "2635382416n"
+     }
+    ],
+    "borrows": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1981705613n"
+     }
+    ],
+    "tokenPrices": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2424583800n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "amount": "1122455n"
+     },
+     {
+      "token": "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "2681146651n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "82898421938n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "1065720n"
+     },
+     {
+      "token": "0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f",
+      "amount": "712010n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "858513n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000042",
+      "amount": "126702n"
+     },
+     {
+      "token": "0xd83E3d560bA6F05094d9D8B3EB8aaEA571D1864E",
+      "amount": "79780490n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "81605954n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "2687807649n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "85449334825n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1183665n"
+     },
+     {
+      "token": "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "amount": "1149247n"
+     },
+     {
+      "token": "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e",
+      "amount": "1024170n"
+     },
+     {
+      "token": "0xc1e636Aae7d6B46229FC2C362d562610519e8D7c",
+      "amount": "771226312n"
+     },
+     {
+      "token": "0x41a7f2bb9789199654c206f09392674c1Af6676c",
+      "amount": "4165080746n"
+     },
+     {
+      "token": "0x3c99d3a81b27583B2E26dbd387C10411f2763516",
+      "amount": "721649485n"
+     },
+     {
+      "token": "0x5F8b2D2b97aD4d63188f44965778F6004D5bc387",
+      "amount": "107990696n"
+     },
+     {
+      "token": "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xD4dD9e2F021BB459D5A5f6c24C12fE09c5D45553",
+      "amount": "1213724n"
+     },
+     {
+      "token": "0x5168E0cDeb3f308F47fDF0D9A2E250A2135C3cF5",
+      "amount": "4184900966n"
+     }
+    ],
+    "withdrawalRequest": {
+     "tokens": [],
+     "amounts": [],
+     "recipient": "0x0000000000000000000000000000000000000000",
+     "finalizeTime": "0n"
+    },
+    "totalCollateral": "3594357307n",
+    "totalBorrow": "1981705613n",
+    "maxBorrow": "3109859711n",
+    "creditMaxSpend": "846420927n",
+    "spendingLimitAllowance": "550000000n",
+    "totalCashbackEarnedInUsd": "35997800n",
+    "incomingModeStartTime": "0n",
+    "debitMaxSpend": {
+     "spendableTokens": [
+      "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e"
+     ],
+     "spendableAmounts": [
+      "920000n",
+      "0n",
+      "0n",
+      "873023074n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "amountsInUsd": [
+      "920000n",
+      "0n",
+      "0n",
+      "1033366856n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "totalSpendableInUsd": "1034286856n"
+    }
+   },
+   "liqMaxBorrow": "3120543174n"
+  },
+  {
+   "safe": "0xb317e7324F14A20cF9AD70727dc2de3357B70AEe",
+   "raw": {
+    "mode": 0,
+    "collateralBalances": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "4419n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "308640250419189158n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "5740685n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "10444612991570811241n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1n"
+     }
+    ],
+    "borrows": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "11742571578n"
+     }
+    ],
+    "tokenPrices": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2424583800n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "amount": "1122455n"
+     },
+     {
+      "token": "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "2681146651n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "82898421938n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "1065720n"
+     },
+     {
+      "token": "0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f",
+      "amount": "712010n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "858513n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000042",
+      "amount": "126702n"
+     },
+     {
+      "token": "0xd83E3d560bA6F05094d9D8B3EB8aaEA571D1864E",
+      "amount": "79780490n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "81605954n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "2687807649n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "85449334825n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1183665n"
+     },
+     {
+      "token": "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "amount": "1149247n"
+     },
+     {
+      "token": "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e",
+      "amount": "1024170n"
+     },
+     {
+      "token": "0xc1e636Aae7d6B46229FC2C362d562610519e8D7c",
+      "amount": "771226312n"
+     },
+     {
+      "token": "0x41a7f2bb9789199654c206f09392674c1Af6676c",
+      "amount": "4165080746n"
+     },
+     {
+      "token": "0x3c99d3a81b27583B2E26dbd387C10411f2763516",
+      "amount": "721649485n"
+     },
+     {
+      "token": "0x5F8b2D2b97aD4d63188f44965778F6004D5bc387",
+      "amount": "107990696n"
+     },
+     {
+      "token": "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xD4dD9e2F021BB459D5A5f6c24C12fE09c5D45553",
+      "amount": "1213724n"
+     },
+     {
+      "token": "0x5168E0cDeb3f308F47fDF0D9A2E250A2135C3cF5",
+      "amount": "4184900966n"
+     }
+    ],
+    "withdrawalRequest": {
+     "tokens": [],
+     "amounts": [],
+     "recipient": "0x0000000000000000000000000000000000000000",
+     "finalizeTime": "0n"
+    },
+    "totalCollateral": "33580376533n",
+    "totalBorrow": "11742571578n",
+    "maxBorrow": "23638859408n",
+    "creditMaxSpend": "9761442246n",
+    "spendingLimitAllowance": "250000000n",
+    "totalCashbackEarnedInUsd": "203564752n",
+    "incomingModeStartTime": "0n",
+    "debitMaxSpend": {
+     "spendableTokens": [
+      "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e"
+     ],
+     "spendableAmounts": [
+      "4419n",
+      "0n",
+      "0n",
+      "1n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "amountsInUsd": [
+      "4419n",
+      "0n",
+      "0n",
+      "1n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "totalSpendableInUsd": "4420n"
+    }
+   },
+   "liqMaxBorrow": "23638859629n"
+  },
+  {
+   "safe": "0x54003eF7eC47CE4f61bb27e59A0F383f7FB5275f",
+   "raw": {
+    "mode": 0,
+    "collateralBalances": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "149456402n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "249281297782666009n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "9610750071n"
+     }
+    ],
+    "borrows": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "9517662972n"
+     }
+    ],
+    "tokenPrices": [
+     {
+      "token": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000006",
+      "amount": "2424583800n"
+     },
+     {
+      "token": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "amount": "1122455n"
+     },
+     {
+      "token": "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0x5A7fACB970D094B6C7FF1df0eA68D99E6e73CBFF",
+      "amount": "2681146651n"
+     },
+     {
+      "token": "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
+      "amount": "82898421938n"
+     },
+     {
+      "token": "0x939778D83b46B456224A33Fb59630B11DEC56663",
+      "amount": "1065720n"
+     },
+     {
+      "token": "0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f",
+      "amount": "712010n"
+     },
+     {
+      "token": "0x86B5780b606940Eb59A062aA85a07959518c0161",
+      "amount": "858513n"
+     },
+     {
+      "token": "0x4200000000000000000000000000000000000042",
+      "amount": "126702n"
+     },
+     {
+      "token": "0xd83E3d560bA6F05094d9D8B3EB8aaEA571D1864E",
+      "amount": "79780490n"
+     },
+     {
+      "token": "0xA519AfBc91986c0e7501d7e34968FEE51CD901aC",
+      "amount": "81605954n"
+     },
+     {
+      "token": "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+      "amount": "2687807649n"
+     },
+     {
+      "token": "0x5f46d540b6eD704C3c8789105F30E075AA900726",
+      "amount": "85449334825n"
+     },
+     {
+      "token": "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "amount": "1183665n"
+     },
+     {
+      "token": "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "amount": "1035228n"
+     },
+     {
+      "token": "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "amount": "1149247n"
+     },
+     {
+      "token": "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e",
+      "amount": "1024170n"
+     },
+     {
+      "token": "0xc1e636Aae7d6B46229FC2C362d562610519e8D7c",
+      "amount": "771226312n"
+     },
+     {
+      "token": "0x41a7f2bb9789199654c206f09392674c1Af6676c",
+      "amount": "4165080746n"
+     },
+     {
+      "token": "0x3c99d3a81b27583B2E26dbd387C10411f2763516",
+      "amount": "721649485n"
+     },
+     {
+      "token": "0x5F8b2D2b97aD4d63188f44965778F6004D5bc387",
+      "amount": "107990696n"
+     },
+     {
+      "token": "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "amount": "1000000n"
+     },
+     {
+      "token": "0xD4dD9e2F021BB459D5A5f6c24C12fE09c5D45553",
+      "amount": "1213724n"
+     },
+     {
+      "token": "0x5168E0cDeb3f308F47fDF0D9A2E250A2135C3cF5",
+      "amount": "4184900966n"
+     }
+    ],
+    "withdrawalRequest": {
+     "tokens": [],
+     "amounts": [],
+     "recipient": "0x0000000000000000000000000000000000000000",
+     "finalizeTime": "0n"
+    },
+    "totalCollateral": "12129768280n",
+    "totalBorrow": "9517662972n",
+    "maxBorrow": "10797912264n",
+    "creditMaxSpend": "299016065n",
+    "spendingLimitAllowance": "100000000000n",
+    "totalCashbackEarnedInUsd": "347766172n",
+    "incomingModeStartTime": "0n",
+    "debitMaxSpend": {
+     "spendableTokens": [
+      "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+      "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+      "0xDCB612005417Dc906fF72c87DF732e5a90D49e11",
+      "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+      "0xca5921DF65E2e1b0B98Ae91c0187BA80D4124898",
+      "0xcC476B1a49bcDf5192561e87b6Fb8ea78aa28C13",
+      "0x80Eede496655FB9047dd39d9f418d5483ED600df",
+      "0x01bFF41798a0BcF287b996046Ca68b395DbC1071",
+      "0x17bC8Ffd82b8a36e737Ca1141C025089589B915e"
+     ],
+     "spendableAmounts": [
+      "149456402n",
+      "0n",
+      "0n",
+      "208637027n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "amountsInUsd": [
+      "149456402n",
+      "0n",
+      "0n",
+      "246956346n",
+      "0n",
+      "0n",
+      "0n",
+      "0n",
+      "0n"
+     ],
+     "totalSpendableInUsd": "396412748n"
+    }
+   },
+   "liqMaxBorrow": "10833603761n"
+  }
+ ]
+}

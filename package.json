@@ -7,18 +7,25 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run --passWithNoTests",
     "fork": "bash scripts/anvil-fork.sh",
     "fork:stop": "bash scripts/anvil-fork.sh stop",
     "verify:contracts": "node --no-warnings scripts/verify-contracts.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "test:live": "LIVE=1 vitest run tests/integration",
+    "api:migrate": "wrangler d1 migrations apply DB --local --config worker/wrangler.jsonc --persist-to .wrangler-api",
+    "api:dev": "npm run api:migrate && wrangler dev --config worker/wrangler.jsonc --port 8787 --local --persist-to .wrangler-api --var PEPPER:local-dev-pepper-change-me-please --var OTP_PROVIDER:mock --var ALLOW_MOCK_OTP:1 --var ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3200"
   },
   "dependencies": {
+    "@coinbase/wallet-sdk": "^4.4.0",
     "@tanstack/react-query": "^5.104.4",
+    "@walletconnect/ethereum-provider": "^2.26.0",
+    "libphonenumber-js": "^1.13.15",
     "lucide-react": "^1.59.0",
     "motion": "^14.3.0",
     "next": "^15.5.28",
+    "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "viem": "^2.57.7",
@@ -29,13 +36,16 @@
     "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.28",
+    "jsqr": "^1.4.0",
     "postcss": "^8.5.30",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.1"
   }
 }

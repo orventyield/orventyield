@@ -5,11 +5,18 @@
  * Nothing here touches the chain: it models the rules a card rail would enforce so they can be
  * unit-tested. Amounts are USD, rounded to 6 decimals to avoid float drift.
  *
+ * Risk model mirrors Ether.fi Cash (DebtManager): the borrow limit uses each asset's LTV, the health factor
+ * uses its liquidation threshold (HF = collateral x liqThreshold / debt).
+ *
  * Funding waterfall for a card spend (first match wins, each leg is capped):
  *   1. settled yield      - free, no debt, collateral untouched
  *   2. yield advance      - overdraft backed by the 7-day predicted yield ("micro-buffer"),
  *                           collateral-free and auto-repaid from newly accrued yield
  *   3. credit line        - borrow against collateral, gated by the available limit and HF >= 1.20x
+ *
+ * One user = one card: `issueCard` is the only way a card becomes active in the engine. It rejects a second card for
+ * the same verified identity or the same owner (see lib/identity/registry.ts; the server enforces the same rule).
+ * A swipe on a card that is not active is declined.
  *
  * Invariants (covered by tests/unit/engine.test.ts):
  *   - spending never reduces collateral (principal)
@@ -17,6 +24,7 @@
  *   - a frozen card declines everything
  *   - outstanding advance never exceeds the micro-buffer
  */
+import { claimCard, type CardRegistry, type ClaimRejection } from "../lib/identity/registry";
 import { calculateMicroBuffer } from "./math";
 
 export const MIN_HEALTH_FACTOR = 1.2;
@@ -25,8 +33,10 @@ export const BUFFER_DAYS = 7;
 export interface AccountState {
   /** Principal. Only deposits/withdrawals change it, never spending. */
   collateralUsd: number;
-  /** Blended max loan-to-value across held assets (0-1). */
+  /** Blended max loan-to-value across held assets (0-1): sets the borrow limit. */
   maxLtv: number;
+  /** Blended liquidation threshold (0-1): sets the health factor. Always >= maxLtv. */
+  liqThreshold: number;
   /** Blended collateral APY, percent. */
   apyPercent: number;
   /** Collateral-backed credit-line debt. */
@@ -35,6 +45,8 @@ export interface AccountState {
   advanceUsd: number;
   /** Settled, spendable accrued yield. */
   yieldUsd: number;
+  /** The card has been activated through phone verification. Spending requires it. */
+  cardActive: boolean;
   frozen: boolean;
   monthlyLimitUsd: number;
   /** Total outflow this month (card + vouchers + cashouts). */
@@ -43,6 +55,7 @@ export interface AccountState {
 
 export type DeclineCode =
   | "INVALID_AMOUNT"
+  | "CARD_NOT_ACTIVE"
   | "CARD_FROZEN"
   | "MONTHLY_LIMIT"
   | "INSUFFICIENT_YIELD"
@@ -73,6 +86,7 @@ export type Decision =
 
 const MESSAGES: Record<DeclineCode, string> = {
   INVALID_AMOUNT: "INVALID AMOUNT",
+  CARD_NOT_ACTIVE: "CARD NOT ACTIVATED",
   CARD_FROZEN: "CARD FROZEN",
   MONTHLY_LIMIT: "MONTHLY LIMIT EXCEEDED",
   INSUFFICIENT_YIELD: "INSUFFICIENT YIELD",
@@ -82,11 +96,14 @@ const MESSAGES: Record<DeclineCode, string> = {
 
 export const r6 = (n: number): number => Math.round(n * 1e6) / 1e6;
 
-/** Unrounded health factor used for gating. Display code may round; gates must not. */
-export function healthFactor(collateralUsd: number, maxLtv: number, debtUsd: number): number {
+/**
+ * Unrounded health factor used for gating: collateral x liquidation threshold / debt.
+ * Display code may round; gates must not.
+ */
+export function healthFactor(collateralUsd: number, liqThreshold: number, debtUsd: number): number {
   if (debtUsd <= 0) return Infinity;
   if (collateralUsd <= 0) return 0;
-  return (collateralUsd * maxLtv) / debtUsd;
+  return (collateralUsd * liqThreshold) / debtUsd;
 }
 
 export function availableLimit(s: Pick<AccountState, "collateralUsd" | "maxLtv" | "debtUsd">): number {
@@ -115,12 +132,13 @@ function drawCredit(s: AccountState, credit: number): { ok: true; debt: number }
   if (credit <= 0) return { ok: true, debt: s.debtUsd };
   if (credit > availableLimit(s)) return { ok: false, code: "INSUFFICIENT_LIMIT" };
   const debt = r6(s.debtUsd + credit);
-  if (healthFactor(s.collateralUsd, s.maxLtv, debt) < MIN_HEALTH_FACTOR) return { ok: false, code: "HEALTH_FACTOR" };
+  if (healthFactor(s.collateralUsd, s.liqThreshold, debt) < MIN_HEALTH_FACTOR) return { ok: false, code: "HEALTH_FACTOR" };
   return { ok: true, debt };
 }
 
 /** Card swipe at a POS terminal. */
 export function authorizeCardSpend(s: AccountState, amountUsd: number): Decision {
+  if (!s.cardActive) return decline(s, "CARD_NOT_ACTIVE");
   if (s.frozen) return decline(s, "CARD_FROZEN");
   if (!validAmount(amountUsd)) return decline(s, "INVALID_AMOUNT");
   const amount = r6(amountUsd);
@@ -134,8 +152,8 @@ export function authorizeCardSpend(s: AccountState, amountUsd: number): Decision
   const credit = drawCredit(s, fromCredit);
   if (!credit.ok) return decline(s, credit.code);
 
-  const healthBefore = healthFactor(s.collateralUsd, s.maxLtv, s.debtUsd);
-  const healthAfter = healthFactor(s.collateralUsd, s.maxLtv, credit.debt);
+  const healthBefore = healthFactor(s.collateralUsd, s.liqThreshold, s.debtUsd);
+  const healthAfter = healthFactor(s.collateralUsd, s.liqThreshold, credit.debt);
   // Spec: HF must be >= 1.20x after the transaction, whatever funded it.
   if (healthAfter < MIN_HEALTH_FACTOR) return decline(s, "HEALTH_FACTOR");
 
@@ -162,7 +180,7 @@ export function purchaseVoucher(s: AccountState, amountUsd: number, funding: Vou
   const amount = r6(amountUsd);
   if (r6(s.spentThisMonthUsd + amount) > s.monthlyLimitUsd) return decline(s, "MONTHLY_LIMIT");
 
-  const healthBefore = healthFactor(s.collateralUsd, s.maxLtv, s.debtUsd);
+  const healthBefore = healthFactor(s.collateralUsd, s.liqThreshold, s.debtUsd);
   if (funding === "yield") {
     if (amount > s.yieldUsd) return decline(s, "INSUFFICIENT_YIELD");
     return {
@@ -180,7 +198,7 @@ export function purchaseVoucher(s: AccountState, amountUsd: number, funding: Vou
     ok: true,
     funding: { fromYield: 0, fromAdvance: 0, fromCredit: amount },
     healthBefore,
-    healthAfter: healthFactor(s.collateralUsd, s.maxLtv, credit.debt),
+    healthAfter: healthFactor(s.collateralUsd, s.liqThreshold, credit.debt),
     next: { ...s, debtUsd: credit.debt, spentThisMonthUsd: r6(s.spentThisMonthUsd + amount) },
   };
 }
@@ -201,8 +219,8 @@ export function cashOut(s: AccountState, amountUsd: number, allowCredit: boolean
   return {
     ok: true,
     funding: { fromYield: r6(fromYield), fromAdvance: 0, fromCredit },
-    healthBefore: healthFactor(s.collateralUsd, s.maxLtv, s.debtUsd),
-    healthAfter: healthFactor(s.collateralUsd, s.maxLtv, credit.debt),
+    healthBefore: healthFactor(s.collateralUsd, s.liqThreshold, s.debtUsd),
+    healthAfter: healthFactor(s.collateralUsd, s.liqThreshold, credit.debt),
     next: {
       ...s,
       yieldUsd: r6(s.yieldUsd - fromYield),
@@ -233,9 +251,25 @@ export interface RepayResult {
 
 /** "Auto-Pilot": sweep settled yield into the credit-line debt. Principal is never touched. */
 export function repayDebtWithYield(s: AccountState): RepayResult {
-  const healthBefore = healthFactor(s.collateralUsd, s.maxLtv, s.debtUsd);
+  const healthBefore = healthFactor(s.collateralUsd, s.liqThreshold, s.debtUsd);
   const repay = r6(Math.min(s.debtUsd, s.yieldUsd));
   if (repay <= 0) return { ok: false, repaidUsd: 0, healthBefore, healthAfter: healthBefore, next: s };
   const next = { ...s, debtUsd: r6(s.debtUsd - repay), yieldUsd: r6(s.yieldUsd - repay) };
-  return { ok: true, repaidUsd: repay, healthBefore, healthAfter: healthFactor(next.collateralUsd, next.maxLtv, next.debtUsd), next };
+  return { ok: true, repaidUsd: repay, healthBefore, healthAfter: healthFactor(next.collateralUsd, next.liqThreshold, next.debtUsd), next };
+}
+
+/** The set of verified identities that hold a card, as the engine sees them. */
+export type { CardRegistry };
+
+export type IssueCardResult =
+  | { ok: true; registry: CardRegistry; idempotent: boolean }
+  | { ok: false; code: ClaimRejection; message: string; registry: CardRegistry };
+
+/**
+ * Create (activate) a card for `owner`, bound to a verified identity. Rejects duplicates:
+ * "Card already active for this verified identity." for a second owner on the same identity,
+ * and "This account already has an active card." for a second identity on the same owner.
+ */
+export function issueCard(registry: CardRegistry, owner: string, identityId: string): IssueCardResult {
+  return claimCard(registry, owner, identityId);
 }
