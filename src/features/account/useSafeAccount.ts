@@ -130,7 +130,7 @@ export function useSafeAccount() {
 
   const run = useCallback(
     async (plan: { id: string; label: string; detail: string; to: Address; data: Hex; skip?: boolean; onDone?: (blockNumber: bigint) => void }[], doneMessage: string) => {
-      if (!owner || !client || busy) return;
+      if (!owner || !client || busy) return false;
       const active = plan.filter((p) => !p.skip);
       const my = ++runId.current;
       setBusy(true);
@@ -151,10 +151,12 @@ export function useSafeAccount() {
         }
         await refetchAll();
         if (runId.current === my) setLastDone(doneMessage);
+        return true;
       } catch (e) {
         setSteps((s) => s.map((x) => (x.status === "wallet" || x.status === "pending" ? { ...x, status: "failed" } : x)));
         setError(friendlyTxError(e));
         await refetchAll();
+        return false;
       } finally {
         setBusy(false);
       }
@@ -225,6 +227,29 @@ export function useSafeAccount() {
     [owner, safe, snap, run, safeStep],
   );
 
+  /**
+   * Pay a third party (e.g. a voucher invoice) from earned yield only, in ONE Safe transaction: the Safe withdraws exactly
+   * `amount` of yield from Aave and sends exactly that to `to`. Resolves true once the transaction is confirmed.
+   */
+  const payFromYield = useCallback(
+    async (amount: bigint, to: Address, label: string): Promise<boolean> => {
+      if (!owner || !safe || !snap || amount <= 0n) return false;
+      if (amount > maxYieldWithdrawal(snap)) {
+        setError("That is more than the yield you have earned. Your principal stays locked.");
+        return false;
+      }
+      const calls = [
+        { to: ARBITRUM.aavePool, data: withdrawYieldData(amount, safe) },
+        { to: ARBITRUM.usdc, data: transferData(to, amount) },
+      ];
+      return run(
+        [safeStep("pay-yield", `Pay ${label}`, `Your Safe withdraws ${fmtUsdc(amount)} USDC of earned yield from Aave and sends exactly that to ${to.slice(0, 6)}…${to.slice(-4)}. Principal is untouched.`, calls)],
+        `Paid ${fmtUsdc(amount)} USDC from your yield.`,
+      );
+    },
+    [owner, safe, snap, run, safeStep],
+  );
+
   const withdrawPrincipal = useCallback(
     (amount: bigint) => {
       if (!owner || !safe || !snap || amount <= 0n) return;
@@ -264,6 +289,7 @@ export function useSafeAccount() {
     },
     deposit,
     withdrawYield,
+    payFromYield,
     withdrawPrincipal,
     switchToArbitrum: () => switchChain({ chainId: ARBITRUM_CHAIN_ID }),
     retry: () => {

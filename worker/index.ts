@@ -5,15 +5,18 @@
  *   GET  /api/verify/status?owner=<0x… | guest:…>
  *   POST /api/verify/start   { phone: "+E164", owner }
  *   POST /api/verify/check   { phone, code, owner, nonce, signature? }
+ *   GET|POST /api/vouchers/*  voucher catalogue, invoices and delivery (see vouchers.ts)
  *
- * Secrets (wrangler secret put): PEPPER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID.
+ * Secrets (wrangler secret put): PEPPER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID,
+ * and for vouchers BITREFILL_API_KEY (or BITREFILL_API_ID + BITREFILL_API_SECRET) with the BITREFILL_BASE_URL var.
  * The mock OTP provider is refused unless ALLOW_MOCK_OTP=1, which production must never set.
  */
 import { D1Store, type D1Like } from "../src/lib/identity/d1";
 import { TwilioVerifyProvider, type CheckResult, type OtpProvider } from "../src/lib/identity/otp";
 import { DEFAULT_CONFIG, VerificationService, VerifyError, type VerifyConfig } from "../src/lib/identity/service";
+import { handleVouchers, type VoucherEnv } from "./vouchers";
 
-export interface Env {
+export interface Env extends VoucherEnv {
   DB: D1Like;
   PEPPER?: string;
   OTP_PROVIDER?: string;
@@ -105,6 +108,10 @@ export async function handle(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: h });
   if (url.pathname === "/api/health") return json({ ok: true }, 200, h);
+
+  if (url.pathname.startsWith("/api/vouchers/")) {
+    return handleVouchers(request, env, url, (body, status, extra) => json(body, status, h, extra), readJson);
+  }
 
   try {
     if (!url.pathname.startsWith("/api/verify/")) return json({ ok: false, code: "NOT_FOUND", message: "Not found." }, 404, h);

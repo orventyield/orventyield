@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
+import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { useAppMode } from "@/features/mode/AppModeProvider";
 import { fmtUsdc, fmtUsdc4 } from "@/lib/aave/format";
@@ -220,9 +221,13 @@ export function MainnetDashboard() {
         ))}
       </div>
 
-      {tab === "vault" && <Vault a={a} open={openModal} />}
-      {tab === "card" && <CardPanel yieldBaseUnits={snap?.yieldAvailable ?? 0n} />}
-      {tab === "vouchers" && <Locked title="Spend yield on vouchers" body="Buy Amazon, Uber, Zomato and Swiggy vouchers straight from the yield you have earned. Your principal is never used." />}
+      {/* Every panel stays mounted and is only hidden, so switching tabs never loses a card session, a pending
+          voucher payment or a delivery being waited for. */}
+      <div hidden={tab !== "vault"}><Vault a={a} open={openModal} /></div>
+      <div hidden={tab !== "card"}><CardPanel yieldBaseUnits={snap?.yieldAvailable ?? 0n} /></div>
+      <div hidden={tab !== "vouchers"}>
+        <VoucherPanel owner={a.owner} safe={a.safe} maxYield={yieldMax} tickingYield={a.tickingYield} pay={a.payFromYield} busy={a.busy} txError={a.error} steps={a.steps} explorer={explorer} active={tab === "vouchers"} />
+      </div>
       {tab === "cashout" && <Locked title="Cash out yield to your bank" body="Move earned yield to a bank account or UPI through a regulated off-ramp. Only yield, never principal." />}
 
       <AmountDialog

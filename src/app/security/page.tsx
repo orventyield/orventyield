@@ -13,7 +13,7 @@ const THREATS = [
   ["Signing the wrong thing", "Every write is simulated first, and you see the contract, function, amount and chain before signing. Approvals are exact-amount only."],
   ["Fake or wrong addresses", "Every contract address comes from a single configuration file and is checked against the official Safe and Aave deployment lists. The app only ever talks to those addresses, never to anything a user or a link supplies."],
   ["Misleading numbers", "No invented APY or balance. Yield and balances are read from Aave and your Safe on-chain, and demos are labelled as examples."],
-  ["Malicious third-party code", "Voucher and off-ramp widgets run in sandboxed frames with no access to your wallet, behind a strict content security policy."],
+  ["Malicious third-party code", "Voucher providers are reached only through our own small API, so their keys never reach your browser, and nothing a provider sends can sign or move anything from your wallet."],
   ["Leaked secrets", "There are no private keys or server secrets to leak. Public configuration only, and nothing sensitive in the repository."],
   ["Vulnerable dependencies", "Dependencies are locked and checked on every release, and every change that touches the chain goes through a dedicated security review."],
 ];

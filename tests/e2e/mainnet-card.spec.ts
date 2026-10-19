@@ -142,6 +142,7 @@ test.describe("mainnet card suite", () => {
   });
 
   test("phone OTP -> issuer sign-in -> KYC -> card -> single-use reveal -> allowance equals live yield", async ({ page, context }) => {
+    test.setTimeout(180_000); // real transactions, a yield refresh and polling
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     const issuer = await mockIssuer(page);
