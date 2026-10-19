@@ -1,5 +1,5 @@
 const ITEMS = [
-  "Ether.fi Cash",
+  "Aave v3",
   "weETH",
   "Arbitrum",
   "Base",

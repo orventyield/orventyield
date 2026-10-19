@@ -13,11 +13,11 @@ const FEATURES = [
   {
     icon: <Layers />,
     title: "Wallet & Safe onboarding",
-    what: "Connect a wallet and get your own Ether.fi Safe in one transaction. If you already have one, we find it.",
+    what: "Connect a wallet and get your own Safe smart account, created when you make your first deposit.",
     points: [
       "MetaMask, Rainbow, Coinbase Wallet, WalletConnect",
-      "Detects an existing EtherFiSafe automatically",
-      "One-click Safe creation through the Ether.fi Cash Safe factory",
+      "Your Safe address is known before it is deployed",
+      "Deployed through the canonical Safe v1.4.1 factory",
       "Clear wrong-network handling",
     ],
   },

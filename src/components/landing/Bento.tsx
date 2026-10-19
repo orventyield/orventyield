@@ -299,10 +299,10 @@ function SafeTile() {
       <Label icon={<Shield />}>Non-custodial</Label>
       <h3 className="mt-3 text-xl font-bold tracking-tight">We never touch your funds.</h3>
       <p className="mt-3 text-muted">
-        OrventYield is just an interface. Your assets sit in your own Ether.fi Safe, and you sign every transaction.
+        OrventYield is just an interface. Your assets sit in your own Safe, and you sign every transaction.
       </p>
       <div className="mt-6 flex items-center gap-3">
-        {["You", "Your Safe", "Ether.fi"].map((n, i) => (
+        {["You", "Your Safe", "Aave"].map((n, i) => (
           <div key={n} className="flex items-center gap-3">
             <span className="rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1.5 text-xs font-semibold text-cyan">{n}</span>
             {i < 2 && <span className="h-px w-5 bg-gradient-to-r from-cyan to-transparent" />}

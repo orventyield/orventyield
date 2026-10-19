@@ -37,9 +37,9 @@ const STEPS = [
   {
     icon: <Layers />,
     title: "Create your Safe",
-    you: "Approve one transaction to create your personal EtherFiSafe through the Ether.fi Cash Safe factory.",
+    you: "Approve one transaction to create your personal Safe through the canonical Safe v1.4.1 factory.",
     chain: "A new smart-contract wallet is deployed for you. You are its owner, and we have no keys to it.",
-    see: "Your Safe address. If you already have one, we find it and skip this step.",
+    see: "Your Safe address, which is known before it is created.",
   },
   {
     icon: <Bolt />,
@@ -66,16 +66,16 @@ const STEPS = [
 
 const HOLDS = [
   ["You", "Your wallet keys and the decision to sign every transaction."],
-  ["Your Safe", "Your collateral and your debt position, controlled by you."],
-  ["Ether.fi contracts", "The rules: limits, interest, prices and settlement. Set by Ether.fi Cash, not by us."],
+  ["Your Safe", "Your principal and your Aave position, controlled by you."],
+  ["Aave v3", "The rules: yield rates, prices and withdrawals. Set by the Aave protocol, not by us."],
   ["OrventYield", "Nothing. We are only the interface, with no funds, keys, servers or database."],
 ];
 
 const CONTRACTS = [
-  ["EtherFiSafe", "Your own smart-contract wallet that holds collateral."],
-  ["CashModule", "Handles card authorisation and settlement permissions."],
-  ["DebtManager", "Tracks what you owe, interest rates and borrow limits."],
-  ["weETH", "Liquid staked ETH that accrues staking yield."],
+  ["Safe v1.4.1", "Your own smart-contract wallet that holds your funds."],
+  ["Aave Pool", "Where your USDC is supplied to earn yield."],
+  ["aUSDC", "A receipt token whose balance grows as yield accrues."],
+  ["USDC", "The stablecoin you deposit and earn on."],
   ["PriceProvider", "Oracle prices used to value collateral and compute safety."],
 ];
 
@@ -84,7 +84,7 @@ export default function HowItWorksPage() {
     <PageShell
       eyebrow="How it works"
       title="From wallet to spending, step by step."
-      intro="OrventYield is an interface on top of Ether.fi Cash. Here is exactly what happens at every step, what you sign, and who holds what."
+      intro="OrventYield is an interface on top of Safe and Aave. Here is exactly what happens at every step, what you sign, and who holds what."
       next={{ href: "/calculator", label: "Calculator" }}
     >
       <Block title="The big idea" lead="Three things happen in a loop. That is the whole product.">
@@ -146,7 +146,7 @@ export default function HowItWorksPage() {
         </div>
       </Block>
 
-      <Block title="Under the hood" lead="The existing Ether.fi contracts the app talks to. We deploy none of our own.">
+      <Block title="Under the hood" lead="The existing Safe and Aave contracts the app talks to. We deploy none of our own.">
         <ul className="grid gap-3 sm:grid-cols-2">
           {CONTRACTS.map(([n, d]) => (
             <li key={n} className="glass flex items-start gap-3 rounded-2xl p-4">

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 const THREATS = [
   ["Signing the wrong thing", "Every write is simulated first, and you see the contract, function, amount and chain before signing. Approvals are exact-amount only."],
-  ["Fake or wrong addresses", "Every contract address comes from a single configuration file and is checked against Ether.fi's official sources. The app only ever talks to those addresses, never to anything a user or a link supplies."],
+  ["Fake or wrong addresses", "Every contract address comes from a single configuration file and is checked against the official Safe and Aave deployment lists. The app only ever talks to those addresses, never to anything a user or a link supplies."],
   ["Misleading numbers", "No invented APY, limit or health values. Stale or zero oracle prices are flagged on screen."],
   ["Malicious third-party code", "Voucher and off-ramp widgets run in sandboxed frames with no access to your wallet, behind a strict content security policy."],
   ["Leaked secrets", "There are no private keys or server secrets to leak. Public configuration only, and nothing sensitive in the repository."],
@@ -20,7 +20,7 @@ const THREATS = [
 
 const RISKS = [
   ["Liquidation", "If your collateral falls in value, your position can be liquidated. Keep your health factor comfortably above 1.5x."],
-  ["Smart-contract risk", "Ether.fi's contracts are battle-tested but not risk-free. Bugs can cause loss of funds."],
+  ["Smart-contract risk", "Safe and Aave contracts are battle-tested and audited, but not risk-free. Bugs can cause loss of funds."],
   ["Oracle risk", "Prices come from oracles. Wrong or delayed prices can affect limits and liquidations."],
   ["Third-party services", "Card, voucher and off-ramp providers have their own terms, fees, availability and KYC requirements."],
   ["Regulation & tax", "Rules differ by country. You are responsible for yours. Nothing here is legal or tax advice."],
@@ -84,7 +84,7 @@ export default function SecurityPage() {
         </ul>
         <div className="mt-6">
           <Notice tone="warn">
-            OrventYield is independent and not affiliated with or endorsed by Ether.fi. Crypto and borrowing involve risk,
+            OrventYield is independent and not affiliated with or endorsed by Safe, Aave or Immersve. Crypto and borrowing involve risk,
             including loss of funds.
           </Notice>
         </div>

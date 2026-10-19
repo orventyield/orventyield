@@ -99,8 +99,7 @@ export function SpendCalculator() {
           </div>
         </div>
         <p className="relative mt-8 text-xs leading-relaxed text-muted">
-          Simplified model for learning. Real limits, rates and liquidation thresholds are set by Ether.fi&rsquo;s
-          DebtManager and will be read live in the app.
+          Simplified model for learning. Real rates and limits are set by the Aave protocol and will be read live in the app.
         </p>
       </div>
     </Reveal>

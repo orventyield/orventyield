@@ -8,11 +8,11 @@ import { Reveal, SplitWords } from "../ui/motion";
 const FAQ = [
   {
     q: "Is OrventYield custodial?",
-    a: "No. It is a front-end only. Your assets live in your own Ether.fi Safe and you sign every transaction from your own wallet.",
+    a: "No. Your assets live in your own Safe smart account and you sign every transaction from your own wallet. We hold no keys and no funds.",
   },
   {
-    q: "Is this affiliated with Ether.fi?",
-    a: "No. OrventYield is an independent interface designed for Ether.fi Cash and runs no contracts of its own. Ether.fi has not endorsed it.",
+    q: "Is this affiliated with Safe, Aave or Immersve?",
+    a: "No. OrventYield is independent. It uses the audited Safe smart account and Aave v3 contracts as they are, and deploys no contracts of its own. None of them has endorsed it.",
   },
   {
     q: "Do I need KYC?",
@@ -24,7 +24,7 @@ const FAQ = [
   },
   {
     q: "Which chains and assets?",
-    a: "Planned for Arbitrum, Base and Scroll, where Ether.fi Cash is active. Collateral: ETH, WETH, weETH and USDC.",
+    a: "Starting on Arbitrum One with USDC, supplied to Aave v3. More assets and chains may follow.",
   },
   {
     q: "When can I use it?",

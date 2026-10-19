@@ -27,7 +27,7 @@ export default function CalculatorPage() {
     >
       <Block
         title="1. How much can my principal pay for?"
-        lead="Set your collateral and the APY you expect. Real yield varies and the app reads it live from Ether.fi."
+        lead="Set your collateral and the APY you expect. Real yield varies and the app reads it live from Aave."
       >
         <CalculatorCard />
       </Block>
@@ -68,7 +68,7 @@ export default function CalculatorPage() {
 
       <Block title="What these tools leave out">
         <Notice tone="warn">
-          Borrowing interest, fees, price movements, the exact liquidation threshold per asset, and Ether.fi&rsquo;s
+          Borrowing interest, fees, price movements, the exact liquidation threshold per asset, and Aave&rsquo;s
           real LTV limits are not modelled here. Treat results as a learning aid, not a promise. This is not financial
           advice.
         </Notice>
