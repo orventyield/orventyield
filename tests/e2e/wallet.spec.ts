@@ -167,7 +167,7 @@ test.describe("wallet modal", () => {
     await expect(page.getByTestId("wallet-modal")).toHaveCount(0);
     await expect(page.getByTestId("mode-mainnet")).toHaveAttribute("aria-checked", "true");
     // Mainnet shows the connected wallet itself: no address to paste, nothing sends the user elsewhere.
-    await expect(page.getByTestId("mainnet-connected")).toBeVisible();
+    await expect(page.getByTestId("mainnet-gate")).toHaveCount(0);
     await expect(page.getByTestId("network-pill")).toContainText("Arbitrum One");
 
     await page.getByTestId("account-button").click();

@@ -1,0 +1,98 @@
+import { encodeFunctionData, erc20Abi, type Address, type Hex, type PublicClient } from "viem";
+import { ARBITRUM } from "../contracts/arbitrum";
+import { safeFactoryAbi } from "../safe/safe";
+import { poolAbi, RESERVE_ATOKEN, RESERVE_LIQUIDITY_RATE } from "./abi";
+import { positionOf, type PoolEvent, type Position } from "./position";
+
+/** Public Arbitrum RPCs cap eth_getLogs at 10M blocks per call. */
+export const LOG_SPAN = 9_000_000n;
+
+type Client = Pick<PublicClient, "readContract" | "getLogs" | "getBlockNumber">;
+
+/** Exact-amount approval for the Aave Pool (never unlimited). */
+export const approveData = (amount: bigint): Hex =>
+  encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [ARBITRUM.aavePool, amount] });
+
+/** Supply on behalf of the Safe: the aTokens (principal + yield) belong to the Safe, not the wallet. */
+export const supplyData = (amount: bigint, safe: Address): Hex =>
+  encodeFunctionData({ abi: poolAbi, functionName: "supply", args: [ARBITRUM.usdc, amount, safe, 0] });
+
+/** Yield withdrawals land in the Safe itself (this is what marks them as yield, see position.ts). */
+export const withdrawYieldData = (amount: bigint, safe: Address): Hex =>
+  encodeFunctionData({ abi: poolAbi, functionName: "withdraw", args: [ARBITRUM.usdc, amount, safe] });
+
+/** Principal exits go straight to the owner's wallet. */
+export const withdrawPrincipalData = (amount: bigint, owner: Address): Hex =>
+  encodeFunctionData({ abi: poolAbi, functionName: "withdraw", args: [ARBITRUM.usdc, amount, owner] });
+
+export const transferData = (to: Address, amount: bigint): Hex =>
+  encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, amount] });
+
+async function chunked<T>(from: bigint, to: bigint, fetch: (a: bigint, b: bigint) => Promise<T[]>): Promise<T[]> {
+  const out: T[] = [];
+  for (let a = from; a <= to; a += LOG_SPAN + 1n) {
+    const b = a + LOG_SPAN > to ? to : a + LOG_SPAN;
+    out.push(...(await fetch(a, b)));
+  }
+  return out;
+}
+
+/** Block at which the Safe was created, found by scanning the factory's ProxyCreation events (callers cache it). */
+export async function findSafeCreationBlock(client: Client, safe: Address, earliest = 0n): Promise<bigint | null> {
+  const head = await client.getBlockNumber();
+  // Newest first: Safes are usually recent, and the public RPC allows ~10M blocks per query.
+  for (let b = head; b >= earliest; b = b > LOG_SPAN ? b - LOG_SPAN - 1n : 0n) {
+    const from = b > LOG_SPAN ? b - LOG_SPAN : 0n;
+    const logs = await client.getLogs({
+      address: ARBITRUM.safeProxyFactory,
+      event: safeFactoryAbi[2],
+      args: { proxy: safe },
+      fromBlock: from < earliest ? earliest : from,
+      toBlock: b,
+    });
+    if (logs.length) return logs[0]!.blockNumber;
+    if (from === 0n) break;
+  }
+  return null;
+}
+
+export async function readPoolEvents(client: Client, safe: Address, fromBlock: bigint): Promise<PoolEvent[]> {
+  const head = await client.getBlockNumber();
+  const supplies = await chunked(fromBlock, head, (a, b) =>
+    client.getLogs({ address: ARBITRUM.aavePool, event: poolAbi[3], args: { reserve: ARBITRUM.usdc, onBehalfOf: safe }, fromBlock: a, toBlock: b }),
+  );
+  const withdrawals = await chunked(fromBlock, head, (a, b) =>
+    client.getLogs({ address: ARBITRUM.aavePool, event: poolAbi[4], args: { reserve: ARBITRUM.usdc, user: safe }, fromBlock: a, toBlock: b }),
+  );
+  return [
+    ...supplies.map((l) => ({ kind: "supply" as const, amount: l.args.amount!, counterparty: l.args.onBehalfOf!, block: l.blockNumber, idx: l.logIndex })),
+    ...withdrawals.map((l) => ({ kind: "withdraw" as const, amount: l.args.amount!, counterparty: l.args.to!, block: l.blockNumber, idx: l.logIndex })),
+  ]
+    .sort((x, y) => Number(x.block - y.block) || x.idx - y.idx)
+    .map(({ kind, amount, counterparty }) => ({ kind, amount, counterparty }));
+}
+
+export interface ReserveInfo {
+  aToken: Address;
+  liquidityRate: bigint;
+}
+
+export async function readReserve(client: Pick<PublicClient, "readContract">): Promise<ReserveInfo> {
+  const r = (await client.readContract({ address: ARBITRUM.aavePool, abi: poolAbi, functionName: "getReserveData", args: [ARBITRUM.usdc] })) as readonly unknown[];
+  return { aToken: r[RESERVE_ATOKEN] as Address, liquidityRate: BigInt(r[RESERVE_LIQUIDITY_RATE] as bigint) };
+}
+
+export interface AccountSnapshot extends Position {
+  aToken: Address;
+  liquidityRate: bigint;
+  events: PoolEvent[];
+}
+
+export async function readAccount(client: Client, safe: Address, creationBlock: bigint): Promise<AccountSnapshot> {
+  const reserve = await readReserve(client);
+  const [aBalance, events] = await Promise.all([
+    client.readContract({ address: reserve.aToken, abi: erc20Abi, functionName: "balanceOf", args: [safe] }),
+    readPoolEvents(client, safe, creationBlock),
+  ]);
+  return { ...reserve, events, ...positionOf(events, safe, aBalance) };
+}
