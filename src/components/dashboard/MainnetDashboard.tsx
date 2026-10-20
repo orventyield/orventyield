@@ -6,6 +6,7 @@ import { BankCashout } from "@/components/dashboard/BankCashout";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { BridgeDepositDialog } from "@/components/dashboard/mainnet/BridgeDepositDialog";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
+import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
 import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
 import { MainnetVaultOverview, type VaultModal } from "@/components/dashboard/mainnet/MainnetVaultOverview";
 import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
@@ -198,8 +199,9 @@ export function MainnetDashboard() {
       {tab === "overview" && (
       <div className="space-y-6">
         <MainnetVaultOverview a={a} open={openModal} />
+        <SpendShortcuts onVouchers={() => setTab("vouchers")} onCashout={() => setTab("cashout")} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-6"><CardPanel suite={suite} txSteps={a.steps} accountBusy={a.busy} explorer={explorer} /></div>
+          <div className="lg:col-span-6"><CardPanel suite={suite} txSteps={a.steps} accountBusy={a.busy} explorer={explorer} onSpendVouchers={() => setTab("vouchers")} onSpendCashout={() => setTab("cashout")} /></div>
           <div className="lg:col-span-6">
             {posCard ? (
               <PosSimulator

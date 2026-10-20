@@ -40,12 +40,12 @@ function Panel({ children, testId }: { children: React.ReactNode; testId: string
 const primary = "min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.25)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
 
 /** The unified card flow: wallet signature -> identity check -> virtual Mastercard -> single-use PAN/CVV reveal. */
-export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite: ReturnType<typeof useCardSuite>; txSteps: TxStep[]; accountBusy: boolean; explorer?: string }) {
+export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVouchers, onSpendCashout }: { suite: ReturnType<typeof useCardSuite>; txSteps: TxStep[]; accountBusy: boolean; explorer?: string; onSpendVouchers: () => void; onSpendCashout: () => void }) {
   const [funding, setFunding] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const st = s.stage;
 
-  // The card partner's production access is not switched on: never send a real user to a test sign-in or a test KYC page.
+  // The card partner's production access is not switched on: never send a real user to a test sign-in or a test KYC page, and never show a card that cannot be used.
   if (!s.cardAvailable) {
     return (
       <div className="h-full rounded-2xl glass-card p-5" data-testid="card-panel">
@@ -53,11 +53,15 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite:
           <h2 className="text-lg font-bold text-fg">Your virtual Mastercard</h2>
           <MastercardMark className="h-7 w-11 shrink-0" />
         </div>
-        <div data-testid="card-soon" className="space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-4">
-          <p className="text-sm font-semibold text-fg">Coming soon</p>
+        <div data-testid="card-pending-partner" className="space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-sm font-semibold text-fg">Card issuing is in partner approval</p>
           <p className="text-xs text-muted">
-            Your Mastercard is being switched on with our card partner. Your deposit keeps earning yield in the meantime, and you can already use it for vouchers and bank cashout.
+            We never show a card number that cannot be used in a shop. Your yield is ready to spend today with vouchers or a bank / UPI cashout.
           </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" data-testid="card-spend-vouchers" onClick={onSpendVouchers} className="min-h-11 flex-1 rounded-xl bg-cyan px-4 text-xs font-semibold text-bg hover:brightness-110">Spend on vouchers</button>
+            <button type="button" data-testid="card-spend-cashout" onClick={onSpendCashout} className="min-h-11 flex-1 rounded-xl border border-white/10 px-4 text-xs font-semibold text-fg hover:bg-white/5">Cash out to bank / UPI</button>
+          </div>
         </div>
       </div>
     );

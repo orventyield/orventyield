@@ -100,6 +100,12 @@ test.describe("mainnet: Safe + Aave on the fork", () => {
     await expect(page.getByTestId("safe-address")).toHaveText(/^0x[0-9a-fA-F]{40}$/);
     await expect(page.getByText("Ether.fi")).toHaveCount(0);
 
+    // Spending is one tap from the overview
+    await expect(page.getByTestId("spend-shortcuts")).toBeVisible();
+    await page.getByTestId("spend-cashout").click();
+    await expect(page.getByTestId("tab-cashout")).toHaveAttribute("aria-pressed", "true");
+    await page.getByTestId("tab-vault").click();
+
     // Validation before anything is sent
     await page.getByTestId("open-deposit").click();
     await expect(page.getByTestId("amount-confirm")).toBeDisabled();
