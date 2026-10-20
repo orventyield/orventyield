@@ -6,7 +6,7 @@ import type { Address } from "viem";
 import { ARBITRUM } from "@/lib/contracts/arbitrum";
 import { ImmersveClient, ImmersveError, immersveConfig, readiness, type Card, type CardReadiness, type CardSecrets, type CardTransaction } from "@/lib/immersve";
 import { cardFlowAvailable } from "@/lib/immersve/config";
-import { baseToCents, centsToBase, fundingAction, fundsStorageFor, planTopUp, withdrawalAction, type FundingAction } from "@/lib/immersve/funding";
+import { baseToCents, centsToBase, checkTopUpRequest, fundingAction, fundsStorageFor, planTopUp, withdrawalAction, type FundingAction, type TopUpSource } from "@/lib/immersve/funding";
 import type { Hex } from "viem";
 import { deriveStage, type CardStage } from "@/lib/immersve/stage";
 
@@ -59,7 +59,7 @@ export function friendlyCardError(e: unknown): string {
  * (USDC, 6 decimals). Funding withdraws exactly that much yield from Aave and deposits it to the issuer; the card can
  * then spend its funded balance, never more, and never principal.
  */
-export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (amount: bigint, to: Address, label: string) => Promise<boolean>; exec: (calls: { to: Address; data: Hex }[], label: string, detail: string) => Promise<boolean> }) {
+export function useCardSuite({ maxYield, maxPrincipal, pay, payPrincipal, exec }: { maxYield: bigint; maxPrincipal: bigint; pay: (amount: bigint, to: Address, label: string) => Promise<boolean>; payPrincipal: (amount: bigint, to: Address, label: string) => Promise<boolean>; exec: (calls: { to: Address; data: Hex }[], label: string, detail: string) => Promise<boolean> }) {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const sign = useCallback((message: string) => signMessageAsync({ message }), [signMessageAsync]);
@@ -214,14 +214,15 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
     const c = imsv.current!;
     setFundingKind(null);
     if (!c.isLoggedIn || !fundingSourceId || balanceBase === null) return;
-    const plan = planTopUp(maxYield, balanceBase, null);
+    // Probe with whichever source has money, so the wording is right before the user picks one.
+    const plan = planTopUp(maxYield > maxPrincipal ? maxYield : maxPrincipal, balanceBase, null);
     if (!plan) return;
     try {
       setFundingKind(fundingAction(await c.spendingPrerequisites(fundingSourceId, plan.targetCents, kycReturnUrl())).kind);
     } catch {
       setFundingKind("unsupported");
     }
-  }, [fundingSourceId, balanceBase, maxYield]);
+  }, [fundingSourceId, balanceBase, maxYield, maxPrincipal]);
 
   /**
    * Put earned yield on the card. Never more than the yield that can be withdrawn, whole cents only.
@@ -229,12 +230,21 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
    * transaction withdraws exactly that yield from Aave and transfers it to the issuer's funds address.
    */
   const fund = useCallback(
-    async (requestedCents: number | null): Promise<boolean> => {
+    async (requestedCents: number | null, source: TopUpSource = "yield"): Promise<boolean> => {
       const c = imsv.current!;
       if (funding.busy || !c.isLoggedIn || !fundingSourceId || balanceBase === null) return false;
-      const plan = planTopUp(maxYield, balanceBase, requestedCents);
+      const limit = source === "yield" ? maxYield : maxPrincipal;
+      // An explicit amount is checked, never silently reduced. Only "no amount" means "as much as the source allows".
+      if (requestedCents !== null) {
+        const ok = checkTopUpRequest(source, requestedCents, limit);
+        if (!ok.ok) {
+          setFunding({ busy: false, error: ok.reason, done: null, steps: null });
+          return false;
+        }
+      }
+      const plan = planTopUp(limit, balanceBase, requestedCents);
       if (!plan) {
-        setFunding({ busy: false, error: "There is no earned yield to put on the card yet.", done: null, steps: null });
+        setFunding({ busy: false, error: source === "yield" ? "There is no earned yield to put on the card yet." : "There is no deposited principal to put on the card.", done: null, steps: null });
         return false;
       }
       setFunding({ busy: true, error: null, done: null, steps: null });
@@ -261,7 +271,7 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
           const target = fundsStorageFor(channel, cfg.current, [ARBITRUM.usdc, ARBITRUM.aavePool, ARBITRUM.safeProxyFactory, ARBITRUM.safeL2Singleton, ARBITRUM.safeMultiSendCallOnly, address ?? ""]);
           if (!target.ok) throw new ImmersveError(422, "BAD_FUNDS_ADDRESS", target.reason);
           setFunding((f) => ({ ...f, steps: "chain" }));
-          const sent = await pay(plan.base, target.address, "card funding");
+          const sent = source === "yield" ? await pay(plan.base, target.address, "card funding") : await payPrincipal(plan.base, target.address, "card funding");
           if (!sent) {
             // The wallet was rejected or the transaction failed: nothing left the Safe.
             setFunding({ busy: false, error: "The funding transaction was not completed. Nothing was added to your card.", done: null, steps: null });
@@ -276,7 +286,7 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
           const now = /^\d+$/.test(src.balance) ? BigInt(src.balance) : 0n;
           setBalanceBase(now);
           if (now >= want) {
-            setFunding({ busy: false, error: null, done: `Added $${(plan.cents / 100).toFixed(2)} of earned yield to your card.`, steps: action.kind === "simulator" ? "api" : "chain" });
+            setFunding({ busy: false, error: null, done: `Added $${(plan.cents / 100).toFixed(2)} of ${source === "yield" ? "earned yield" : "principal"} to your card.`, steps: action.kind === "simulator" ? "api" : "chain" });
             void refresh();
             return true;
           }
@@ -289,7 +299,7 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
         return false;
       }
     },
-    [funding.busy, fundingSourceId, balanceBase, maxYield, isSandbox, pay, address, refresh],
+    [funding.busy, fundingSourceId, balanceBase, maxYield, maxPrincipal, isSandbox, pay, payPrincipal, address, refresh],
   );
 
   /**
@@ -354,6 +364,8 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
     cardBalanceCents: baseToCents(balanceBase ?? 0n),
     /** Earned yield that could be added to the card now, in whole cents. */
     fundableCents: cents,
+    /** Deposited principal that could be put on the card (whole cents). An explicit choice, never the default. */
+    fundablePrincipalCents: baseToCents(maxPrincipal),
     fundingReady: !!fundingSourceId && balanceBase !== null,
     funding,
     fundingKind,

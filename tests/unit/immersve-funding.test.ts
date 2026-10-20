@@ -133,3 +133,29 @@ describe("withdrawalAction: taking money back off the card", () => {
     expect(withdrawalAction(intent(good), ch(GOOD), { fundsStorageAddress: "0xcd1c3d1c12437bD0375E3C4331771b31220125Bd" }, []).kind).toBe("unsupported");
   });
 });
+
+import { checkTopUpRequest } from "../../src/lib/immersve/funding";
+
+describe("checkTopUpRequest: each source can only release what it holds", () => {
+  const yieldBase = 2_345_678n; // $2.345678 -> 234 whole cents
+  const principalBase = 1_000_000_000n; // $1,000
+  it("rejects zero, negative, fractional-cent and NaN requests", () => {
+    for (const c of [0, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) expect(checkTopUpRequest("yield", c, yieldBase).ok).toBe(false);
+  });
+  it("yield: blocks anything above the earned yield, with the yield wording", () => {
+    const r = checkTopUpRequest("yield", 235, yieldBase);
+    expect(r).toEqual({ ok: false, reason: "That is more than the yield you have earned. Your principal stays locked." });
+  });
+  it("yield: the exact whole-cent balance and one cent (dust) are allowed", () => {
+    expect(checkTopUpRequest("yield", 234, yieldBase)).toEqual({ ok: true, cents: 234 });
+    expect(checkTopUpRequest("yield", 1, yieldBase)).toEqual({ ok: true, cents: 1 });
+  });
+  it("principal: blocks above the deposit, allows the exact deposit", () => {
+    expect(checkTopUpRequest("principal", 100_001, principalBase)).toEqual({ ok: false, reason: "That is more than your deposited principal." });
+    expect(checkTopUpRequest("principal", 100_000, principalBase)).toEqual({ ok: true, cents: 100_000 });
+  });
+  it("a source with nothing (or under one cent) allows nothing", () => {
+    expect(checkTopUpRequest("yield", 1, 9_999n).ok).toBe(false);
+    expect(checkTopUpRequest("principal", 1, 0n).ok).toBe(false);
+  });
+});

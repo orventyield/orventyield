@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MastercardCard, MastercardMark } from "@/components/dashboard/mainnet/MastercardCard";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import type { TxStep } from "@/features/account/useSafeAccount";
+import type { TopUpSource } from "@/lib/immersve/funding";
 import type { useCardSuite } from "@/features/card/useCardSuite";
 
 const usd = (cents: number) => (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -42,6 +43,7 @@ const primary = "min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg 
 /** The unified card flow: wallet signature -> identity check -> virtual Mastercard -> single-use PAN/CVV reveal. */
 export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVouchers, onSpendCashout }: { suite: ReturnType<typeof useCardSuite>; txSteps: TxStep[]; accountBusy: boolean; explorer?: string; onSpendVouchers: () => void; onSpendCashout: () => void }) {
   const [funding, setFunding] = useState(false);
+  const [source, setSource] = useState<TopUpSource>("yield");
   const [withdrawing, setWithdrawing] = useState(false);
   const st = s.stage;
 
@@ -129,8 +131,8 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVou
                 <button type="button" data-testid="card-withdraw-open" disabled={s.cardBalanceCents <= 0} onClick={() => { s.clearWithdrawal(); setWithdrawing(true); }} className="min-h-11 rounded-lg border border-white/10 px-3 font-semibold text-fg hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50">
                   Withdraw to Safe
                 </button>
-                <button type="button" data-testid="card-fund-open" disabled={!s.fundingReady || s.fundableCents <= 0} onClick={() => { s.clearFunding(); setFunding(true); void s.probeFunding(); }} className="min-h-11 rounded-lg border border-emerald/30 bg-emerald/10 px-3 font-semibold text-emerald hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
-                  Fund card
+                <button type="button" data-testid="card-fund-open" disabled={!s.fundingReady || (s.fundableCents <= 0 && s.fundablePrincipalCents <= 0)} onClick={() => { s.clearFunding(); setSource(s.fundableCents > 0 ? "yield" : "principal"); setFunding(true); void s.probeFunding(); }} className="min-h-11 rounded-lg border border-emerald/30 bg-emerald/10 px-3 font-semibold text-emerald hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
+                  + Top Up Card
                 </button>
               </div>
             </div>
@@ -153,16 +155,39 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVou
         open={funding}
         onClose={() => { if (!s.funding.busy && !accountBusy) setFunding(false); }}
         testId="fund-dialog"
-        title="Fund your card"
-        intro="Choose how much earned yield goes on the card. The card can only spend what is on it."
-        max={BigInt(s.fundableCents) * 10_000n}
-        maxLabel="Yield you can add"
-        confirmLabel="Fund card"
+        title="Top up your card"
+        intro="One card, two ways to top it up. The card can only spend what is on it."
+        max={BigInt(source === "yield" ? s.fundableCents : s.fundablePrincipalCents) * 10_000n}
+        maxLabel={source === "yield" ? "Earned yield available" : "Principal available"}
+        confirmLabel="Top up card"
+        presets={[10, 25, 50, 100]}
+        header={
+          <fieldset className="space-y-2" disabled={s.funding.busy || accountBusy}>
+            <legend className="mb-1 text-xs font-mono uppercase tracking-wider text-muted">Pay from</legend>
+            {([
+              { id: "yield", label: "Earned yield", note: "Spend purely from your earned interest. Your principal remains 100% intact.", cents: s.fundableCents, tag: "Recommended" },
+              { id: "principal", label: "Principal vault", note: "Withdraw directly from your deposited principal for larger spending. It stops earning yield on what you take out.", cents: s.fundablePrincipalCents, tag: "" },
+            ] as const).map((o) => (
+              <label key={o.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-left ${source === o.id ? "border-cyan/50 bg-cyan/10" : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"}`}>
+                <input type="radio" name="topup-source" data-testid={`topup-source-${o.id}`} checked={source === o.id} onChange={() => setSource(o.id)} className="mt-1 h-4 w-4 accent-cyan" />
+                <span className="flex-1">
+                  <span className="flex items-center justify-between gap-2 text-sm font-semibold text-fg">
+                    <span>{o.label} {o.tag && <span className="ml-1 rounded-full bg-emerald/15 px-2 py-0.5 text-[10px] font-mono font-medium text-emerald">{o.tag}</span>}</span>
+                    <span data-testid={`topup-available-${o.id}`} className="font-mono text-xs text-muted">Available: {usd(o.cents)}</span>
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-muted">{o.note}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        }
         preview={
           s.fundingKind === "simulator"
-            ? [{ label: "Sandbox deposit", detail: "The card issuer's test service credits your card with this amount. No real money moves and your yield stays in Aave." }]
+            ? [{ label: "Sandbox deposit", detail: "The card issuer's test service credits your card with this amount. No real money moves and your balance stays in Aave." }]
             : s.fundingKind === "onchain"
-              ? [{ label: "Withdraw yield and deposit", detail: "Your Safe withdraws exactly this much earned yield from Aave and sends it to the card issuer's funds address in one transaction. Principal is untouched." }]
+              ? [source === "yield"
+                  ? { label: "Withdraw yield and deposit", detail: "Your Safe withdraws exactly this much earned yield from Aave and sends it to the card issuer's funds address in one transaction. Principal is untouched." }
+                  : { label: "Withdraw principal and deposit", detail: "Your Safe withdraws exactly this much of your deposited principal from Aave and sends it to the card issuer's funds address in one transaction. The rest keeps earning yield." }]
               : [{ label: "Checking how the card issuer wants to be funded", detail: "Nothing is sent until you confirm. This only takes a moment." }]
         }
         steps={s.funding.steps === "chain" ? txSteps : []}
@@ -170,7 +195,7 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVou
         error={s.funding.error}
         success={s.funding.done}
         explorer={explorer}
-        onSubmit={(v) => void s.fund(Number(v / 10_000n))}
+        onSubmit={(v) => void s.fund(Number(v / 10_000n), source)}
       />
 
       <AmountDialog

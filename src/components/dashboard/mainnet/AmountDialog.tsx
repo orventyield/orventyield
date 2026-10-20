@@ -25,6 +25,10 @@ interface Props {
   error: string | null;
   success: string | null;
   explorer?: string;
+  /** Quick-pick amounts in whole USD, shown as pills next to MAX. A pill above the available amount is disabled. */
+  presets?: number[];
+  /** Shown above the amount field (e.g. a source selector). */
+  header?: ReactNode;
   children?: ReactNode;
   onSubmit: (amount: bigint) => void;
 }
@@ -68,6 +72,7 @@ export function AmountDialog(p: Props) {
           }}
           className="space-y-3"
         >
+          {p.header}
           <label className="block text-xs font-mono uppercase tracking-wider text-muted" htmlFor={`${id}-amt`}>
             Amount (USDC)
           </label>
@@ -95,6 +100,25 @@ export function AmountDialog(p: Props) {
               MAX
             </button>
           </div>
+          {p.presets && p.presets.length > 0 && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Quick amounts">
+              {p.presets.map((n) => {
+                const tooBig = BigInt(n) * 1_000_000n > p.max;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    data-testid={`preset-${n}`}
+                    disabled={p.busy || tooBig}
+                    onClick={() => setText(String(n))}
+                    className="min-h-11 rounded-xl border border-white/10 px-4 text-xs font-semibold text-fg hover:border-cyan/40 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ${n}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <p className="text-[11px] font-mono text-muted">{p.maxLabel}: {fmtUsdc(p.max)} USDC</p>
           {invalid && <p role="alert" data-testid="amount-invalid" className="text-xs text-danger">Enter a number with at most 6 decimals.</p>}
           {over && <p role="alert" data-testid="amount-over" className="text-xs text-danger">That is more than the {fmtUsdc(p.max)} USDC available.</p>}

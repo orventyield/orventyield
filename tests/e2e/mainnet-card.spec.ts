@@ -390,4 +390,68 @@ test.describe("mainnet card suite", () => {
     await expect(page.getByTestId("principal-value")).toHaveText("$1,000.00"); // principal untouched
     expect(errors).toEqual([]);
   });
+  test("top up from the PRINCIPAL vault: ONE Safe transaction moves exactly the chosen principal to the issuer, yield untouched", async ({ page }) => {
+    test.setTimeout(180_000);
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await mockIssuer(page, { onchain: true });
+    await installForkWallet(page);
+    await page.goto("/dashboard");
+    await page.getByTestId("connect-wallet").click();
+    await page.getByTestId("wallet-option-test.anvil.wallet").click();
+    await expect(page.getByTestId("mainnet-dashboard")).toBeVisible({ timeout: 30_000 });
+
+    await page.getByTestId("open-deposit").click();
+    await page.getByTestId("amount-input").fill("1000");
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toBeVisible({ timeout: 90_000 });
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("principal-value")).toHaveText("$1,000.00", { timeout: 30_000 });
+    await rpc("evm_increaseTime", [30 * 24 * 3600]);
+    await rpc("evm_mine");
+
+    await page.getByTestId("card-continue").click();
+    await expect(page.getByTestId("card-active")).toBeVisible({ timeout: 30_000 });
+    await expect.poll(async () => Number(((await page.getByTestId("card-fundable").textContent()) ?? "").replace(/[^0-9.]/g, "")), { timeout: 60_000 }).toBeGreaterThan(1);
+    await rpc("anvil_setCode", [STORAGE, STORAGE_STUB]);
+    const safeAddr = ((await page.getByTestId("safe-address").textContent()) ?? "").trim();
+    // The aUSDC token address is read from the Aave Pool itself (getReserveData: word 8 is aTokenAddress), never hardcoded.
+    const reserve = await rpc<string>("eth_call", [{ to: "0x794a61358D6845594F94dc1DB02A252b5b4814aD", data: `0x35ea6a75${USDC.toLowerCase().replace("0x", "").padStart(64, "0")}` }, "latest"]);
+    const aToken = `0x${reserve.slice(2 + 64 * 8 + 24, 2 + 64 * 9)}`;
+    const aUsdc = async () => BigInt(await rpc<string>("eth_call", [{ to: aToken, data: `0x70a08231${safeAddr.toLowerCase().replace("0x", "").padStart(64, "0")}` }, "latest"]));
+
+    await page.getByTestId("card-fund-open").click();
+    await expect(page.getByTestId("topup-source-yield")).toBeChecked(); // yield is the default
+    await expect(page.getByTestId("topup-available-principal")).toContainText("$1,000.00");
+
+    // Yield cannot cover $999: blocked, with the yield wording. Switch to principal and the same amount is allowed.
+    await page.getByTestId("amount-input").fill("999");
+    await expect(page.getByTestId("amount-over")).toBeVisible();
+    await expect(page.getByTestId("amount-confirm")).toBeDisabled();
+    await expect(page.getByTestId("preset-100")).toBeDisabled(); // $100 is more than the ~$2 of yield
+    await page.getByTestId("topup-source-principal").check();
+    await expect(page.getByTestId("amount-over")).toHaveCount(0);
+    await expect(page.getByTestId("preset-100")).toBeEnabled();
+    await expect(page.getByTestId("tx-preview")).toContainText("Withdraw principal and deposit");
+
+    // Principal top-up of exactly $100
+    const before = await aUsdc();
+    await page.getByTestId("preset-100").click();
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toContainText("of principal", { timeout: 120_000 });
+    await expect(page.getByTestId("step-pay-principal")).toHaveAttribute("data-status", "done");
+    expect(await usdcOf(STORAGE)).toBe(100_000_000n); // exactly 100.000000 USDC reached the issuer
+    expect(await usdcOf(safeAddr)).toBe(0n); // nothing stranded in the Safe
+    const after = await aUsdc();
+    // aUSDC left the Safe: 100 USDC, give or take a few wei of interest accrued between the two reads
+    const left = before - after;
+    expect(left > 99_999_000n && left < 100_001_000n).toBe(true);
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("card-balance")).toHaveText("$100.00");
+
+    await page.getByTestId("tab-vault").click();
+    await expect(page.getByTestId("principal-value")).toHaveText("$900.00", { timeout: 30_000 }); // principal fell by exactly what was spent
+    expect(Number(((await page.getByTestId("yield-value").textContent()) ?? "").replace(/[^0-9.]/g, ""))).toBeGreaterThan(1); // yield was not touched
+    expect(errors).toEqual([]);
+  });
 });

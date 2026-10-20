@@ -259,6 +259,26 @@ export function useSafeAccount() {
     [owner, safe, snap, run, safeStep],
   );
 
+  /**
+   * Pay a third party from the PRINCIPAL, in ONE Safe transaction: the Safe withdraws exactly `amount` from Aave straight to
+   * `to`. Only for an explicit, user-chosen spend of principal (card top-up). The remaining balance keeps earning yield, and
+   * the principal figure drops by exactly `amount` (a Withdraw event whose recipient is not the Safe).
+   */
+  const payFromPrincipal = useCallback(
+    async (amount: bigint, to: Address, label: string): Promise<boolean> => {
+      if (!owner || !safe || !snap || amount <= 0n) return false;
+      if (amount > maxPrincipalWithdrawal(snap)) {
+        setError("That is more than your deposited principal.");
+        return false;
+      }
+      return run(
+        [safeStep("pay-principal", `Pay ${label} from principal`, `Your Safe withdraws exactly ${fmtUsdc(amount)} USDC of your deposited principal from Aave and sends it to ${to.slice(0, 6)}…${to.slice(-4)}. The rest keeps earning yield.`, [{ to: ARBITRUM.aavePool, data: withdrawPrincipalData(amount, to) }])],
+        `Paid ${fmtUsdc(amount)} USDC from your principal.`,
+      );
+    },
+    [owner, safe, snap, run, safeStep],
+  );
+
   /** Run arbitrary, already-validated calls from the Safe in one transaction (e.g. take money back from the card issuer). */
   const execFromSafe = useCallback(
     async (calls: Parameters<typeof safeCall>[0], label: string, detail: string): Promise<boolean> => {
@@ -343,6 +363,7 @@ export function useSafeAccount() {
     deposit,
     withdrawYield,
     payFromYield,
+    payFromPrincipal,
     execFromSafe,
     withdrawPrincipal,
     supplyIdle,

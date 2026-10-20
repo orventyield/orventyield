@@ -62,6 +62,26 @@ export function planTopUp(maxYieldBase: bigint, balanceBase: bigint, requestedCe
   return { cents, base: centsToBase(cents), targetCents: baseToCents(balanceBase) + cents };
 }
 
+/** Where card top-up money comes from. Yield is the default; principal is an explicit, separate choice. */
+export type TopUpSource = "yield" | "principal";
+
+export type TopUpRequestCheck = { ok: true; cents: number } | { ok: false; reason: string };
+
+/**
+ * Refuse (never silently shrink) a top-up the chosen source cannot cover. `limitBase` is what that source may release in
+ * USDC base units: withdrawable yield, or the deposited principal. Whole cents only; zero, negative and NaN are rejected.
+ */
+export function checkTopUpRequest(source: TopUpSource, requestedCents: number, limitBase: bigint): TopUpRequestCheck {
+  if (!Number.isInteger(requestedCents) || requestedCents <= 0) return { ok: false, reason: "Enter an amount of at least $0.01." };
+  if (centsToBase(requestedCents) > limitBase) {
+    return {
+      ok: false,
+      reason: source === "yield" ? "That is more than the yield you have earned. Your principal stays locked." : "That is more than your deposited principal.",
+    };
+  }
+  return { ok: true, cents: requestedCents };
+}
+
 export type StorageCheck = { ok: true; address: `0x${string}` } | { ok: false; reason: string };
 
 /**
