@@ -95,7 +95,7 @@ export function buildLifiWidgetConfig(input: BuildLifiConfigInput): WidgetConfig
     // "EVM" is the value of @lifi/sdk's ChainType.EVM; spelled out so this module stays free of runtime SDK imports.
     toAddress: { address: safe, chainType: "EVM" as NonNullable<WidgetConfig["toAddress"]>["chainType"], name: "Your OrventYield Safe" },
     disabledUI: { toAddress: true, toToken: true },
-    hiddenUI: { toAddress: true, toToken: true, appearance: true, language: true },
+    hiddenUI: { appearance: true, language: true },
     requiredUI: { toAddress: true },
 
     // Source: five chains, four asset families.
