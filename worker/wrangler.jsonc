@@ -21,6 +21,9 @@
   "observability": { "enabled": true },
   "vars": {
     "ALLOWED_ORIGINS": "https://orventyield.tech,https://www.orventyield.tech,http://localhost:3000",
-    "BITREFILL_BASE_URL": "https://api.bitrefill.com/v2"
+    "BITREFILL_BASE_URL": "https://api.bitrefill.com/v2",
+    "TRANSAK_ENV": "production",
+    "TRANSAK_GATEWAY_BASE": "https://api-gateway.transak.com",
+    "TRANSAK_PARTNERS_BASE": "https://api.transak.com"
   }
 }
