@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { BankCashout } from "@/components/dashboard/BankCashout";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
+import { BridgeDepositDialog } from "@/components/dashboard/mainnet/BridgeDepositDialog";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
 import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
 import { MainnetVaultOverview, type VaultModal } from "@/components/dashboard/mainnet/MainnetVaultOverview";
@@ -14,6 +15,7 @@ import { useSafeAccount } from "@/features/account/useSafeAccount";
 import { useCardSuite } from "@/features/card/useCardSuite";
 import { CASHOUT_FORBIDDEN, useCashout } from "@/features/cashout/useCashout";
 import { buildLedger } from "@/features/ledger/mainnetLedger";
+import { useSafeIdleUsdc } from "@/features/deposit/useSafeIdleUsdc";
 import { useAppMode } from "@/features/mode/AppModeProvider";
 import type { SpendResult } from "@/features/vault/useVaultState";
 import { useVoucherShop } from "@/features/vouchers/useVoucherShop";
@@ -71,6 +73,8 @@ function Skeleton() {
 
 export function MainnetDashboard() {
   const a = useSafeAccount();
+  const { idleUsdc } = useSafeIdleUsdc(a.safe);
+  const { openWalletModal } = useAppMode();
   const [tab, setTab] = useState<Tab>("overview");
   const [modal, setModal] = useState<Modal>(null);
   const [toWallet, setToWallet] = useState(true);
@@ -136,6 +140,27 @@ export function MainnetDashboard() {
           <button type="button" data-testid="switch-network" onClick={a.switchToArbitrum} className="min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg hover:brightness-110">
             Switch network
           </button>
+          {a.safe && (
+            <>
+              <p className="text-xs text-muted">Or pay from this network: it is bridged into your Safe for you.</p>
+              <button type="button" data-testid="wrong-network-bridge" onClick={() => setModal("bridge")} className="min-h-12 rounded-xl border border-cyan/30 bg-cyan/10 px-8 text-sm font-semibold text-cyan hover:bg-cyan/20">
+                Bridge &amp; Deposit
+              </button>
+              <BridgeDepositDialog
+                open={modal === "bridge"}
+                onClose={close}
+                safe={a.safe}
+                idleUsdc={0n}
+                steps={[]}
+                busy={false}
+                error={null}
+                success={null}
+                explorer={explorer}
+                onSupply={() => undefined}
+                onConnect={() => openWalletModal({ thenMainnet: true })}
+              />
+            </>
+          )}
         </div>
       </Card>
     );
@@ -234,6 +259,21 @@ export function MainnetDashboard() {
       </div>
       )}
 
+      {a.safe && (
+        <BridgeDepositDialog
+          open={modal === "bridge"}
+          onClose={close}
+          safe={a.safe}
+          idleUsdc={idleUsdc}
+          steps={a.steps}
+          busy={a.busy}
+          error={a.error}
+          success={modal === "bridge" ? a.lastDone : null}
+          explorer={explorer}
+          onSupply={(v) => void a.supplyIdle(v)}
+          onConnect={() => openWalletModal({ thenMainnet: true })}
+        />
+      )}
       <AmountDialog
         open={modal === "deposit"}
         onClose={close}

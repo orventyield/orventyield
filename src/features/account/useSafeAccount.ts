@@ -276,6 +276,41 @@ export function useSafeAccount() {
     [owner, safe, snap, run, safeStep],
   );
 
+  /**
+   * Supply USDC that is already in the Safe (e.g. just bridged in) to Aave, in ONE Safe transaction: approve exactly
+   * `amount` to the Pool, then supply for the Safe. Creates the Safe first if the bridge landed before it existed.
+   */
+  const supplyIdle = useCallback(
+    (amount: bigint) => {
+      if (!owner || !safe || amount <= 0n) return;
+      const { initializer, saltNonce } = safeSetup(owner);
+      return run(
+        [
+          {
+            id: "deploy",
+            label: "Create your Safe",
+            detail: `Safe v1.4.1 factory deploys your personal smart account ${safe.slice(0, 6)}…${safe.slice(-4)}. You are its only owner.`,
+            to: ARBITRUM.safeProxyFactory,
+            data: encodeFunctionData({ abi: safeFactoryAbi, functionName: "createProxyWithNonce", args: [ARBITRUM.safeL2Singleton, initializer, saltNonce] }),
+            skip: deployed,
+            onDone: (b) => writeCache(blockKey(chainId, safe), b.toString()),
+          },
+          safeStep(
+            "supply-idle",
+            "Deposit into Aave",
+            `Your Safe supplies the ${fmtUsdc(amount)} USDC it holds to the Aave v3 Pool (exact-amount approval), where it earns yield.`,
+            [
+              { to: ARBITRUM.usdc, data: approveData(amount) },
+              { to: ARBITRUM.aavePool, data: supplyData(amount, safe) },
+            ],
+          ),
+        ],
+        `Deposited ${fmtUsdc(amount)} USDC. It is now earning yield in your Safe.`,
+      );
+    },
+    [owner, safe, deployed, run, chainId, safeStep],
+  );
+
   const status = !isConnected ? "disconnected" : wrongChain ? "wrong-chain" : safeQ.isError || accountQ.isError || walletQ.isError ? "error" : safeQ.isLoading || deployedQ.isLoading || walletQ.isLoading || (deployed && accountQ.isLoading) ? "loading" : "ready";
 
   return {
@@ -303,6 +338,7 @@ export function useSafeAccount() {
     payFromYield,
     execFromSafe,
     withdrawPrincipal,
+    supplyIdle,
     switchToArbitrum: () => switchChain({ chainId: ARBITRUM_CHAIN_ID }),
     retry: () => {
       void qc.invalidateQueries();

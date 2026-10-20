@@ -1,6 +1,6 @@
 import { defineChain, type Chain } from "viem";
 import { http, createConfig, type Transport } from "wagmi";
-import { arbitrum } from "wagmi/chains";
+import { arbitrum, base, mainnet, optimism, polygon } from "wagmi/chains";
 // Subpath imports avoid the connectors barrel, which pulls in optional SDKs we do not use.
 import { coinbaseWallet } from "wagmi/connectors/coinbaseWallet";
 import { injected } from "wagmi/connectors/injected";
@@ -35,10 +35,19 @@ const forkChain: Chain | null = FORK
     })
   : null;
 
-const publicChains = [arbitrum] as const;
+/**
+ * Arbitrum One is the app chain. The other four are source chains for the "Bridge & Deposit" widget only
+ * (src/features/deposit/lifiWidgetConfig.ts); nothing else in the app reads or writes on them.
+ */
+const publicChains = [arbitrum, mainnet, base, optimism, polygon] as const;
 
 const transports: Record<number, Transport> = {
   [arbitrum.id]: http(process.env.NEXT_PUBLIC_RPC_ARBITRUM || undefined),
+  // Source chains use viem's default public RPCs unless overridden.
+  [mainnet.id]: http(process.env.NEXT_PUBLIC_RPC_MAINNET || undefined),
+  [base.id]: http(process.env.NEXT_PUBLIC_RPC_BASE || undefined),
+  [optimism.id]: http(process.env.NEXT_PUBLIC_RPC_OPTIMISM || undefined),
+  [polygon.id]: http(process.env.NEXT_PUBLIC_RPC_POLYGON || undefined),
 };
 if (forkChain) transports[forkChain.id] = http();
 

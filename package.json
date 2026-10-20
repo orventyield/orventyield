@@ -19,12 +19,15 @@
   },
   "dependencies": {
     "@coinbase/wallet-sdk": "^4.4.0",
+    "@lifi/widget": "4.8.0",
+    "@lifi/widget-provider-ethereum": "4.1.6",
     "@tanstack/react-query": "^5.104.4",
     "@walletconnect/ethereum-provider": "^2.26.0",
     "libphonenumber-js": "^1.13.15",
     "lucide-react": "^1.59.0",
     "motion": "^14.3.0",
     "next": "^15.5.28",
+    "ox": "0.14.56",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -47,5 +50,8 @@
     "typescript": "^6.0.3",
     "vitest": "^5.0.5",
     "wrangler": "^4.151.1"
+  },
+  "overrides": {
+    "ox": "$ox"
   }
 }

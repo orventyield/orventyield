@@ -6,7 +6,7 @@ import { fmtUsdc, fmtUsdc4 } from "@/lib/aave/format";
 import { maxYieldWithdrawal } from "@/lib/aave/position";
 
 type Account = ReturnType<typeof useSafeAccount>;
-export type VaultModal = "deposit" | "yield" | "principal" | null;
+export type VaultModal = "deposit" | "bridge" | "yield" | "principal" | null;
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const EXPLORER = "https://arbiscan.io";
@@ -48,6 +48,9 @@ export function MainnetVaultOverview({ a, open }: { a: Account; open: (m: VaultM
           <div className="flex items-center gap-2">
             <button type="button" data-testid="open-deposit" onClick={() => open("deposit")} className="min-h-11 flex-1 rounded-xl bg-cyan py-2 text-center text-xs font-semibold text-bg shadow-sm shadow-cyan/30 transition-all hover:brightness-110">
               + Deposit USDC
+            </button>
+            <button type="button" data-testid="open-bridge" onClick={() => open("bridge")} className="min-h-11 flex-1 rounded-xl border border-cyan/30 bg-cyan/10 py-2 text-center text-xs font-semibold text-cyan transition-all hover:bg-cyan/20">
+              Bridge &amp; Deposit
             </button>
             <button type="button" data-testid="open-principal" disabled={principal <= 0n} onClick={() => open("principal")} className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2 text-center text-xs font-semibold text-fg transition-all hover:bg-white/5 disabled:opacity-40">
               Withdraw
