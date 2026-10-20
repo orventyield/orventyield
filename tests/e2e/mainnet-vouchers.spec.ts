@@ -102,7 +102,7 @@ async function mockShop(page: Page): Promise<Shop> {
   return st;
 }
 
-test("an older server without voucher routes shows a calm 'coming soon', not an error", async ({ page }) => {
+test("an older server without voucher routes shows a calm 'temporarily unavailable' with a retry, not an error", async ({ page }) => {
   test.skip(((await rpc<string>("eth_chainId").catch(() => null)) as string | null) !== "0x7a69", "Anvil fork not running: start it with `npm run fork`");
   await page.route(`${API}/**`, (route) =>
     route.request().method() === "OPTIONS"
@@ -115,7 +115,7 @@ test("an older server without voucher routes shows a calm 'coming soon', not an 
   await page.getByTestId("wallet-option-test.anvil.wallet").click();
   await expect(page.getByTestId("mainnet-dashboard")).toBeVisible({ timeout: 30_000 });
   await page.getByTestId("tab-vouchers").click();
-  await expect(page.getByTestId("voucher-unavailable")).toContainText("being switched on");
+  await expect(page.getByTestId("voucher-unavailable")).toContainText("temporarily unavailable");
   await expect(page.getByTestId("voucher-catalog-error")).toHaveCount(0);
   await expect(page.getByText("Not found.")).toHaveCount(0);
 });

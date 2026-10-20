@@ -249,7 +249,7 @@ export function MainnetDashboard() {
           <BankCashout
             accruedYieldUsd={Number(a.tickingYield) / 1_000_000}
             onCashout={() => ({ success: false, error: "Cashout is not available yet." })}
-            unavailable="Bank and UPI payouts are being switched on. Your earned yield stays safe in the meantime."
+            unavailable="Bank and UPI payouts are temporarily unavailable. Nothing was sent and your earned yield stays safe. Please try again shortly."
           />
         )}
       </div>

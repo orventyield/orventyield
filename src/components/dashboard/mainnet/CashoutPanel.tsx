@@ -40,7 +40,7 @@ export function CashoutPanel({ cashout: c, yieldBase, tickingYield, txSteps, txE
     return () => window.removeEventListener("message", onMessage);
   }, [widgetUrl, c]);
 
-  if (c.unavailable) return null; // the dashboard shows its "coming soon" card instead
+  if (c.unavailable) return null; // the dashboard shows the disabled cashout form with an unavailable notice instead
 
   return (
     <div className="space-y-5 rounded-2xl glass-card p-5" data-testid="cashout-panel">

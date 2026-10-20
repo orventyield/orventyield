@@ -65,9 +65,11 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
   if (shop.unavailable) {
     return (
       <div data-testid="voucher-unavailable" className="space-y-3 rounded-2xl glass-card p-6 text-center">
-        <span className="rounded-full border border-white/10 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-muted">Coming soon</span>
         <h3 className="text-base font-bold text-fg">Digital Voucher Store</h3>
-        <p className="mx-auto max-w-md text-sm text-muted">Amazon, Uber, Swiggy and Zomato vouchers, paid from your earned yield, are being switched on. Your yield keeps growing in the meantime.</p>
+        <p role="status" className="mx-auto max-w-md text-sm text-muted">The voucher store is temporarily unavailable. Nothing was charged and your yield keeps growing. Please try again shortly.</p>
+        <button type="button" data-testid="voucher-retry" onClick={() => void shop.reloadCatalog()} className="min-h-11 rounded-xl border border-white/10 px-5 text-sm font-semibold text-fg hover:bg-white/5">
+          Try again
+        </button>
       </div>
     );
   }
@@ -76,7 +78,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
     return (
       <div data-testid="voucher-unconfigured" className="space-y-2 rounded-2xl glass-card p-6 text-center">
         <h3 className="text-base font-bold text-fg">Digital Voucher Store</h3>
-        <p className="text-sm text-muted">Vouchers aren&rsquo;t switched on in this environment yet.</p>
+        <p className="text-sm text-muted">The voucher store is temporarily unavailable. Please try again shortly.</p>
       </div>
     );
   }

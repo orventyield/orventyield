@@ -54,7 +54,7 @@ export function BankCashout({ accruedYieldUsd, onCashout, unavailable }: BankCas
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           1-Click Bank &amp; UPI Cashout
           <span className="text-xs px-2 py-0.5 rounded-full bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            {live ? "coming soon" : "playground"}
+            {live ? "unavailable" : "playground"}
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
