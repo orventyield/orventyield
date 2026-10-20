@@ -55,6 +55,24 @@ test.describe("wallet modal", () => {
     await expect(page.getByTestId("guest-button")).toBeVisible();
   });
 
+  test("a wallet announced several times is listed once", async ({ page }) => {
+    await page.addInitScript(() => {
+      const icon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=";
+      const provider = { request: async () => [], on() {}, removeListener() {} };
+      const announce = () => {
+        for (const n of [1, 2, 3, 4, 5]) {
+          const info = { uuid: `00000000-0000-4000-8000-00000000010${n}`, name: "Twin Wallet", icon, rdns: `test.twin${n}` };
+          window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: Object.freeze({ info, provider }) }));
+        }
+      };
+      window.addEventListener("eip6963:requestProvider", announce);
+      announce();
+    });
+    await page.goto("/dashboard");
+    await page.getByTestId("connect-wallet").click();
+    await expect(page.getByTestId("wallet-modal").getByText("Twin Wallet")).toHaveCount(1);
+  });
+
   test("Escape and the close button dismiss it and focus returns to the trigger", async ({ page }) => {
     const btn = page.getByTestId("connect-wallet");
     await btn.click();
@@ -168,7 +186,7 @@ test.describe("wallet modal", () => {
     await expect(page.getByTestId("mode-mainnet")).toHaveAttribute("aria-checked", "true");
     // Mainnet shows the connected wallet itself: no address to paste, nothing sends the user elsewhere.
     await expect(page.getByTestId("mainnet-gate")).toHaveCount(0);
-    await expect(page.getByTestId("network-pill")).toContainText("Arbitrum One");
+    await expect(page.getByTestId("network-pill")).toHaveCount(0); // the chain name stays out of the header
 
     await page.getByTestId("account-button").click();
     await page.getByTestId("disconnect").click();

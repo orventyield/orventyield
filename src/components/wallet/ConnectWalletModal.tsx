@@ -93,7 +93,17 @@ export function ConnectWalletModal() {
   const uriHandler = useRef<((u: string) => void) | null>(null);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const detected = useMemo(() => connectors.filter((c) => c.type === "injected" && c.id !== "injected"), [connectors]);
+  // EIP-6963 can announce the same wallet several times (re-announcements, duplicate extensions): one button per wallet.
+  const detected = useMemo(() => {
+    const seen = new Set<string>();
+    return connectors.filter((c) => {
+      if (c.type !== "injected" || c.id === "injected") return false;
+      const key = c.name.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [connectors]);
   const legacyInjected = useMemo(() => {
     const generic = connectors.find((c) => c.id === "injected");
     const hasProvider = typeof window !== "undefined" && !!(window as unknown as { ethereum?: unknown }).ethereum;
