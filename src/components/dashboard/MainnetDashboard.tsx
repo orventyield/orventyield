@@ -5,12 +5,14 @@ import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { BankCashout } from "@/components/dashboard/BankCashout";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
+import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
 import { MainnetVaultOverview, type VaultModal } from "@/components/dashboard/mainnet/MainnetVaultOverview";
 import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
 import { PosSimulator } from "@/components/dashboard/PosSimulator";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useSafeAccount } from "@/features/account/useSafeAccount";
 import { useCardSuite } from "@/features/card/useCardSuite";
+import { CASHOUT_FORBIDDEN, useCashout } from "@/features/cashout/useCashout";
 import { buildLedger } from "@/features/ledger/mainnetLedger";
 import { useAppMode } from "@/features/mode/AppModeProvider";
 import type { SpendResult } from "@/features/vault/useVaultState";
@@ -83,6 +85,8 @@ export function MainnetDashboard() {
     () => suite.cardTransactions.filter((t) => t.creditDebitIndicator !== "credit").map((t) => ({ id: t.id, amountCents: Number(t.amount) || 0, merchant: t.cardAcceptor?.name ?? "Merchant", timestamp: Date.parse(t.transactionDate) || 0 })),
     [suite.cardTransactions],
   );
+  const forbiddenDest = useMemo(() => [...CASHOUT_FORBIDDEN, a.safe ?? "", a.owner ?? ""], [a.safe, a.owner]);
+  const cashout = useCashout({ maxYield: yieldMax, pay: a.payFromYield, forbidden: forbiddenDest, enabled: tab === "cashout" });
   const ledger = useMemo(() => (a.safe ? buildLedger(snap?.events ?? [], a.safe, shop.history, explorer, cardTxs) : []), [a.safe, snap?.events, shop.history, explorer, cardTxs]);
 
   const close = () => {
@@ -212,11 +216,15 @@ export function MainnetDashboard() {
 
       {tab === "cashout" && (
       <div className="space-y-6">
-        <BankCashout
-          accruedYieldUsd={Number(a.tickingYield) / 1_000_000}
-          onCashout={() => ({ success: false, error: "Cashout is not available yet." })}
-          unavailable="Bank and UPI payouts need a regulated off-ramp partner, which isn't connected yet. Your earned yield stays safe in the meantime."
-        />
+        {cashout.configured && !cashout.unavailable ? (
+          <CashoutPanel cashout={cashout} yieldBase={yieldMax} tickingYield={a.tickingYield} txSteps={a.steps} txError={a.error} explorer={explorer} />
+        ) : (
+          <BankCashout
+            accruedYieldUsd={Number(a.tickingYield) / 1_000_000}
+            onCashout={() => ({ success: false, error: "Cashout is not available yet." })}
+            unavailable="Bank and UPI payouts are being switched on. Your earned yield stays safe in the meantime."
+          />
+        )}
       </div>
       )}
 

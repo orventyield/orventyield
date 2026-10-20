@@ -14,6 +14,11 @@
   //      Business account) and set the BITREFILL_BASE_URL var to the API base shown in docs.bitrefill.com.
   //      Until both are set, /api/vouchers/* answers 503 and the app says vouchers are not available yet.
   //      Add a Cloudflare rate-limiting rule for /api/vouchers/* (the in-code limiter is per-isolate only).
+  //   7. bank / UPI cashout (optional): get a STAGING partner key at dashboard.transak.com, then
+  //        npx wrangler secret put TRANSAK_API_KEY / TRANSAK_API_SECRET --config worker/wrangler.jsonc
+  //      Run `npm run cashout:probe` first: it confirms which order field is the payment address; put that field name in the
+  //      TRANSAK_DEPOSIT_FIELD var below. Until it is set the app refuses to send any cashout. TRANSAK_ENV defaults to staging.
+  //      Production needs KYB approval plus explicit TRANSAK_ENV=production, TRANSAK_GATEWAY_BASE and TRANSAK_PARTNERS_BASE.
   // Never set ALLOW_MOCK_OTP in production: it enables the fixed test code.
   "name": "orventyield-verify",
   "main": "index.ts",

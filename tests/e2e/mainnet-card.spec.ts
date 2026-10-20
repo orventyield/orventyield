@@ -161,6 +161,12 @@ async function mockIssuer(page: Page, opts: { onchain?: boolean } = {}): Promise
   });
   // The single-use reveal link: first use works, any reuse is a 403, exactly like the real service.
   const used = new Set<string>();
+  // The Worker is an older deployment without cashout routes: cashout must say "being switched on", not break.
+  await page.route("https://vouchers.e2e.test/**", (route) =>
+    route.request().method() === "OPTIONS"
+      ? route.fulfill({ status: 204, headers: cors })
+      : route.fulfill({ status: 404, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify({ ok: false, code: "NOT_FOUND", message: "Not found." }) }),
+  );
   await page.route("https://secure.test.immersve.com/**", async (route) => {
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
     const id = new URL(route.request().url()).pathname;

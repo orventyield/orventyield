@@ -6,6 +6,7 @@
  *   POST /api/verify/start   { phone: "+E164", owner }
  *   POST /api/verify/check   { phone, code, owner, nonce, signature? }
  *   GET|POST /api/vouchers/*  voucher catalogue, invoices and delivery (see vouchers.ts)
+ *   GET|POST /api/cashout/*   bank / UPI cashout through Transak SELL (see transak.ts)
  *
  * Secrets (wrangler secret put): PEPPER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SERVICE_SID,
  * and for vouchers BITREFILL_API_KEY (or BITREFILL_API_ID + BITREFILL_API_SECRET) with the BITREFILL_BASE_URL var.
@@ -14,9 +15,10 @@
 import { D1Store, type D1Like } from "../src/lib/identity/d1";
 import { TwilioVerifyProvider, type CheckResult, type OtpProvider } from "../src/lib/identity/otp";
 import { DEFAULT_CONFIG, VerificationService, VerifyError, type VerifyConfig } from "../src/lib/identity/service";
+import { handleCashout, type TransakEnv } from "./transak";
 import { handleVouchers, type VoucherEnv } from "./vouchers";
 
-export interface Env extends VoucherEnv {
+export interface Env extends VoucherEnv, TransakEnv {
   DB: D1Like;
   PEPPER?: string;
   OTP_PROVIDER?: string;
@@ -111,6 +113,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: h });
   if (url.pathname === "/api/health") return json({ ok: true }, 200, h);
 
+  if (url.pathname.startsWith("/api/cashout/")) {
+    return handleCashout(request, env, url, (body, status, extra) => json(body, status, h, extra), readJson);
+  }
   if (url.pathname.startsWith("/api/vouchers/")) {
     return handleVouchers(request, env, url, (body, status, extra) => json(body, status, h, extra), readJson);
   }
