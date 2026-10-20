@@ -22,6 +22,7 @@ interface Props {
 
 const META: Record<BrandId, { icon: string; category: string }> = {
   amazon: { icon: "📦", category: "Shopping" },
+  flipkart: { icon: "🛍️", category: "Shopping" },
   uber: { icon: "🚗", category: "Ride & Food" },
   swiggy: { icon: "🍔", category: "Food Delivery" },
   zomato: { icon: "🍽️", category: "Food Delivery" },
@@ -52,7 +53,7 @@ function Copy({ text, label }: { text: string; label: string }) {
 /** The Mainnet twin of the Playground's VoucherCenter: same store layout, but real vouchers paid from real yield. */
 export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, steps, explorer }: Props) {
   const [picked, setPicked] = useState<VoucherProduct | null>(null);
-  const [packageId, setPackageId] = useState<number | null>(null);
+  const [packageId, setPackageId] = useState<string | number | null>(null);
   const [custom, setCustom] = useState("");
   const p = shop.purchase;
 
@@ -83,7 +84,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
     );
   }
 
-  const choice = ((): { sel: { packageId: number } | { value: number } | null; label: string } => {
+  const choice = ((): { sel: { packageId: string | number } | { value: number } | null; label: string } => {
     if (!picked) return { sel: null, label: "" };
     if (custom) {
       const v = Number(custom);

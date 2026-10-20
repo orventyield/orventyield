@@ -107,7 +107,7 @@ export function useVoucherShop({ owner, maxYield, pay, enabled }: Deps) {
 
   /** Step 1: ask the provider for the exact USDC price. Free: nothing is charged yet. */
   const quote = useCallback(
-    async (product: VoucherProduct, choice: { packageId: number } | { value: number }) => {
+    async (product: VoucherProduct, choice: { packageId: string | number } | { value: number }) => {
       if (!api || !owner) return;
       if ("value" in choice && !validValue(product, choice.value)) {
         setPurchase({ stage: "failed", message: "That amount isn't available for this voucher." });

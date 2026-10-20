@@ -76,7 +76,7 @@ export class BitrefillClient {
     if (!isEvmAddress(refundAddress)) throw new BitrefillError("BAD_REFUND_ADDRESS", "Invalid refund address.", 400);
     const line: Json = { product_id: product.productId, quantity: 1 };
     if ("packageId" in sel) {
-      if (!product.packages.some((p) => p.id === sel.packageId)) throw new BitrefillError("BAD_SELECTION", "Unknown denomination.", 400);
+      if (!product.packages.some((p) => String(p.id) === String(sel.packageId))) throw new BitrefillError("BAD_SELECTION", "Unknown denomination.", 400);
       line.package_id = sel.packageId;
     } else {
       if (!validValue(product, sel.value)) throw new BitrefillError("BAD_SELECTION", "That amount is not available.", 400);
@@ -85,7 +85,10 @@ export class BitrefillClient {
     const r = await this.call("POST", "/invoices", { products: [line], payment_method: "usdc_arbitrum", refund_address: refundAddress });
     const inv = obj(r.data);
     const pay = obj(inv.payment);
-    const price = pay.price;
+    let price = pay.price;
+    if (typeof price === "number" && price > 1000) {
+      price = price / 1_000_000;
+    }
     // Refuse anything that is not USDC on the expected shape: sending the wrong asset or amount can lose the funds.
     if (typeof inv.id !== "string" || !isEvmAddress(pay.address) || typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
       throw new BitrefillError("BAD_INVOICE", "The provider returned an invoice we cannot safely pay.");

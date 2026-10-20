@@ -78,12 +78,12 @@ export async function handleVouchers(request: Request, env: VoucherEnv, url: URL
       const productId = typeof body?.productId === "string" ? body.productId : "";
       const refund = typeof body?.refundAddress === "string" ? body.refundAddress : "";
       const country = String(body?.country ?? "IN").toUpperCase();
-      const hasPkg = typeof body?.packageId === "number";
+      const hasPkg = (typeof body?.packageId === "string" && body.packageId.length > 0) || typeof body?.packageId === "number";
       const hasVal = typeof body?.value === "number";
       if (!body || !productId || !COUNTRIES.test(country) || hasPkg === hasVal) return reply({ ok: false, code: "BAD_REQUEST", message: "productId, country and exactly one of packageId or value are required." }, 400);
       const product = (await products(client, country)).find((p) => p.productId === productId);
       if (!product) return reply({ ok: false, code: "UNKNOWN_PRODUCT", message: "That voucher is not offered." }, 404);
-      const sel: PurchaseSelection = hasPkg ? { productId, packageId: body.packageId as number } : { productId, value: body.value as number };
+      const sel: PurchaseSelection = hasPkg ? { productId, packageId: body.packageId as string | number } : { productId, value: body.value as number };
       return reply({ ok: true, quote: await client.createInvoice(product, sel, refund) }, 200);
     }
 

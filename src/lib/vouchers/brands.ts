@@ -2,6 +2,7 @@ import type { BrandId, VoucherProduct } from "./types";
 
 export const BRANDS: { id: BrandId; label: string; match: RegExp }[] = [
   { id: "amazon", label: "Amazon", match: /^amazon\b/i },
+  { id: "flipkart", label: "Flipkart", match: /^flipkart\b/i },
   { id: "swiggy", label: "Swiggy", match: /^swiggy\b/i },
   { id: "zomato", label: "Zomato", match: /^zomato\b/i },
   { id: "uber", label: "Uber", match: /^uber\b(?!\s*eats)/i },
@@ -21,7 +22,14 @@ interface RawProduct {
   range?: unknown;
 }
 
-const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const num = (v: unknown): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const parsed = parseFloat(v);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
 
 /** Pick, per brand, the first in-stock product that has something to buy. Unknown or malformed rows are skipped. */
 export function pickBrandProducts(raw: unknown[]): VoucherProduct[] {
@@ -33,8 +41,13 @@ export function pickBrandProducts(raw: unknown[]): VoucherProduct[] {
     if (!brand || out.has(brand.id)) continue;
 
     const packages = (Array.isArray(r.packages) ? r.packages : [])
-      .map((p) => ({ id: num((p as { id?: unknown })?.id), value: num((p as { value?: unknown })?.value) }))
-      .filter((p): p is { id: number; value: number } => p.id !== null && p.value !== null && p.value > 0);
+      .map((p) => {
+        const rawPkg = p as { id?: unknown; value?: unknown; amount?: unknown };
+        const id = rawPkg?.id !== undefined && rawPkg?.id !== null ? (typeof rawPkg.id === "number" ? rawPkg.id : String(rawPkg.id)) : null;
+        const val = num(rawPkg?.amount) ?? num(rawPkg?.value);
+        return { id, value: val && Number.isFinite(val) ? val : null };
+      })
+      .filter((p): p is { id: string | number; value: number } => p.id !== null && p.value !== null && p.value > 0);
     const rg = r.range as { min?: unknown; max?: unknown; step?: unknown } | undefined;
     const min = num(rg?.min);
     const max = num(rg?.max);

@@ -1,9 +1,9 @@
 /** Shapes follow docs.bitrefill.com (products, invoices, orders). Only the fields we use. */
 
-export type BrandId = "amazon" | "swiggy" | "zomato" | "uber";
+export type BrandId = "amazon" | "flipkart" | "swiggy" | "zomato" | "uber";
 
 export interface VoucherPackage {
-  id: number;
+  id: string | number;
   /** Face value in the product's own currency (e.g. 500 INR). */
   value: number;
 }
@@ -26,7 +26,7 @@ export interface VoucherProduct {
   range?: VoucherRange;
 }
 
-export type PurchaseSelection = { productId: string } & ({ packageId: number } | { value: number });
+export type PurchaseSelection = { productId: string } & ({ packageId: string | number } | { value: number });
 
 export interface InvoiceQuote {
   invoiceId: string;
