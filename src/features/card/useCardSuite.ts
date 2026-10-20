@@ -6,7 +6,8 @@ import { useIdentity } from "@/features/identity/IdentityProvider";
 import type { Address } from "viem";
 import { ARBITRUM } from "@/lib/contracts/arbitrum";
 import { ImmersveClient, ImmersveError, immersveConfig, readiness, type Card, type CardReadiness, type CardSecrets, type CardTransaction } from "@/lib/immersve";
-import { baseToCents, fundingAction, fundsStorageFor, planTopUp, type FundingAction } from "@/lib/immersve/funding";
+import { baseToCents, centsToBase, fundingAction, fundsStorageFor, planTopUp, withdrawalAction, type FundingAction } from "@/lib/immersve/funding";
+import type { Hex } from "viem";
 import { deriveStage, type CardStage } from "@/lib/immersve/stage";
 
 const REVEAL_SECONDS = 30;
@@ -53,6 +54,11 @@ export function friendlyCardError(e: unknown): string {
         return "Your card session expired. Continue again to sign in.";
       case "REVEAL_FAILED":
         return "The one-time card link was already used or expired. Tap reveal again for a fresh one.";
+      case "UNSUPPORTED_WITHDRAWAL":
+      case "UNSUPPORTED_FUNDING":
+      case "BAD_FUNDS_ADDRESS":
+      case "FUNDING_MISMATCH":
+        return e.message;
       case "UNSAFE_URL":
         return "The card issuer sent an address we don't trust, so we stopped. Nothing was sent.";
       default:
@@ -70,7 +76,7 @@ export function friendlyCardError(e: unknown): string {
  * (USDC, 6 decimals). Funding withdraws exactly that much yield from Aave and deposits it to the issuer; the card can
  * then spend its funded balance, never more, and never principal.
  */
-export function useCardSuite({ maxYield, pay }: { maxYield: bigint; pay: (amount: bigint, to: Address, label: string) => Promise<boolean> }) {
+export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (amount: bigint, to: Address, label: string) => Promise<boolean>; exec: (calls: { to: Address; data: Hex }[], label: string, detail: string) => Promise<boolean> }) {
   const { address, isConnected } = useAccount();
   const { client: identity, owner: identityOwner, isWallet, sign } = useIdentity();
   const imsv = useRef<ImmersveClient | null>(null);
@@ -89,6 +95,7 @@ export function useCardSuite({ maxYield, pay }: { maxYield: bigint; pay: (amount
   const [error, setError] = useState<string | null>(null);
   const [balanceBase, setBalanceBase] = useState<bigint | null>(null);
   const [cardTransactions, setCardTransactions] = useState<CardTransaction[]>([]);
+  const [withdrawal, setWithdrawal] = useState<{ busy: boolean; error: string | null; done: string | null; steps: "api" | "chain" | null }>({ busy: false, error: null, done: null, steps: null });
   const [fundingKind, setFundingKind] = useState<FundingAction["kind"] | null>(null);
   const [funding, setFunding] = useState<{ busy: boolean; error: string | null; done: string | null; steps: "api" | "chain" | null }>({ busy: false, error: null, done: null, steps: null });
 
@@ -328,6 +335,53 @@ export function useCardSuite({ maxYield, pay }: { maxYield: bigint; pay: (amount
     [funding.busy, fundingSourceId, balanceBase, maxYield, isSandbox, pay, address, refresh],
   );
 
+  /**
+   * Take money back off the card, into the Safe. The issuer debits the card at once. Sandbox: its simulator confirms. On a real
+   * chain: ONE Safe transaction calls withdraw() on the issuer's funds contract (strictly validated) and the USDC lands in the Safe.
+   */
+  const withdrawToSafe = useCallback(
+    async (requestedCents: number | null): Promise<boolean> => {
+      const c = imsv.current!;
+      if (withdrawal.busy || !c.isLoggedIn || !fundingSourceId || balanceBase === null) return false;
+      const maxCents = baseToCents(balanceBase);
+      const cents = requestedCents === null ? maxCents : Math.min(Math.floor(requestedCents), maxCents);
+      if (!Number.isFinite(cents) || cents <= 0) {
+        setWithdrawal({ busy: false, error: "There is nothing on the card to withdraw.", done: null, steps: null });
+        return false;
+      }
+      const base = centsToBase(cents);
+      setWithdrawal({ busy: true, error: null, done: null, steps: null });
+      try {
+        const intent = await c.createWithdrawalIntent(fundingSourceId, base);
+        const channel = await c.getFundingChannel(cfg.current.fundingChannelId);
+        const action = withdrawalAction(intent, channel, cfg.current, [ARBITRUM.usdc, ARBITRUM.aavePool, ARBITRUM.safeProxyFactory, ARBITRUM.safeL2Singleton, ARBITRUM.safeMultiSendCallOnly, address ?? ""]);
+        if (action.kind === "unsupported") throw new ImmersveError(422, "UNSUPPORTED_WITHDRAWAL", action.reason);
+        if (action.kind === "simulator") {
+          if (!isSandbox) throw new ImmersveError(422, "UNSUPPORTED_WITHDRAWAL", "Sandbox withdrawals are not available here. Nothing was sent.");
+          setWithdrawal((w) => ({ ...w, steps: "api" }));
+          await c.executeSimulatorWithdrawal(action.url, action.payload);
+        } else {
+          setWithdrawal((w) => ({ ...w, steps: "chain" }));
+          const ok = await exec([{ to: action.to, data: action.data }], "Withdraw card balance", `Your Safe calls withdraw on the card issuer's funds contract and receives ${(cents / 100).toFixed(2)} USDC.`);
+          if (!ok) {
+            // The card was already debited by the issuer for this intent; it stays pending until executed or it expires.
+            setWithdrawal({ busy: false, error: "The withdrawal transaction was not completed. The issuer holds your request for about 30 minutes; try again before it expires.", done: null, steps: null });
+            await refresh();
+            return false;
+          }
+        }
+        await refresh();
+        setWithdrawal({ busy: false, error: null, done: `Moved $${(cents / 100).toFixed(2)} from your card back to your Safe.`, steps: action.kind === "simulator" ? "api" : "chain" });
+        return true;
+      } catch (e) {
+        setWithdrawal({ busy: false, error: friendlyCardError(e), done: null, steps: null });
+        await refresh();
+        return false;
+      }
+    },
+    [withdrawal.busy, fundingSourceId, balanceBase, isSandbox, exec, address, refresh],
+  );
+
   return {
     stage,
     busy,
@@ -335,6 +389,9 @@ export function useCardSuite({ maxYield, pay }: { maxYield: bigint; pay: (amount
     secrets,
     secondsLeft,
     isSandbox,
+    withdrawal,
+    withdrawToSafe,
+    clearWithdrawal: () => setWithdrawal({ busy: false, error: null, done: null, steps: null }),
     /** What the card can spend right now: the funded balance, in whole cents. */
     cardBalanceCents: baseToCents(balanceBase ?? 0n),
     /** Earned yield that could be added to the card now, in whole cents. */

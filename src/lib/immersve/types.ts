@@ -44,6 +44,18 @@ export interface FundingChannel {
   params: { storageAddress?: string; [k: string]: unknown };
 }
 
+/**
+ * Response of POST /api/funding-sources/:id/withdraw. The funding source is debited immediately and the interaction stays
+ * "Pending". Sandbox: `execution` is {url, payload}. Production: `execution.params` describes the contract call (docs: contract
+ * address, ABI, method and parameters); its exact keys are not in the public docs, so funding.ts validates them strictly.
+ */
+export interface WithdrawalIntent {
+  id: string;
+  amount: number | string;
+  expiresAt: string;
+  execution: { url?: string; payload?: { amount?: string; fundingSourceId?: string; id?: string; expiresAt?: string }; params?: unknown; [k: string]: unknown };
+}
+
 /** A card payment as listed by GET /api/accounts/:id/transactions (amounts in USD cents). */
 export interface CardTransaction {
   id: string;

@@ -250,6 +250,15 @@ export function useSafeAccount() {
     [owner, safe, snap, run, safeStep],
   );
 
+  /** Run arbitrary, already-validated calls from the Safe in one transaction (e.g. take money back from the card issuer). */
+  const execFromSafe = useCallback(
+    async (calls: Parameters<typeof safeCall>[0], label: string, detail: string): Promise<boolean> => {
+      if (!owner || !safe || calls.length === 0) return false;
+      return run([safeStep("safe-exec", label, detail, calls)], `${label} done.`);
+    },
+    [owner, safe, run, safeStep],
+  );
+
   const withdrawPrincipal = useCallback(
     (amount: bigint) => {
       if (!owner || !safe || !snap || amount <= 0n) return;
@@ -290,6 +299,7 @@ export function useSafeAccount() {
     deposit,
     withdrawYield,
     payFromYield,
+    execFromSafe,
     withdrawPrincipal,
     switchToArbitrum: () => switchChain({ chainId: ARBITRUM_CHAIN_ID }),
     retry: () => {

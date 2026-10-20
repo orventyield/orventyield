@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BASE_UNITS_PER_CENT, baseToCents, centsToBase, fundingAction, fundsStorageFor, planTopUp, sameApiHost } from "../../src/lib/immersve/funding";
+import { BASE_UNITS_PER_CENT, baseToCents, centsToBase, fundingAction, fundsStorageFor, planTopUp, sameApiHost, withdrawalAction } from "../../src/lib/immersve/funding";
 import type { FundingChannel, Prerequisite } from "../../src/lib/immersve";
 
 describe("units (1 cent = 10,000 USDC base units)", () => {
@@ -91,5 +91,45 @@ describe("sameApiHost", () => {
     for (const bad of ["https://evil.example/x", "http://test.immersve.com/x", "https://test.immersve.com.evil.example/x", "not a url", "https://test.immersve.com:8443/x"]) {
       expect(sameApiHost(bad, "https://test.immersve.com")).toBe(false);
     }
+  });
+});
+
+describe("withdrawalAction: taking money back off the card", () => {
+  const abi = [{ type: "function", name: "withdraw", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] }];
+  const intent = (params: unknown) => ({ execution: { params } });
+  const good = { address: GOOD, abi, method: "withdraw", params: [1_000_000n] };
+
+  it("accepts the sandbox simulator instructions as sent", () => {
+    const a = withdrawalAction({ execution: { url: "https://test.immersve.com/api/simulator/execute-withdrawal", payload: { amount: "10000", fundingSourceId: "fs", id: "w1", expiresAt: "x" } } }, ch(undefined), {}, []);
+    expect(a).toMatchObject({ kind: "simulator", url: "https://test.immersve.com/api/simulator/execute-withdrawal" });
+  });
+  it("builds a withdraw() call to the channel's funds address and nothing else", () => {
+    const a = withdrawalAction(intent(good), ch(GOOD), {}, []);
+    expect(a.kind).toBe("onchain");
+    if (a.kind === "onchain") {
+      expect(a.to).toBe(GOOD);
+      expect(a.data.startsWith("0x2e1a7d4d")).toBe(true); // withdraw(uint256)
+    }
+  });
+  it("accepts integer arguments sent as numeric strings or numbers (JSON has no bigint)", () => {
+    for (const arg of ["1000000", 1_000_000]) {
+      const a = withdrawalAction(intent({ ...good, params: [arg] }), ch(GOOD), {}, []);
+      expect(a.kind).toBe("onchain");
+    }
+    expect(withdrawalAction(intent({ ...good, params: ["not a number"] }), ch(GOOD), {}, []).kind).toBe("unsupported");
+  });
+  it("refuses a target that is not the funding channel's funds address", () => {
+    const other = "0xcd1c3d1c12437bD0375E3C4331771b31220125Bd";
+    expect(withdrawalAction(intent({ ...good, address: other }), ch(GOOD), {}, []).kind).toBe("unsupported");
+  });
+  it("refuses another method, a payable function, a mismatched ABI and missing pieces", () => {
+    expect(withdrawalAction(intent({ ...good, method: "transfer" }), ch(GOOD), {}, []).kind).toBe("unsupported");
+    expect(withdrawalAction(intent({ ...good, abi: [{ ...abi[0], stateMutability: "payable" }] }), ch(GOOD), {}, []).kind).toBe("unsupported");
+    expect(withdrawalAction(intent({ ...good, params: [] }), ch(GOOD), {}, []).kind).toBe("unsupported");
+    expect(withdrawalAction(intent({ address: GOOD }), ch(GOOD), {}, []).kind).toBe("unsupported");
+    expect(withdrawalAction({ execution: {} }, ch(GOOD), {}, []).kind).toBe("unsupported");
+  });
+  it("also enforces the pinned funds address", () => {
+    expect(withdrawalAction(intent(good), ch(GOOD), { fundsStorageAddress: "0xcd1c3d1c12437bD0375E3C4331771b31220125Bd" }, []).kind).toBe("unsupported");
   });
 });

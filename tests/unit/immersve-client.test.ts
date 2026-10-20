@@ -122,6 +122,23 @@ describe("funding calls", () => {
   });
 });
 
+describe("withdrawal intent", () => {
+  it("asks for the amount and returns the instructions", async () => {
+    const { c, calls } = client({ ...loginRoutes, "POST /api/funding-sources/fs1/withdraw": () => ok({ id: "w1", amount: 10000, expiresAt: "2026-10-20T06:22:59Z", execution: { url: `${cfg.baseUrl}/api/simulator/execute-withdrawal`, payload: { amount: "10000" } } }) });
+    await c.login("0xabc", "https://x.y", async () => "0xs");
+    const w = await c.createWithdrawalIntent("fs1", 10_000n);
+    expect(w.id).toBe("w1");
+    expect(JSON.parse(String(calls.at(-1)!.init.body))).toEqual({ amount: 10000 });
+  });
+  it("refuses zero, negative and absurd amounts without calling the issuer", async () => {
+    const { c, calls } = client({ ...loginRoutes });
+    await c.login("0xabc", "https://x.y", async () => "0xs");
+    const n = calls.length;
+    for (const bad of [0n, -1n, 2n ** 60n]) await expect(c.createWithdrawalIntent("fs1", bad)).rejects.toMatchObject({ errorCode: "BAD_AMOUNT" });
+    expect(calls.length).toBe(n);
+  });
+});
+
 describe("readiness", () => {
   it("is ready only when every stage is ok", () => {
     expect(readiness([{ stage: "kyc", status: "ok" }, { stage: "aml", status: "ok" }, { stage: "funding", status: "ok" }])).toEqual({ state: "ready" });

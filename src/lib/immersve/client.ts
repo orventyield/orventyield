@@ -1,5 +1,5 @@
 import { sameApiHost } from "./funding";
-import type { Card, CardReadiness, CardSecrets, CardTransaction, FundingChannel, FundingSource, ImmersveConfig, Prerequisite, Region, Session } from "./types";
+import type { Card, CardReadiness, CardSecrets, CardTransaction, FundingChannel, FundingSource, ImmersveConfig, Prerequisite, Region, Session, WithdrawalIntent } from "./types";
 
 export class ImmersveError extends Error {
   constructor(readonly status: number, readonly errorCode: string, message?: string) {
@@ -112,10 +112,29 @@ export class ImmersveClient {
   }
 
   /**
-   * SANDBOX ONLY: the simulator funding channel asks the client to POST a deposit to the issuer's own test API. The bearer
-   * token is only ever sent to the issuer's host.
+   * Ask to take `amountBase` (USDC base units) back out of the card. The funding source is debited at once; the cardholder
+   * then executes the returned `execution` before `expiresAt`.
    */
+  async createWithdrawalIntent(fundingSourceId: string, amountBase: bigint): Promise<WithdrawalIntent> {
+    if (amountBase <= 0n || amountBase > BigInt(Number.MAX_SAFE_INTEGER)) throw new ImmersveError(400, "BAD_AMOUNT", "Invalid withdrawal amount.");
+    const r = await this.request<WithdrawalIntent>("POST", `/api/funding-sources/${fundingSourceId}/withdraw`, { amount: Number(amountBase) });
+    return { ...r, id: str(r.id, "id"), expiresAt: str(r.expiresAt, "expiresAt"), execution: r.execution ?? {} };
+  }
+
+  /** SANDBOX ONLY: execute a simulator withdrawal or deposit. See executeSimulatorDeposit. */
+  executeSimulatorWithdrawal(url: string, payload: Record<string, unknown>): Promise<void> {
+    return this.executeSimulator(url, payload);
+  }
+
   async executeSimulatorDeposit(url: string, payload: { amount: string; fundingSourceId: string }): Promise<void> {
+    return this.executeSimulator(url, payload);
+  }
+
+  /**
+   * SANDBOX ONLY: the simulator funding channel asks the client to POST to the issuer's own test API. The bearer token is
+   * only ever sent to the issuer's host.
+   */
+  private async executeSimulator(url: string, payload: Record<string, unknown>): Promise<void> {
     if (!sameApiHost(url, this.cfg.baseUrl)) throw new ImmersveError(400, "UNSAFE_URL", "Refusing to call a URL outside the card issuer.");
     const res = await this.doFetch(url, {
       method: "POST",

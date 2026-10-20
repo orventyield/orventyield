@@ -47,6 +47,7 @@ const primary = "min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg 
 export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite: ReturnType<typeof useCardSuite>; txSteps: TxStep[]; accountBusy: boolean; explorer?: string }) {
   const [activating, setActivating] = useState(false);
   const [funding, setFunding] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const st = s.stage;
 
   return (
@@ -126,6 +127,9 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite:
               <p className="mt-1 text-xs text-muted">The card can spend what is on it. Only earned yield is ever added; your principal is never used.</p>
               <div className="mt-3 flex items-center justify-between gap-3 font-mono text-xs">
                 <span className="text-muted">Yield you can add: <span data-testid="card-fundable" className="text-fg">{usd(s.fundableCents)}</span></span>
+                <button type="button" data-testid="card-withdraw-open" disabled={s.cardBalanceCents <= 0} onClick={() => { s.clearWithdrawal(); setWithdrawing(true); }} className="min-h-11 rounded-lg border border-white/10 px-3 font-semibold text-fg hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50">
+                  Withdraw to Safe
+                </button>
                 <button type="button" data-testid="card-fund-open" disabled={!s.fundingReady || s.fundableCents <= 0} onClick={() => { s.clearFunding(); setFunding(true); void s.probeFunding(); }} className="min-h-11 rounded-lg border border-emerald/30 bg-emerald/10 px-3 font-semibold text-emerald hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
                   Fund card
                 </button>
@@ -168,6 +172,24 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite:
         success={s.funding.done}
         explorer={explorer}
         onSubmit={(v) => void s.fund(Number(v / 10_000n))}
+      />
+
+      <AmountDialog
+        open={withdrawing}
+        onClose={() => { if (!s.withdrawal.busy && !accountBusy) setWithdrawing(false); }}
+        testId="withdraw-dialog"
+        title="Withdraw to your Safe"
+        intro="Move money from your card back into your own Safe. Your card balance is never locked."
+        max={BigInt(s.cardBalanceCents) * 10_000n}
+        maxLabel="On your card"
+        confirmLabel="Withdraw to Safe"
+        preview={[{ label: "Withdraw to Safe", detail: s.fundingKind === "simulator" || (s.isSandbox && s.fundingKind === null) ? "The card issuer's test service releases this amount. No real money moves." : s.fundingKind === "onchain" ? "Your Safe asks the card issuer's funds contract for this amount in one transaction, and the USDC lands in your Safe." : "The card issuer releases this amount back to your Safe. Nothing is sent until you confirm." }]}
+        steps={s.withdrawal.steps === "chain" ? txSteps : []}
+        busy={s.withdrawal.busy || accountBusy}
+        error={s.withdrawal.error}
+        success={s.withdrawal.done}
+        explorer={explorer}
+        onSubmit={(v) => void s.withdrawToSafe(Number(v / 10_000n))}
       />
 
       {s.error && (

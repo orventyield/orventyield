@@ -13,6 +13,11 @@ const PAN = "5288541234561179";
 const USDC = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
 /** A stand-in for the issuer's Funds Storage address in the on-chain (deposit mode) test. */
 const STORAGE = "0x5707A6E00000000000000000000000000000f00d".toLowerCase();
+/**
+ * Runtime bytecode of a test double for the issuer's Funds Storage contract (Solidity 0.8.28, compiled with forge):
+ *   contract StorageStub { function withdraw(uint256 amount) external { USDC.transfer(msg.sender, amount); } }
+ */
+const STORAGE_STUB = "0x608060405234801561000f575f5ffd5b5060043610610029575f3560e01c80632e1a7d4d1461002d575b5f5ffd5b61004061003b366004610100565b610042565b005b60405163a9059cbb60e01b81523360048201526024810182905273af88d065e77c8cc2239327c5edb3a432268e58319063a9059cbb906044016020604051808303815f875af1158015610097573d5f5f3e3d5ffd5b505050506040513d601f19601f820116820180604052508101906100bb9190610117565b6100fd5760405162461bcd60e51b815260206004820152600f60248201526e1d1c985b9cd9995c8819985a5b1959608a1b604482015260640160405180910390fd5b50565b5f60208284031215610110575f5ffd5b5035919050565b5f60208284031215610127575f5ffd5b81518015158114610136575f5ffd5b939250505056fea2646970667358221220b692363519362c25985e9355633124fececd0d74dc719a6f15d64c5da03d976464736f6c634300081c0033";
 
 async function rpc<T = unknown>(method: string, params: unknown[] = []): Promise<T> {
   const r = await fetch(FORK, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
@@ -66,6 +71,8 @@ interface Issuer {
   /** Card funding source balance in USDC base units (6 decimals). */
   balance: number;
   deposits: { amount: string; fundingSourceId: string }[];
+  withdrawals: number[];
+  executedWithdrawals: number;
   transactions: { id: string; amount: string; currency: string; status: string; transactionDate: string; cardAcceptor: { name: string }; creditDebitIndicator: string }[];
   kycDone: boolean;
   issued: boolean;
@@ -77,7 +84,7 @@ interface Issuer {
 
 /** A stateful stand-in for the card issuer. The test flips `kycDone` the way a human finishing KYC would. */
 async function mockIssuer(page: Page, opts: { onchain?: boolean } = {}): Promise<Issuer> {
-  const st: Issuer = { balance: 0, deposits: [], transactions: [], kycDone: !!opts.onchain, issued: !!opts.onchain, revealCalls: 0, tokensIssued: 0, logins: 0, spendableAmounts: [] };
+  const st: Issuer = { balance: 0, deposits: [], withdrawals: [], executedWithdrawals: 0, transactions: [], kycDone: !!opts.onchain, issued: !!opts.onchain, revealCalls: 0, tokensIssued: 0, logins: 0, spendableAmounts: [] };
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST" };
   const json = (route: Route, body: unknown, status = 200) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(body) });
 
@@ -114,6 +121,22 @@ async function mockIssuer(page: Page, opts: { onchain?: boolean } = {}): Promise
     if (path === "/api/funding-source/fs1") {
       if (opts.onchain) st.balance = Number(await usdcOf(STORAGE));
       return json(route, { id: "fs1", accountId: "acc1", fundingChannelId: "ch", balance: String(st.balance), balanceCurrency: "USDC" });
+    }
+    if (path === "/api/funding-sources/fs1/withdraw") {
+      const amount = Number((body as { amount: number }).amount);
+      st.withdrawals.push(amount);
+      const intent = { id: `w${st.withdrawals.length}`, amount, createdAt: "2026-10-20T05:52:59Z", expiresAt: "2099-01-01T00:00:00Z" };
+      if (opts.onchain) {
+        // Production-style instructions, shaped after the docs' wording (contract address, ABI, method, parameters)
+        return json(route, { ...intent, execution: { params: { address: STORAGE, abi: [{ type: "function", name: "withdraw", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] }], method: "withdraw", params: [String(amount)] } } });
+      }
+      st.balance -= amount; // the issuer debits the card at once
+      return json(route, { ...intent, execution: { url: "https://test.immersve.com/api/simulator/execute-withdrawal", payload: { amount: String(amount), fundingSourceId: "fs1", id: intent.id, expiresAt: intent.expiresAt } } });
+    }
+    if (path === "/api/simulator/execute-withdrawal") {
+      expect(req.headers().authorization).toBe("Bearer AT");
+      st.executedWithdrawals++;
+      return json(route, {});
     }
     if (path === "/api/simulator/execute-deposit") {
       expect(req.headers().authorization).toBe("Bearer AT");
@@ -318,6 +341,19 @@ test.describe("mainnet card suite", () => {
     await page.getByTestId("pos-pay").click();
     await expect(page.getByTestId("pos-terminal")).toContainText("EXCEEDS CARD BALANCE");
 
+    // Withdraw to Safe (sandbox): the card is debited at once and the issuer's simulator is told to execute
+    await page.getByTestId("tab-vault").click();
+    const balanceBefore = await page.getByTestId("card-balance").textContent();
+    await page.getByTestId("card-withdraw-open").click();
+    await page.getByTestId("amount-input").fill("0.50");
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toContainText("back to your Safe", { timeout: 60_000 });
+    expect(issuer.withdrawals).toEqual([500_000]); // whole cents, exactly what was asked
+    expect(issuer.executedWithdrawals).toBe(1);
+    await page.getByRole("button", { name: "Done" }).click();
+    const afterNum = Number(((await page.getByTestId("card-balance").textContent()) ?? "").replace(/[^0-9.]/g, ""));
+    expect(afterNum).toBeCloseTo(Number((balanceBefore ?? "").replace(/[^0-9.]/g, "")) - 0.5, 2);
+
     // The ledger shows the real card payment from the card network
     await page.getByTestId("tab-activity").click();
     await expect(page.getByTestId("ledger-row").filter({ hasText: "Card swipe - Test Cafe" })).toContainText("Card network");
@@ -362,6 +398,7 @@ test.describe("mainnet card suite", () => {
     await expect.poll(async () => Number(((await page.getByTestId("card-fundable").textContent()) ?? "").replace(/[^0-9.]/g, "")), { timeout: 60_000 }).toBeGreaterThan(1);
 
     expect(await usdcOf(STORAGE)).toBe(0n);
+    await rpc("anvil_setCode", [STORAGE, STORAGE_STUB]); // the issuer's funds contract (test double)
     await page.getByTestId("card-fund-open").click();
     await expect(page.getByTestId("tx-preview")).toContainText("Withdraw yield and deposit"); // production wording: real money moves
     await page.getByTestId("amount-max").click();
@@ -377,6 +414,20 @@ test.describe("mainnet card suite", () => {
     await page.getByRole("button", { name: "Done" }).click();
     await expect(page.getByTestId("card-balance")).toHaveText(`$${(Number(received) / 1e6).toFixed(2)}`);
     expect(issuer.deposits).toHaveLength(0); // no sandbox call was used
+
+    // Withdraw to Safe on a real chain: ONE Safe transaction calls withdraw() on the funds contract and USDC lands in the Safe
+    const safeAddr = ((await page.getByTestId("safe-address").textContent()) ?? "").trim();
+    expect(await usdcOf(safeAddr)).toBe(0n);
+    await page.getByTestId("card-withdraw-open").click();
+    await expect(page.getByTestId("tx-preview")).toContainText("funds contract");
+    await page.getByTestId("amount-max").click();
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toContainText("back to your Safe", { timeout: 120_000 });
+    await expect(page.getByTestId("step-safe-exec")).toHaveAttribute("data-status", "done");
+    expect(await usdcOf(safeAddr)).toBe(received); // the whole card balance came back into the Safe
+    expect(await usdcOf(STORAGE)).toBe(0n);
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("card-balance")).toHaveText("$0.00");
     await page.getByTestId("tab-vault").click();
     await expect(page.getByTestId("principal-value")).toHaveText("$1,000.00"); // principal untouched
     expect(errors).toEqual([]);

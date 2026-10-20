@@ -76,7 +76,7 @@ export function MainnetDashboard() {
   const yieldMax = snap ? maxYieldWithdrawal(snap) : 0n;
 
   // One card flow and one voucher shop for the whole dashboard, so state survives tab switches.
-  const suite = useCardSuite({ maxYield: yieldMax, pay: a.payFromYield });
+  const suite = useCardSuite({ maxYield: yieldMax, pay: a.payFromYield, exec: a.execFromSafe });
   const shop = useVoucherShop({ owner: a.owner, safe: a.safe, maxYield: yieldMax, pay: a.payFromYield, enabled: tab === "vouchers" });
   const cardTxs = useMemo(
     () => suite.cardTransactions.filter((t) => t.creditDebitIndicator !== "credit").map((t) => ({ id: t.id, amountCents: Number(t.amount) || 0, merchant: t.cardAcceptor?.name ?? "Merchant", timestamp: Date.parse(t.transactionDate) || 0 })),
