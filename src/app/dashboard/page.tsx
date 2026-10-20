@@ -49,10 +49,7 @@ export default function DashboardPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col bg-bg font-sans text-fg">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[420px] overflow-hidden">
-        <div className="absolute -left-32 -top-40 h-[420px] w-[520px] rounded-full bg-cyan/10 blur-[120px]" />
-        <div className="absolute -right-32 -top-48 h-[420px] w-[520px] rounded-full bg-emerald/10 blur-[120px]" />
-      </div>
+      <div aria-hidden="true" className="ambient pointer-events-none fixed inset-0 -z-0" />
 
       <DashboardHeader onResetDemo={mode === "playground" ? vault.resetToDemo : undefined} />
 

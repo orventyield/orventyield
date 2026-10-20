@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { useState } from "react";
+import { ChipEmblem, ContactlessWave, MastercardMark } from "@/components/ui/CardParts";
 import { Logo } from "@/components/ui/Icons";
 import { formatPan, type CardDetails } from "@/utils/card";
 
@@ -27,12 +28,7 @@ function NetworkBadge({ network }: { network: CardDetails["network"] }) {
       </span>
     );
   }
-  return (
-    <span aria-label="Mastercard" className="relative inline-flex h-5 w-8 items-center">
-      <span className="absolute left-0 h-5 w-5 rounded-full bg-[#eb001b]/90" />
-      <span className="absolute right-0 h-5 w-5 rounded-full bg-[#f79e1b]/90 mix-blend-screen" />
-    </span>
-  );
+  return <MastercardMark className="h-7 w-11" />;
 }
 
 function LockedCard({ onActivate }: { onActivate: () => void }) {
@@ -92,7 +88,7 @@ export function CardManager({
   const face = { backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" } as const;
 
   return (
-    <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-6">
+    <div className="glass-card rounded-2xl p-5 space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
@@ -163,8 +159,8 @@ export function CardManager({
             {/* FRONT */}
             <div
               style={face}
-              className={`absolute inset-0 flex flex-col justify-between overflow-hidden rounded-2xl border p-5 bg-gradient-to-br from-[#121622] via-[#090b10] to-[#040608] ${
-                isCardFrozen ? "border-danger/40 grayscale-[40%]" : "border-cyan/30"
+              className={`metal-card holo-sheen absolute inset-0 flex flex-col justify-between rounded-2xl p-5 ${
+                isCardFrozen ? "!border-danger/50 grayscale-[40%]" : ""
               }`}
             >
               <div className="pointer-events-none absolute -inset-full rotate-45 bg-gradient-to-r from-transparent via-cyan/10 to-transparent transition-transform duration-1000 group-hover:translate-x-full motion-reduce:transition-none" />
@@ -176,22 +172,13 @@ export function CardManager({
                     Orvent<span className="text-cyan">Yield</span>
                   </span>
                 </div>
-                <span className="text-[11px] font-mono text-muted/80">DEBIT · DEMO</span>
+                <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] tracking-widest text-fg/80">DEBIT · DEMO</span>
               </div>
 
               {/* EMV chip + contactless */}
               <div className="flex items-center gap-3">
-                <div
-                  aria-label="EMV chip"
-                  className="grid h-7 w-10 grid-cols-3 gap-px overflow-hidden rounded-md border border-amber-300/40 bg-gradient-to-br from-amber-200/40 via-amber-400/20 to-amber-200/10 p-0.5"
-                >
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <span key={i} className="rounded-[1px] border border-amber-300/30" />
-                  ))}
-                </div>
-                <svg aria-label="Contactless" className="h-5 w-5 text-muted/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeWidth={1.5} d="M8.5 8.5a5 5 0 010 7M12 6a8.5 8.5 0 010 12M15.5 3.5a12 12 0 010 17" />
-                </svg>
+                <ChipEmblem className="h-8 w-11" />
+                <ContactlessWave className="h-6 w-6 rotate-90 text-fg/60" />
               </div>
 
               <div>
@@ -216,7 +203,7 @@ export function CardManager({
             {/* BACK */}
             <div
               style={{ ...face, transform: "rotateY(180deg)" }}
-              className="absolute inset-0 flex flex-col justify-between overflow-hidden rounded-2xl border border-cyan/20 bg-gradient-to-br from-[#0c0e14] via-[#08090d] to-[#030406] py-5"
+              className="metal-card absolute inset-0 flex flex-col justify-between rounded-2xl py-5"
             >
               <div className="mt-2 h-9 w-full bg-black/80" />
               <div className="space-y-2 px-5">
@@ -252,7 +239,7 @@ export function CardManager({
       </div>
 
       {/* Monthly budget & controls */}
-      <div className="bg-surface-2 border border-white/5 rounded-xl p-4 space-y-3">
+      <div className="bg-white/[0.05] border border-white/5 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between text-xs font-mono">
           <label htmlFor="monthly-limit" className="text-muted">
             Monthly Spending Limit

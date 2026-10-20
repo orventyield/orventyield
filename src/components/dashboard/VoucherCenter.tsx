@@ -59,7 +59,7 @@ export function VoucherCenter({ accruedYieldUsd, onRedeemVoucher }: VoucherCente
   };
 
   return (
-    <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-6">
+    <div className="glass-card rounded-2xl p-5 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h3 className="text-base font-bold text-fg flex items-center gap-2">
@@ -75,7 +75,7 @@ export function VoucherCenter({ accruedYieldUsd, onRedeemVoucher }: VoucherCente
 
         {/* Live Balance Pills */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-surface-2 border border-white/5 rounded-xl px-3 py-1.5 text-xs font-mono">
+          <div className="flex items-center gap-2 bg-white/[0.05] border border-white/5 rounded-xl px-3 py-1.5 text-xs font-mono">
             <span className="text-muted">Available Yield:</span>
             <span className="text-emerald font-bold">${accruedYieldUsd.toFixed(2)}</span>
           </div>
@@ -93,7 +93,7 @@ export function VoucherCenter({ accruedYieldUsd, onRedeemVoucher }: VoucherCente
               className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
                 isSelected
                   ? "bg-cyan/10 border-cyan/40 text-fg shadow-sm shadow-cyan/20"
-                  : "bg-surface-2 border-white/5 text-muted hover:text-fg hover:border-white/10"
+                  : "bg-white/[0.05] border-white/5 text-muted hover:text-fg hover:border-white/10"
               }`}
             >
               <div>
@@ -132,7 +132,7 @@ export function VoucherCenter({ accruedYieldUsd, onRedeemVoucher }: VoucherCente
                 className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all ${
                   selectedAmount === denom
                     ? "bg-cyan text-bg shadow-sm shadow-cyan/40"
-                    : "bg-surface-2 border border-white/10 text-muted hover:text-fg"
+                    : "bg-white/[0.05] border border-white/10 text-muted hover:text-fg"
                 }`}
               >
                 ${denom} USD
@@ -150,7 +150,7 @@ export function VoucherCenter({ accruedYieldUsd, onRedeemVoucher }: VoucherCente
         </div>
 
         {/* Purchase Action & Output */}
-        <div className="md:col-span-6 flex flex-col justify-center space-y-3 bg-surface-2/80 border border-white/5 rounded-xl p-4">
+        <div className="md:col-span-6 flex flex-col justify-center space-y-3 bg-white/[0.05] border border-white/5 rounded-xl p-4">
           <div className="flex justify-between text-xs font-mono">
             <span className="text-muted">Item:</span>
             <span className="text-fg font-semibold">{selectedProduct.brand}</span>
@@ -182,7 +182,7 @@ export function VoucherCenter({ accruedYieldUsd, onRedeemVoucher }: VoucherCente
                 <span>DEMO VOUCHER CODE</span>
                 <span>PLAYGROUND</span>
               </div>
-              <div className="flex items-center justify-between bg-surface-2 px-3 py-2 rounded-lg font-mono text-sm font-bold text-cyan">
+              <div className="flex items-center justify-between bg-white/[0.05] px-3 py-2 rounded-lg font-mono text-sm font-bold text-cyan">
                 <span data-testid="voucher-code">{redeemedCode}</span>
                 <button
                   type="button"

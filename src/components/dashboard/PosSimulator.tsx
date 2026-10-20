@@ -87,7 +87,7 @@ export function PosSimulator({
   const within = latencyMs !== null && latencyMs < LATENCY_BUDGET_MS;
 
   return (
-    <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-5">
+    <div className="glass-card rounded-2xl p-5 space-y-5">
       <div>
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           POS Merchant Terminal
@@ -117,7 +117,7 @@ export function PosSimulator({
                   className={`p-3 rounded-xl border text-left transition-all ${
                     active
                       ? "bg-cyan/10 border-cyan/50 text-fg shadow-sm shadow-cyan/20"
-                      : "bg-surface-2 border-white/5 text-muted hover:text-fg hover:border-white/10"
+                      : "bg-white/[0.05] border-white/5 text-muted hover:text-fg hover:border-white/10"
                   }`}
                 >
                   <div className="text-xl mb-1" aria-hidden="true">{m.icon}</div>
@@ -134,14 +134,14 @@ export function PosSimulator({
             aria-pressed={isCustom}
             onClick={() => setSelectedMerchant("Custom")}
             className={`w-full p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-              isCustom ? "bg-cyan/10 border-cyan/50 text-cyan" : "bg-surface-2 border-white/5 text-muted hover:text-fg"
+              isCustom ? "bg-cyan/10 border-cyan/50 text-cyan" : "bg-white/[0.05] border-white/5 text-muted hover:text-fg"
             }`}
           >
             Custom merchant and amount
           </button>
 
           {isCustom && (
-            <div className="space-y-2 p-3 bg-surface-2 rounded-xl border border-white/5">
+            <div className="space-y-2 p-3 bg-white/[0.05] rounded-xl border border-white/5">
               <div>
                 <label htmlFor="pos-merchant" className="text-[11px] font-mono text-muted">Merchant name</label>
                 <input
@@ -152,7 +152,7 @@ export function PosSimulator({
                   placeholder="e.g. Target, Zara"
                   value={customMerchant}
                   onChange={(e) => setCustomMerchant(e.target.value)}
-                  className="w-full bg-surface border border-white/10 rounded-lg px-3 py-2 text-xs text-fg font-mono outline-none focus:border-cyan"
+                  className="w-full glass-card border border-white/10 rounded-lg px-3 py-2 text-xs text-fg font-mono outline-none focus:border-cyan"
                 />
               </div>
               <div>
@@ -167,13 +167,13 @@ export function PosSimulator({
                   placeholder="0.00"
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
-                  className="w-full bg-surface border border-white/10 rounded-lg px-3 py-2 text-xs text-fg font-mono outline-none focus:border-cyan"
+                  className="w-full glass-card border border-white/10 rounded-lg px-3 py-2 text-xs text-fg font-mono outline-none focus:border-cyan"
                 />
               </div>
             </div>
           )}
 
-          <div className="rounded-xl border border-white/5 bg-surface-2 p-3 text-[11px] font-mono text-muted space-y-1">
+          <div className="rounded-xl border border-white/5 bg-white/[0.05] p-3 text-[11px] font-mono text-muted space-y-1">
             <div className="flex justify-between"><span>{live ? "Card balance" : "Earned yield you can spend"}</span><span data-testid="pos-spendable" className="text-emerald">{money(spendableUsd)}</span></div>
           </div>
         </div>
@@ -231,7 +231,7 @@ export function PosSimulator({
           </div>
 
           {receipt && (
-            <div data-testid="pos-receipt" className="mt-4 bg-surface-2/90 border border-white/10 rounded-xl p-3 font-mono text-xs text-muted space-y-1">
+            <div data-testid="pos-receipt" className="mt-4 bg-white/[0.05] border border-white/10 rounded-xl p-3 font-mono text-xs text-muted space-y-1">
               <div className="flex justify-between text-fg font-bold border-b border-white/5 pb-1">
                 <span>RECEIPT</span>
                 <span className="text-emerald">APPROVED</span>

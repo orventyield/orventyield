@@ -83,7 +83,7 @@ export function Dialog({
             role="dialog"
             aria-modal="true"
             aria-labelledby={labelledBy}
-            className="relative max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-surface p-5 shadow-[0_-20px_80px_-20px_rgba(0,240,255,0.25)] sm:max-w-md sm:rounded-3xl sm:p-6"
+            className="relative max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/10 glass-card p-5 shadow-[0_-20px_80px_-20px_rgba(0,240,255,0.25)] sm:max-w-md sm:rounded-3xl sm:p-6"
             initial={{ y: 60, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 40, opacity: 0 }}

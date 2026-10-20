@@ -51,7 +51,7 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite:
   const st = s.stage;
 
   return (
-    <div className="h-full rounded-2xl border border-white/5 bg-surface p-5" data-testid="card-panel">
+    <div className="h-full rounded-2xl glass-card p-5" data-testid="card-panel">
       {activating && (
         <ActivateCardDialog
           open
@@ -75,7 +75,7 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite:
 
       {st.stage === "no-wallet" && <p className="text-sm text-muted">Connect your wallet to set up your card.</p>}
 
-      {st.stage === "checking" && <div data-testid="card-checking" aria-busy="true" className="h-32 animate-pulse rounded-xl bg-surface-2" />}
+      {st.stage === "checking" && <div data-testid="card-checking" aria-busy="true" className="h-32 animate-pulse rounded-xl bg-white/[0.05]" />}
 
       {st.stage === "phone" && (
         <Panel testId="card-step-phone">

@@ -222,10 +222,10 @@ export function ActivateCardDialog({
                   setCountry(e.target.value as CountryCode);
                   setError(null);
                 }}
-                className="h-12 w-[8.5rem] shrink-0 rounded-xl border border-white/10 bg-surface-2 px-2 text-sm text-fg outline-none focus:border-cyan"
+                className="h-12 w-[8.5rem] shrink-0 rounded-xl border border-white/10 bg-white/[0.05] px-2 text-sm text-fg outline-none focus:border-cyan"
               >
                 {countries.map((c) => (
-                  <option key={c.iso} value={c.iso} className="bg-surface">
+                  <option key={c.iso} value={c.iso} className="glass-card">
                     {c.flag} {c.name} ({c.dial})
                   </option>
                 ))}
@@ -243,7 +243,7 @@ export function ActivateCardDialog({
                   setNational(e.target.value);
                   setError(null);
                 }}
-                className="h-12 min-w-0 flex-1 rounded-xl border border-white/10 bg-surface-2 px-3.5 font-mono text-base text-fg outline-none focus:border-cyan"
+                className="h-12 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.05] px-3.5 font-mono text-base text-fg outline-none focus:border-cyan"
               />
             </div>
             <p data-testid="phone-preview" className="mt-2 min-h-4 text-[11px] text-muted">
@@ -295,7 +295,7 @@ export function ActivateCardDialog({
                   <div
                     key={i}
                     data-testid={`otp-cell-${i}`}
-                    className={`grid h-14 place-items-center rounded-xl border bg-surface-2 font-mono text-2xl font-bold text-fg transition ${
+                    className={`grid h-14 place-items-center rounded-xl border bg-white/[0.05] font-mono text-2xl font-bold text-fg transition ${
                       error && !error.blocking ? "border-amber/50" : active ? "border-cyan shadow-[0_0_0_3px_rgba(0,240,255,0.15)]" : "border-white/10"
                     }`}
                   >

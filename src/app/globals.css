@@ -117,6 +117,117 @@ body::after {
   -webkit-backdrop-filter: blur(14px);
 }
 
+/* ---------- Dashboard luxury surfaces ---------- */
+
+/* Frosted-glass panel: translucent, blurred, hairline border, deep shadow, a cyan edge-light on hover. */
+.glass-card {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.032) 55%, rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow:
+    0 30px 70px -32px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.glass-card:hover {
+  border-color: rgba(0, 240, 255, 0.2);
+  box-shadow:
+    0 30px 70px -32px rgba(0, 0, 0, 0.9),
+    0 0 44px -14px rgba(0, 240, 255, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+/* A recessed pane inside a glass panel. */
+.glass-inset {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Floating segmented pill bar. */
+.pill-bar {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.85), 0 0 36px -14px rgba(0, 240, 255, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Live value: glowing numerals with a breathing aura behind them. */
+.glow-emerald {
+  color: #34d399;
+  text-shadow: 0 0 16px rgba(16, 185, 129, 0.6), 0 0 44px rgba(16, 185, 129, 0.28);
+}
+.glow-cyan {
+  color: #67f6ff;
+  text-shadow: 0 0 16px rgba(0, 240, 255, 0.55), 0 0 44px rgba(0, 240, 255, 0.25);
+}
+.aura {
+  animation: aura 3.2s ease-in-out infinite;
+}
+@keyframes aura {
+  0%, 100% { opacity: 0.35; transform: scale(0.94); }
+  50% { opacity: 0.8; transform: scale(1.08); }
+}
+.tick-dot {
+  animation: tick-dot 1.6s ease-in-out infinite;
+}
+@keyframes tick-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+  50% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+}
+
+/* Obsidian black-metal card with a holographic sheen. */
+.metal-card {
+  /* the host must be positioned by a utility (relative or absolute) for the sheen layers */
+  overflow: hidden;
+  background:
+    radial-gradient(110% 80% at 90% -15%, rgba(0, 240, 255, 0.09), transparent 55%),
+    radial-gradient(90% 70% at -10% 120%, rgba(139, 92, 246, 0.12), transparent 55%),
+    linear-gradient(145deg, #1a1b21 0%, #050507 48%, #101116 100%);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow:
+    0 34px 70px -24px rgba(0, 0, 0, 0.95),
+    0 0 70px -22px rgba(0, 240, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.7);
+}
+.metal-card::after {
+  /* brushed-metal grain */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+}
+.holo-sheen::before {
+  /* a prismatic band that sweeps across the black metal */
+  content: "";
+  position: absolute;
+  inset: -10% -60%;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 34%, rgba(0, 240, 255, 0.16) 42%, rgba(167, 139, 250, 0.26) 50%, rgba(244, 114, 182, 0.16) 57%, transparent 66%);
+  mix-blend-mode: screen;
+  filter: blur(6px);
+  animation: holo 7.5s ease-in-out infinite;
+}
+@keyframes holo {
+  0%, 100% { transform: translateX(-35%); }
+  50% { transform: translateX(35%); }
+}
+
+/* Dashboard ambient light: cyan top-left, violet top-right, emerald low. */
+.ambient {
+  background:
+    radial-gradient(55% 45% at 10% 0%, rgba(0, 240, 255, 0.2), transparent 70%),
+    radial-gradient(50% 42% at 94% 6%, rgba(139, 92, 246, 0.22), transparent 70%),
+    radial-gradient(45% 35% at 8% 62%, rgba(139, 92, 246, 0.09), transparent 70%),
+    radial-gradient(60% 40% at 82% 96%, rgba(16, 185, 129, 0.12), transparent 70%);
+}
+
 .grid-floor {
   background-image:
     linear-gradient(to right, rgba(0, 240, 255, 0.22) 1px, transparent 1px),

@@ -49,7 +49,7 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
   };
 
   return (
-    <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-4">
+    <div className="glass-card rounded-2xl p-5 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-fg flex items-center gap-2">
@@ -83,7 +83,7 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
               className={`px-2.5 py-1 rounded-lg font-mono transition-all whitespace-nowrap ${
                 filter === f.id
                   ? "bg-cyan/15 text-cyan border border-cyan/30 font-semibold"
-                  : "bg-surface-2 border border-white/5 text-muted hover:text-fg"
+                  : "bg-white/[0.05] border border-white/5 text-muted hover:text-fg"
               }`}
             >
               {f.label}
@@ -103,10 +103,10 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
             <div
               key={tx.id}
               data-testid="ledger-row"
-              className="bg-surface-2 border border-white/5 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-all group"
+              className="bg-white/[0.05] border border-white/5 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-all group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-surface border border-white/5 flex items-center justify-center text-lg">
+                <div className="w-9 h-9 rounded-xl glass-card flex items-center justify-center text-lg">
                   {getTypeIcon(tx.type)}
                 </div>
                 <div>

@@ -8,6 +8,7 @@ import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
 import { MainnetVaultOverview, type VaultModal } from "@/components/dashboard/mainnet/MainnetVaultOverview";
 import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
 import { PosSimulator } from "@/components/dashboard/PosSimulator";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useSafeAccount } from "@/features/account/useSafeAccount";
 import { useCardSuite } from "@/features/card/useCardSuite";
 import { buildLedger } from "@/features/ledger/mainnetLedger";
@@ -25,7 +26,7 @@ type Tab = "overview" | "pos" | "vouchers" | "cashout" | "activity";
 type Modal = VaultModal;
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`relative overflow-hidden rounded-2xl border border-white/5 bg-surface p-5 transition-all hover:border-white/10 ${className}`}>{children}</div>;
+  return <div className={`relative overflow-hidden rounded-2xl glass-card p-5 transition-all hover:border-white/10 ${className}`}>{children}</div>;
 }
 
 function ConnectGate() {
@@ -60,7 +61,7 @@ function Skeleton() {
   return (
     <div data-testid="mainnet-loading" className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-busy="true" aria-label="Loading your account">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-44 animate-pulse rounded-2xl border border-white/5 bg-surface" />
+        <div key={i} className="h-44 animate-pulse rounded-2xl glass-card" />
       ))}
     </div>
   );
@@ -151,28 +152,18 @@ export function MainnetDashboard() {
   return (
     <div className="space-y-6" data-testid="mainnet-dashboard">
       {/* Navigation tabs: identical to the Playground */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-white/5 pb-2 font-mono text-xs">
-        {([
-          ["overview", "Vault & Card", "🏛️", "tab-vault"],
-          ["pos", "POS Terminal Simulator", "💳", "tab-pos"],
-          ["vouchers", "Voucher Store", "🎁", "tab-vouchers"],
-          ["cashout", "1-Click Bank / UPI", "🏦", "tab-cashout"],
-          ["activity", `Ledger (${ledger.length})`, "📜", "tab-activity"],
-        ] as const).map(([id, label, icon, testId]) => (
-          <button
-            key={id}
-            type="button"
-            data-testid={testId}
-            onClick={() => setTab(id)}
-            className={`flex min-h-11 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 font-medium transition-all ${
-              tab === id ? "border border-cyan/40 bg-cyan/15 font-bold text-cyan shadow-sm shadow-cyan/20" : "border border-white/5 bg-surface text-muted hover:bg-surface-2 hover:text-fg"
-            }`}
-          >
-            <span aria-hidden="true">{icon}</span>
-            <span>{label}</span>
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs<Tab>
+        layoutId="mn-tab-pill"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "overview", label: "Vault & Card", icon: "🏛️", testId: "tab-vault" },
+          { id: "pos", label: "POS Terminal Simulator", icon: "💳", testId: "tab-pos" },
+          { id: "vouchers", label: "Voucher Store", icon: "🎁", testId: "tab-vouchers" },
+          { id: "cashout", label: "1-Click Bank / UPI", icon: "🏦", testId: "tab-cashout" },
+          { id: "activity", label: `Ledger (${ledger.length})`, icon: "📜", testId: "tab-activity" },
+        ]}
+      />
 
       {/* Card session, voucher purchase and ledger state live in hooks above, so switching tabs loses nothing. */}
       {tab === "overview" && (
@@ -190,7 +181,7 @@ export function MainnetDashboard() {
                 live
               />
             ) : (
-              <div data-testid="pos-locked" className="h-full rounded-2xl border border-white/5 bg-surface p-5">
+              <div data-testid="pos-locked" className="h-full rounded-2xl glass-card p-5">
                 <h3 className="text-base font-bold text-fg">POS Merchant Terminal</h3>
                 <p className="mt-2 text-sm text-muted">Get your virtual card and fund it with earned yield first. Then you can test a swipe at Uber, Starbucks or Amazon against the money on your card.</p>
               </div>
@@ -206,7 +197,7 @@ export function MainnetDashboard() {
         {posCard ? (
           <PosSimulator card={posCard} isCardFrozen={!!active?.isBlocked} spendableUsd={allowanceUsd} onSpendCard={previewSpend} live />
         ) : (
-          <div className="rounded-2xl border border-white/5 bg-surface p-5 text-sm text-muted">Get your virtual card on the Vault &amp; Card tab to test spending here.</div>
+          <div className="rounded-2xl glass-card p-5 text-sm text-muted">Get your virtual card on the Vault &amp; Card tab to test spending here.</div>
         )}
         <ActivityFeed transactions={ledger.filter((t) => t.type === "card_spend")} live />
       </div>

@@ -64,7 +64,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
 
   if (!shop.configured) {
     return (
-      <div data-testid="voucher-unconfigured" className="space-y-2 rounded-2xl border border-white/5 bg-surface p-6 text-center">
+      <div data-testid="voucher-unconfigured" className="space-y-2 rounded-2xl glass-card p-6 text-center">
         <h3 className="text-base font-bold text-fg">Digital Voucher Store</h3>
         <p className="text-sm text-muted">Vouchers aren&rsquo;t switched on in this environment yet.</p>
       </div>
@@ -84,7 +84,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
   const idle = p.stage === "idle" || p.stage === "quoting";
 
   return (
-    <div className="space-y-6 rounded-2xl border border-white/5 bg-surface p-5" data-testid="voucher-panel">
+    <div className="space-y-6 rounded-2xl glass-card p-5" data-testid="voucher-panel">
       <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
         <div>
           <h3 className="flex items-center gap-2 text-base font-bold text-fg">
@@ -94,11 +94,11 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
           <p className="mt-0.5 text-xs text-muted">Buy digital gift cards with the yield you have earned. Your principal is never used.</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-surface-2 px-3 py-1.5 font-mono text-xs">
+          <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.05] px-3 py-1.5 font-mono text-xs">
             <span className="text-muted">Available Yield:</span>
             <span data-testid="voucher-yield" className="font-bold text-emerald">${fmtUsdc(tickingYield)}</span>
           </div>
-          <label className="flex items-center gap-2 rounded-xl border border-white/5 bg-surface-2 px-2 font-mono text-xs text-muted">
+          <label className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.05] px-2 font-mono text-xs text-muted">
             Country
             <select data-testid="voucher-country" value={shop.country} onChange={(e) => shop.setCountry(e.target.value as (typeof VOUCHER_COUNTRIES)[number])} className="min-h-11 bg-transparent text-fg outline-none">
               {VOUCHER_COUNTRIES.map((c) => <option key={c}>{c}</option>)}
@@ -113,9 +113,9 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
           {shop.catalogError} <button type="button" onClick={() => void shop.reloadCatalog()} className="ml-2 underline">Try again</button>
         </div>
       )}
-      {!shop.catalogError && shop.products === null && <div data-testid="voucher-loading" aria-busy="true" className="h-28 animate-pulse rounded-2xl bg-surface-2" />}
+      {!shop.catalogError && shop.products === null && <div data-testid="voucher-loading" aria-busy="true" className="h-28 animate-pulse rounded-2xl bg-white/[0.05]" />}
       {shop.products && shop.products.length === 0 && (
-        <p data-testid="voucher-empty" className="rounded-xl border border-white/5 bg-surface-2 p-6 text-center text-sm text-muted">No vouchers are available for {shop.country} right now. Try another country.</p>
+        <p data-testid="voucher-empty" className="rounded-xl border border-white/5 bg-white/[0.05] p-6 text-center text-sm text-muted">No vouchers are available for {shop.country} right now. Try another country.</p>
       )}
       {shop.products && shop.products.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -135,7 +135,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
                   setPackageId(pr.packages[0]?.id ?? null);
                   setCustom("");
                 }}
-                className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all disabled:opacity-60 ${on ? "border-cyan/40 bg-cyan/10 text-fg shadow-sm shadow-cyan/20" : "border-white/5 bg-surface-2 text-muted hover:border-white/10 hover:text-fg"}`}
+                className={`flex flex-col justify-between rounded-xl border p-3 text-left transition-all disabled:opacity-60 ${on ? "border-cyan/40 bg-cyan/10 text-fg shadow-sm shadow-cyan/20" : "border-white/5 bg-white/[0.05] text-muted hover:border-white/10 hover:text-fg"}`}
               >
                 <div>
                   <span className="mb-2 block text-2xl">{META[pr.brand].icon}</span>
@@ -158,7 +158,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
               {picked.packages.map((k) => {
                 const on = !custom && packageId === k.id;
                 return (
-                  <button key={k.id} type="button" data-testid={`pkg-${k.id}`} aria-pressed={on} disabled={!idle} onClick={() => { setPackageId(k.id); setCustom(""); }} className={`min-h-11 rounded-xl px-4 py-2 font-mono text-xs font-bold transition-all ${on ? "bg-cyan text-bg shadow-sm shadow-cyan/40" : "border border-white/10 bg-surface-2 text-muted hover:text-fg"}`}>
+                  <button key={k.id} type="button" data-testid={`pkg-${k.id}`} aria-pressed={on} disabled={!idle} onClick={() => { setPackageId(k.id); setCustom(""); }} className={`min-h-11 rounded-xl px-4 py-2 font-mono text-xs font-bold transition-all ${on ? "bg-cyan text-bg shadow-sm shadow-cyan/40" : "border border-white/10 bg-white/[0.05] text-muted hover:text-fg"}`}>
                     {money(k.value, picked.currency)}
                   </button>
                 );
@@ -168,7 +168,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
           {picked?.range && (
             <div>
               <label htmlFor="v-custom" className="text-[11px] text-muted">Or type an amount ({money(picked.range.min, picked.currency)} to {money(picked.range.max, picked.currency)})</label>
-              <input id="v-custom" data-testid="voucher-custom" inputMode="decimal" disabled={!idle} value={custom} onChange={(e) => setCustom(e.target.value)} aria-invalid={customInvalid} className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-surface-2 px-3.5 font-mono text-sm text-fg outline-none focus:border-cyan" />
+              <input id="v-custom" data-testid="voucher-custom" inputMode="decimal" disabled={!idle} value={custom} onChange={(e) => setCustom(e.target.value)} aria-invalid={customInvalid} className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 font-mono text-sm text-fg outline-none focus:border-cyan" />
               {customInvalid && <p role="alert" className="mt-1 text-[11px] text-danger">That amount isn&rsquo;t available for this voucher.</p>}
             </div>
           )}
@@ -181,7 +181,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
           </div>
         </div>
 
-        <div className="space-y-3 rounded-xl border border-white/5 bg-surface-2/80 p-4 md:col-span-6">
+        <div className="space-y-3 rounded-xl border border-white/5 bg-white/[0.05] p-4 md:col-span-6">
           {idle && (
             <>
               <div className="flex justify-between font-mono text-xs"><span className="text-muted">Item:</span><span className="font-semibold text-fg">{picked ? picked.name : "—"}</span></div>
@@ -228,8 +228,8 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
               {p.redemptions.length === 0 && <p className="text-xs text-muted">Delivered, but the provider sent no code. Reference {p.quote.invoiceId}.</p>}
               {p.redemptions.map((r, i) => (
                 <div key={i} className="space-y-2 rounded-xl border border-emerald/40 bg-black p-3.5">
-                  {r.code && <div className="flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2 font-mono text-sm font-bold text-cyan"><span data-testid="voucher-code">{r.code}</span><Copy text={r.code} label="code" /></div>}
-                  {r.pin && <div className="flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2 font-mono text-sm text-fg"><span>PIN <span data-testid="voucher-pin">{r.pin}</span></span><Copy text={r.pin} label="PIN" /></div>}
+                  {r.code && <div className="flex items-center justify-between rounded-lg bg-white/[0.05] px-3 py-2 font-mono text-sm font-bold text-cyan"><span data-testid="voucher-code">{r.code}</span><Copy text={r.code} label="code" /></div>}
+                  {r.pin && <div className="flex items-center justify-between rounded-lg bg-white/[0.05] px-3 py-2 font-mono text-sm text-fg"><span>PIN <span data-testid="voucher-pin">{r.pin}</span></span><Copy text={r.pin} label="PIN" /></div>}
                   {r.link && /^https:\/\//.test(r.link) && <a data-testid="voucher-link" href={r.link} target="_blank" rel="noopener noreferrer" className="block text-xs text-cyan hover:underline">Open redemption page ↗</a>}
                   {r.instructions && <p className="text-[11px] leading-relaxed text-muted">{r.instructions}</p>}
                   {r.expirationDate && <p className="font-mono text-[10px] text-muted">Expires {r.expirationDate}</p>}
@@ -250,7 +250,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
       </div>
 
       {shop.history.length > 0 && p.stage === "idle" && (
-        <div data-testid="voucher-history" className="rounded-xl border border-white/5 bg-surface-2 p-4">
+        <div data-testid="voucher-history" className="rounded-xl border border-white/5 bg-white/[0.05] p-4">
           <h4 className="text-sm font-bold text-fg">Your vouchers</h4>
           <ul className="mt-2 divide-y divide-white/5">
             {shop.history.map((h: PastVoucher) => (

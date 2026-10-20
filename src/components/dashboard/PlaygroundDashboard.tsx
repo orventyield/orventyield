@@ -9,6 +9,7 @@ import { VaultOverview } from "@/components/dashboard/VaultOverview";
 import dynamic from "next/dynamic";
 import type { Activation } from "@/components/dashboard/ActivateCardDialog";
 import { VoucherCenter } from "@/components/dashboard/VoucherCenter";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useIdentity } from "@/features/identity/IdentityProvider";
 import type { useVaultState } from "@/features/vault/useVaultState";
 
@@ -40,32 +41,19 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
   return (
     <div className="space-y-6" data-testid="playground-dashboard">
       {activating && <ActivateCardDialog open onClose={() => setActivating(false)} onActivated={onActivated} />}
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/5 text-xs font-mono">
-        {[
+      {/* Navigation tabs: floating segmented pill bar */}
+      <SegmentedTabs<DashboardTab>
+        layoutId="pg-tab-pill"
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
           { id: "overview", label: "Vault & Card", icon: "🏛️" },
           { id: "pos", label: "POS Terminal Simulator", icon: "💳" },
           { id: "vouchers", label: "Voucher Store", icon: "🎁" },
           { id: "cashout", label: "1-Click Bank / UPI", icon: "🏦" },
           { id: "activity", label: `Ledger (${vault.transactions.length})`, icon: "📜" },
-        ].map((tab) => {
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as DashboardTab)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap font-medium ${
-                active
-                  ? "bg-cyan/15 text-cyan border border-cyan/40 shadow-sm shadow-cyan/20 font-bold"
-                  : "bg-surface text-muted hover:text-fg hover:bg-surface-2 border border-white/5"
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+        ]}
+      />
 
       {/* Tab 1: Overview (Vault + Card Manager) */}
       {activeTab === "overview" && (

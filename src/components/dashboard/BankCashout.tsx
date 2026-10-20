@@ -49,7 +49,7 @@ export function BankCashout({ accruedYieldUsd, onCashout, unavailable }: BankCas
   };
 
   return (
-    <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-5">
+    <div className="glass-card rounded-2xl p-5 space-y-5">
       <div>
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           1-Click Bank &amp; UPI Cashout
@@ -98,7 +98,7 @@ export function BankCashout({ accruedYieldUsd, onCashout, unavailable }: BankCas
                     setTouched(false);
                   }}
                   className={`p-3 rounded-xl border text-left text-xs transition-all ${
-                    active ? "bg-cyan/10 border-cyan/40 text-fg shadow-sm shadow-cyan/20" : "bg-surface-2 border-white/5 text-muted hover:text-fg"
+                    active ? "bg-cyan/10 border-cyan/40 text-fg shadow-sm shadow-cyan/20" : "bg-white/[0.05] border-white/5 text-muted hover:text-fg"
                   }`}
                 >
                   <div className="font-bold">{r.name}</div>
@@ -124,7 +124,7 @@ export function BankCashout({ accruedYieldUsd, onCashout, unavailable }: BankCas
               inputMode="decimal"
               value={amountUsd}
               onChange={(e) => setAmountUsd(e.target.value)}
-              className="w-full bg-surface-2 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-fg outline-none focus:border-cyan"
+              className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-fg outline-none focus:border-cyan"
             />
           </div>
           <div>
@@ -143,7 +143,7 @@ export function BankCashout({ accruedYieldUsd, onCashout, unavailable }: BankCas
               onBlur={() => setTouched(true)}
               aria-invalid={destError ? true : undefined}
               aria-describedby={destError ? "cashout-dest-err" : undefined}
-              className={`w-full bg-surface-2 border rounded-xl px-3.5 py-2.5 text-sm font-mono text-fg outline-none focus:border-cyan ${
+              className={`w-full bg-white/[0.05] border rounded-xl px-3.5 py-2.5 text-sm font-mono text-fg outline-none focus:border-cyan ${
                 destError ? "border-danger/60" : "border-white/10"
               }`}
             />

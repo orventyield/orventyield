@@ -75,7 +75,7 @@ export function AmountDialog(p: Props) {
               disabled={p.busy}
               onChange={(e) => setText(e.target.value)}
               aria-invalid={invalid || over}
-              className="min-h-12 w-full rounded-xl border border-white/10 bg-surface-2 px-4 font-mono text-fg outline-none focus:border-cyan/60 disabled:opacity-60"
+              className="min-h-12 w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 font-mono text-fg outline-none focus:border-cyan/60 disabled:opacity-60"
             />
             <button
               type="button"
@@ -93,7 +93,7 @@ export function AmountDialog(p: Props) {
           {p.children}
 
           {!started && (
-            <ol data-testid="tx-preview" className="space-y-1.5 rounded-xl border border-white/5 bg-surface-2 p-3 text-xs text-muted">
+            <ol data-testid="tx-preview" className="space-y-1.5 rounded-xl border border-white/5 bg-white/[0.05] p-3 text-xs text-muted">
               <li className="font-mono uppercase tracking-wider text-[10px] text-muted/80">What will happen</li>
               {p.preview.map((s, i) => (
                 <li key={s.label}>
