@@ -49,7 +49,17 @@ export interface TwilioVerifyConfig {
   accountSid: string;
   authToken: string;
   serviceSid: string;
+  /**
+   * Name shown in the SMS: "Your <brand> verification code is: ...". Sent per verification as Twilio's documented
+   * `CustomFriendlyName`, so it overrides the Verify service's own name (which is set in the Twilio console).
+   */
+  brand?: string;
   fetchImpl?: typeof fetch;
+}
+
+/** Twilio friendly names are short plain text. Letters, digits, spaces and a few separators only; empty means "unset". */
+export function cleanBrand(raw: string | undefined): string {
+  return (raw ?? "").replace(/[^A-Za-z0-9 .\-]/g, "").trim().slice(0, 30);
 }
 
 /**
@@ -73,7 +83,11 @@ export class TwilioVerifyProvider implements OtpProvider {
   }
 
   async start(e164: string): Promise<void> {
-    const res = await this.post("Verifications", { To: e164, Channel: "sms" });
+    const brand = cleanBrand(this.cfg.brand);
+    let res = await this.post("Verifications", { To: e164, Channel: "sms", ...(brand ? { CustomFriendlyName: brand } : {}) });
+    // Never let the cosmetic name stop a real user from getting a code: if Twilio rejects the request as invalid
+    // (400), try once more without it. Rate limits (429) and server errors are not retried: they are not about the name.
+    if (res.status === 400 && brand) res = await this.post("Verifications", { To: e164, Channel: "sms" });
     if (!res.ok) throw new Error(`twilio start failed: ${res.status}`);
   }
 

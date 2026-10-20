@@ -20,6 +20,8 @@ export interface Env extends VoucherEnv {
   DB: D1Like;
   PEPPER?: string;
   OTP_PROVIDER?: string;
+  /** Name shown in the SMS ("Your OrventYield verification code is..."). Defaults to OrventYield. */
+  OTP_BRAND?: string;
   TWILIO_ACCOUNT_SID?: string;
   TWILIO_AUTH_TOKEN?: string;
   TWILIO_VERIFY_SERVICE_SID?: string;
@@ -50,7 +52,7 @@ function provider(env: Env): OtpProvider {
   }
   const { TWILIO_ACCOUNT_SID: accountSid, TWILIO_AUTH_TOKEN: authToken, TWILIO_VERIFY_SERVICE_SID: serviceSid } = env;
   if (!accountSid || !authToken || !serviceSid) throw new ConfigError("twilio is not configured");
-  return new TwilioVerifyProvider({ accountSid, authToken, serviceSid });
+  return new TwilioVerifyProvider({ accountSid, authToken, serviceSid, brand: env.OTP_BRAND ?? "OrventYield" });
 }
 
 function config(env: Env): VerifyConfig {

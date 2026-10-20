@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MockOtpProvider, TwilioVerifyProvider } from "../../src/lib/identity/otp";
+import { MockOtpProvider, TwilioVerifyProvider, cleanBrand } from "../../src/lib/identity/otp";
 import { claimCard, emptyRegistry, hasCard, normalizeOwner } from "../../src/lib/identity/registry";
 
 const A = "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01";
@@ -127,6 +127,40 @@ describe("TwilioVerifyProvider request shape", () => {
     const body = new URLSearchParams(init.body as string);
     expect(body.get("To")).toBe("+919876543210");
     expect(body.get("Channel")).toBe("sms");
+  });
+  it("puts the brand name in the SMS via CustomFriendlyName, and omits it when unset", async () => {
+    const f = mk(201, { status: "pending" });
+    await new TwilioVerifyProvider({ ...cfg, brand: "OrventYield", fetchImpl: f as unknown as typeof fetch }).start("+919876543210");
+    expect(new URLSearchParams((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).get("CustomFriendlyName")).toBe("OrventYield");
+    const g = mk(201, { status: "pending" });
+    await new TwilioVerifyProvider({ ...cfg, fetchImpl: g as unknown as typeof fetch }).start("+1");
+    expect(new URLSearchParams((g.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).has("CustomFriendlyName")).toBe(false);
+  });
+  it("retries once WITHOUT the name if Twilio rejects it (400), so a code is still sent", async () => {
+    const f = vi.fn()
+      .mockResolvedValueOnce(new Response("{}", { status: 400 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 201 }));
+    await new TwilioVerifyProvider({ ...cfg, brand: "OrventYield", fetchImpl: f as unknown as typeof fetch }).start("+1");
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(new URLSearchParams((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).has("CustomFriendlyName")).toBe(true);
+    expect(new URLSearchParams((f.mock.calls[1] as unknown as [string, RequestInit])[1].body as string).has("CustomFriendlyName")).toBe(false);
+  });
+  it("does not retry rate limits or server errors, and does not retry a 400 that had no name to drop", async () => {
+    for (const status of [429, 500]) {
+      const f = mk(status);
+      await expect(new TwilioVerifyProvider({ ...cfg, brand: "OrventYield", fetchImpl: f as unknown as typeof fetch }).start("+1")).rejects.toThrow();
+      expect(f).toHaveBeenCalledTimes(1);
+    }
+    const f = mk(400);
+    await expect(new TwilioVerifyProvider({ ...cfg, fetchImpl: f as unknown as typeof fetch }).start("+1")).rejects.toThrow();
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("cleans the brand: plain text only, max 30 chars, empty stays empty", () => {
+    expect(cleanBrand("OrventYield")).toBe("OrventYield");
+    expect(cleanBrand("  Orvent<script>Yield  ")).toBe("OrventscriptYield");
+    expect(cleanBrand("x".repeat(50))).toHaveLength(30);
+    expect(cleanBrand(undefined)).toBe("");
+    expect(cleanBrand("()")).toBe("");
   });
   it("maps check responses", async () => {
     const ok = new TwilioVerifyProvider({ ...cfg, fetchImpl: mk(200, { status: "approved" }) as unknown as typeof fetch });
