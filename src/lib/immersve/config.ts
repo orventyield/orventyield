@@ -25,3 +25,14 @@ export function immersveConfig(env: Env = BUILD_ENV): ImmersveConfig {
     fundsStorageAddress: env.NEXT_PUBLIC_IMMERSVE_FUNDS_STORAGE || undefined,
   };
 }
+
+/**
+ * The default issuer is Immersve's public SANDBOX: a test network, a test KYC page and test cards. A real user must never be
+ * sent there, so a production build only offers the card flow once it points at the production issuer (all
+ * NEXT_PUBLIC_IMMERSVE_* set at build time). Dev, tests and an explicit NEXT_PUBLIC_IMMERSVE_ALLOW_SANDBOX=true keep the sandbox.
+ */
+export function cardFlowAvailable(cfg: ImmersveConfig, allowSandbox: boolean = SANDBOX_ALLOWED): boolean {
+  return cfg.baseUrl === "https://api.immersve.com" || allowSandbox;
+}
+
+const SANDBOX_ALLOWED = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_IMMERSVE_ALLOW_SANDBOX === "true";

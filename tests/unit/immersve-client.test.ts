@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ImmersveClient, ImmersveError, maskPan, readiness } from "../../src/lib/immersve";
-import { immersveConfig } from "../../src/lib/immersve/config";
+import { cardFlowAvailable, immersveConfig } from "../../src/lib/immersve/config";
 
 const cfg = immersveConfig({});
 const ok = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -21,6 +21,16 @@ const loginRoutes = {
   "POST /auth/login-init": () => ok({ id: "req1", signingChallenge: { message: "sign me" } }),
   "POST /auth/login-complete": () => ok({ accessToken: "AT", refreshToken: "RT", cardholderAccountId: "acc1" }),
 };
+
+describe("card flow availability", () => {
+  it("never offers the sandbox to real users in production, only the production issuer", () => {
+    expect(cardFlowAvailable(immersveConfig({}), false)).toBe(false);
+    expect(cardFlowAvailable(immersveConfig({ NEXT_PUBLIC_IMMERSVE_BASE_URL: "https://api.immersve.com" }), false)).toBe(true);
+  });
+  it("keeps the sandbox for dev, tests and an explicit opt-in", () => {
+    expect(cardFlowAvailable(immersveConfig({}), true)).toBe(true);
+  });
+});
 
 describe("Immersve client", () => {
   it("defaults to the public sandbox and lets env override", () => {

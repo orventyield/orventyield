@@ -5,6 +5,7 @@ import { useAccount, useSignMessage } from "wagmi";
 import type { Address } from "viem";
 import { ARBITRUM } from "@/lib/contracts/arbitrum";
 import { ImmersveClient, ImmersveError, immersveConfig, readiness, type Card, type CardReadiness, type CardSecrets, type CardTransaction } from "@/lib/immersve";
+import { cardFlowAvailable } from "@/lib/immersve/config";
 import { baseToCents, centsToBase, fundingAction, fundsStorageFor, planTopUp, withdrawalAction, type FundingAction } from "@/lib/immersve/funding";
 import type { Hex } from "viem";
 import { deriveStage, type CardStage } from "@/lib/immersve/stage";
@@ -66,6 +67,7 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
   const cfg = useRef(immersveConfig());
   if (imsv.current === null) imsv.current = new ImmersveClient(cfg.current);
   const isSandbox = cfg.current.baseUrl !== "https://api.immersve.com";
+  const cardAvailable = cardFlowAvailable(cfg.current);
 
   const [sessionActive, setSessionActive] = useState(false);
   const [ready, setReady] = useState<CardReadiness | null>(null);
@@ -344,6 +346,7 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
     secrets,
     secondsLeft,
     isSandbox,
+    cardAvailable,
     withdrawal,
     withdrawToSafe,
     clearWithdrawal: () => setWithdrawal({ busy: false, error: null, done: null, steps: null }),

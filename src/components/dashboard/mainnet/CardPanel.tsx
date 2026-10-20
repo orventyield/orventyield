@@ -45,6 +45,24 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite:
   const [withdrawing, setWithdrawing] = useState(false);
   const st = s.stage;
 
+  // The card partner's production access is not switched on: never send a real user to a test sign-in or a test KYC page.
+  if (!s.cardAvailable) {
+    return (
+      <div className="h-full rounded-2xl glass-card p-5" data-testid="card-panel">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-fg">Your virtual Mastercard</h2>
+          <MastercardMark className="h-7 w-11 shrink-0" />
+        </div>
+        <div data-testid="card-soon" className="space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-sm font-semibold text-fg">Coming soon</p>
+          <p className="text-xs text-muted">
+            Your Mastercard is being switched on with our card partner. Your deposit keeps earning yield in the meantime, and you can already use it for vouchers and bank cashout.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full rounded-2xl glass-card p-5" data-testid="card-panel">
       <div className="mb-4 flex items-center justify-between gap-3">

@@ -8,7 +8,6 @@ import { Close, Logo, Menu } from "../ui/Icons";
 import { ButtonLink } from "../ui/Button";
 
 export const NAV_LINKS = [
-  { href: "/dashboard", label: "App" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/calculator", label: "Calculator" },
   { href: "/features", label: "Features" },
