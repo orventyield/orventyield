@@ -38,3 +38,4 @@ npm-debug.log*
 worker/.dev.vars
 .wrangler/
 .next-dev-api
+.next-live

@@ -62,6 +62,16 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
     setCustom("");
   }, [shop.country]);
 
+  if (shop.unavailable) {
+    return (
+      <div data-testid="voucher-unavailable" className="space-y-3 rounded-2xl glass-card p-6 text-center">
+        <span className="rounded-full border border-white/10 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-muted">Coming soon</span>
+        <h3 className="text-base font-bold text-fg">Digital Voucher Store</h3>
+        <p className="mx-auto max-w-md text-sm text-muted">Amazon, Uber, Swiggy and Zomato vouchers, paid from your earned yield, are being switched on. Your yield keeps growing in the meantime.</p>
+      </div>
+    );
+  }
+
   if (!shop.configured) {
     return (
       <div data-testid="voucher-unconfigured" className="space-y-2 rounded-2xl glass-card p-6 text-center">
@@ -89,7 +99,7 @@ export function VoucherPanel({ shop, maxYield, tickingYield, busy, txError, step
         <div>
           <h3 className="flex items-center gap-2 text-base font-bold text-fg">
             Digital Voucher Store
-            <span className="rounded-full border border-emerald/20 bg-emerald/10 px-2 py-0.5 font-mono text-xs text-emerald">Bitrefill · live</span>
+            <span className="rounded-full border border-emerald/20 bg-emerald/10 px-2 py-0.5 font-mono text-xs text-emerald">Bitrefill</span>
           </h3>
           <p className="mt-0.5 text-xs text-muted">Buy digital gift cards with the yield you have earned. Your principal is never used.</p>
         </div>

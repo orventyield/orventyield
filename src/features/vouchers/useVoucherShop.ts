@@ -74,6 +74,8 @@ export function useVoucherShop({ owner, maxYield, pay, enabled }: Deps) {
   const [country, setCountry] = useState<VoucherCountry>(guessCountry);
   const [products, setProducts] = useState<VoucherProduct[] | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  /** The server answered but vouchers are not switched on (no provider key yet, or an older deployment). */
+  const [unavailable, setUnavailable] = useState(false);
   const [purchase, setPurchase] = useState<PurchaseStage>({ stage: "idle" });
   const [history, setHistory] = useState<PastVoucher[]>([]);
   const gen = useRef(0); // invalidates polling when the user starts something else
@@ -88,8 +90,10 @@ export function useVoucherShop({ owner, maxYield, pay, enabled }: Deps) {
     setCatalogError(null);
     try {
       setProducts(await api.catalog(country));
+      setUnavailable(false);
     } catch (e) {
-      setCatalogError(apiMessage(e));
+      if (e instanceof VoucherApiError && e.code === "UNAVAILABLE") setUnavailable(true);
+      else setCatalogError(apiMessage(e));
     }
   }, [api, country]);
   useEffect(() => {
@@ -192,5 +196,5 @@ export function useVoucherShop({ owner, maxYield, pay, enabled }: Deps) {
     [api],
   );
 
-  return { configured: !!api, country, setCountry, products, catalogError, reloadCatalog: loadCatalog, purchase, quote, payAndDeliver, reset, history, reopen };
+  return { configured: !!api, unavailable, country, setCountry, products, catalogError, reloadCatalog: loadCatalog, purchase, quote, payAndDeliver, reset, history, reopen };
 }

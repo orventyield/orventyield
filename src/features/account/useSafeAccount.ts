@@ -9,7 +9,7 @@ import {
 } from "@/lib/aave/account";
 import { maxPrincipalWithdrawal, maxYieldWithdrawal, rayToApy, yieldPerSecond } from "@/lib/aave/position";
 import { ARBITRUM, ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
-import { execCalldata, predictSafeAddress, readCreationCode, safeCall, safeFactoryAbi, safeSetup } from "@/lib/safe/safe";
+import { execCalldata, predictSafeAddress, readCreationCode, safeCall, safeFactoryAbi, safeSetup, withGasBuffer } from "@/lib/safe/safe";
 import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 import { encodeFunctionData } from "viem";
 import { fmtUsdc } from "@/lib/aave/format";
@@ -142,7 +142,9 @@ export function useSafeAccount() {
         for (const step of active) {
           mark(step.id, { status: "wallet" });
           await client.call({ account: owner, to: step.to, data: step.data }); // simulate: throws with the revert reason
-          const hash = await sendTransactionAsync({ to: step.to, data: step.data, chainId });
+          // Safe transactions get gas headroom (see withGasBuffer); plain wallet transactions keep the wallet's own estimate.
+          const gas = step.to.toLowerCase() === safe?.toLowerCase() ? withGasBuffer(await client.estimateGas({ account: owner, to: step.to, data: step.data })) : undefined;
+          const hash = await sendTransactionAsync({ to: step.to, data: step.data, chainId, gas });
           mark(step.id, { status: "pending", hash });
           const receipt = await client.waitForTransactionReceipt({ hash });
           if (receipt.status !== "success") throw new Error("execution reverted");
@@ -161,7 +163,7 @@ export function useSafeAccount() {
         setBusy(false);
       }
     },
-    [owner, client, busy, sendTransactionAsync, chainId, refetchAll],
+    [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe],
   );
 
   const deposit = useCallback(

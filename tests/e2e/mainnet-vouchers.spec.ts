@@ -102,6 +102,24 @@ async function mockShop(page: Page): Promise<Shop> {
   return st;
 }
 
+test("an older server without voucher routes shows a calm 'coming soon', not an error", async ({ page }) => {
+  test.skip(((await rpc<string>("eth_chainId").catch(() => null)) as string | null) !== "0x7a69", "Anvil fork not running: start it with `npm run fork`");
+  await page.route(`${API}/**`, (route) =>
+    route.request().method() === "OPTIONS"
+      ? route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" } })
+      : route.fulfill({ status: 404, headers: { "access-control-allow-origin": "*", "content-type": "application/json" }, body: JSON.stringify({ ok: false, code: "NOT_FOUND", message: "Not found." }) }),
+  );
+  await installForkWallet(page);
+  await page.goto("/dashboard");
+  await page.getByTestId("connect-wallet").click();
+  await page.getByTestId("wallet-option-test.anvil.wallet").click();
+  await expect(page.getByTestId("mainnet-dashboard")).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("tab-vouchers").click();
+  await expect(page.getByTestId("voucher-unavailable")).toContainText("being switched on");
+  await expect(page.getByTestId("voucher-catalog-error")).toHaveCount(0);
+  await expect(page.getByText("Not found.")).toHaveCount(0);
+});
+
 test.describe("mainnet vouchers", () => {
   test.describe.configure({ mode: "serial" });
   let snapshot: string;

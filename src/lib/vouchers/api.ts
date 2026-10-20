@@ -25,6 +25,11 @@ export class VoucherApi {
     } catch {
       throw new VoucherApiError("BAD_RESPONSE", "The voucher service sent an unexpected reply.", res.status);
     }
+    // 404 = this server has no voucher routes (an older deployment); 503 = routes exist but no provider key yet.
+    // Both mean "not switched on", which is a normal state, not a failure.
+    if (res.status === 404 || res.status === 503 || j.code === "NOT_FOUND" || j.code === "NOT_CONFIGURED") {
+      throw new VoucherApiError("UNAVAILABLE", "Vouchers aren't switched on yet.", res.status);
+    }
     if (!res.ok || j.ok === false) throw new VoucherApiError(j.code ?? `HTTP_${res.status}`, j.message ?? "The voucher service had a problem.", res.status);
     return j;
   }

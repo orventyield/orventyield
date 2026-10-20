@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { approveData, readAccount, supplyData, transferData, withdrawPrincipalData, withdrawYieldData } from "../../src/lib/aave/account";
 import { maxYieldWithdrawal } from "../../src/lib/aave/position";
 import { ARBITRUM } from "../../src/lib/contracts/arbitrum";
-import { execCalldata, predictSafeAddress, readCreationCode, safeAbi, safeCall, safeFactoryAbi, safeSetup } from "../../src/lib/safe/safe";
+import { execCalldata, predictSafeAddress, readCreationCode, safeAbi, safeCall, safeFactoryAbi, safeSetup, withGasBuffer } from "../../src/lib/safe/safe";
 
 const RPC = process.env.FORK_RPC ?? "http://127.0.0.1:8545";
 const chain = { ...arbitrum, id: 31337, rpcUrls: { default: { http: [RPC] } } };
@@ -21,7 +21,9 @@ const d = describe.skipIf(process.env.FORK !== "1");
 
 const send = async (to: Address, data: `0x${string}`) => {
   await pub.call({ account: owner.address, to, data }); // simulate first: surfaces reverts before sending
-  const hash = await wallet.sendTransaction({ to, data });
+  // Same rule as the app: Safe transactions are sent with gas headroom
+  const gas = withGasBuffer(await pub.estimateGas({ account: owner.address, to, data }));
+  const hash = await wallet.sendTransaction({ to, data, gas });
   const r = await pub.waitForTransactionReceipt({ hash });
   expect(r.status).toBe("success");
   return r;

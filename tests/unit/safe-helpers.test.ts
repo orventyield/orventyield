@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeFunctionData, getAddress, type Address, type Hex } from "viem";
 import { ARBITRUM } from "../../src/lib/contracts/arbitrum";
-import { execCalldata, multiSendAbi, packMultiSend, safeAbi, safeCall, safeSetup } from "../../src/lib/safe/safe";
+import { execCalldata, multiSendAbi, packMultiSend, safeAbi, safeCall, safeSetup, withGasBuffer } from "../../src/lib/safe/safe";
 
 const A = getAddress("0x00000000000000000000000000000000000000aa") as Address;
 const B = getAddress("0x00000000000000000000000000000000000000bb") as Address;
@@ -47,5 +47,13 @@ describe("batching", () => {
     const packed = (d.args![0] as string).slice(2);
     expect(packed.length / 2).toBe(85 + 1 + (85 + 2));
     expect(packed.slice(0, 2)).toBe("00");
+  });
+});
+
+describe("withGasBuffer", () => {
+  it("always adds headroom over the estimate (Safe forwards only 63/64 of gas to the inner call)", () => {
+    expect(withGasBuffer(100_000n)).toBe(160_000n);
+    expect(withGasBuffer(0n)).toBe(30_000n);
+    for (const e of [21_000n, 250_000n, 5_000_000n]) expect(withGasBuffer(e)).toBeGreaterThan((e * 64n) / 63n);
   });
 });

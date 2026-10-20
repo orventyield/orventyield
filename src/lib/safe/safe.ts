@@ -49,6 +49,12 @@ export function predictSafeAddress(owner: Address, creationCode: Hex): Address {
 export const readCreationCode = (client: Pick<PublicClient, "readContract">): Promise<Hex> =>
   client.readContract({ address: ARBITRUM.safeProxyFactory, abi: safeFactoryAbi, functionName: "proxyCreationCode" }) as Promise<Hex>;
 
+/**
+ * Safe's execTransaction forwards only 63/64 of the remaining gas to the inner call, so a plain eth_estimateGas can come
+ * out a little too low and the inner call fails (Safe reverts, GS013). Always send Safe transactions with headroom.
+ */
+export const withGasBuffer = (estimate: bigint): bigint => (estimate * 13n) / 10n + 30_000n;
+
 export interface InnerCall {
   to: Address;
   data: Hex;
