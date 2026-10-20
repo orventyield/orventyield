@@ -103,6 +103,7 @@ test.describe("mainnet: Safe + Aave on the fork", () => {
     // Validation before anything is sent
     await page.getByTestId("open-deposit").click();
     await expect(page.getByTestId("amount-confirm")).toBeDisabled();
+    await expect(page.getByTestId("network-badge")).toHaveText("Arbitrum One · Native USDC");
     await expect(page.getByTestId("tx-preview")).toContainText("Create your Safe");
     await expect(page.getByTestId("tx-preview")).toContainText("exactly the amount you entered");
     await page.getByTestId("amount-input").fill("1.0000001");

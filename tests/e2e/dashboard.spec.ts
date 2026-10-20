@@ -54,6 +54,13 @@ test.describe("playground dashboard", () => {
     await expect(page.getByTestId("connect-wallet")).toBeEnabled();
   });
 
+  test("a guest sees a Demo Mode badge and a clear way to go to real Mainnet", async ({ page }) => {
+    await expect(page.getByTestId("demo-badge")).toContainText("Demo Mode");
+    await expect(page.getByTestId("connect-wallet")).toHaveText("Go to Real Mainnet →");
+    await page.getByTestId("connect-wallet").click();
+    await expect(page.getByTestId("wallet-modal")).toBeVisible();
+  });
+
   test("the demo card is active from the first visit: no phone or KYC, a swipe is approved", async ({ page }) => {
     await expect(page.getByTestId("card-unlocked")).toBeVisible();
     await expect(page.getByTestId("card-status")).toHaveText("ACTIVE");

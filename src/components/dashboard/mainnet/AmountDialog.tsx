@@ -12,6 +12,8 @@ interface Props {
   testId: string;
   title: string;
   intro: string;
+  /** Network and asset this dialog moves, shown as a badge so nobody sends the wrong token or chain. */
+  networkBadge?: string;
   /** Largest allowed amount in USDC base units. */
   max: bigint;
   maxLabel: string;
@@ -46,6 +48,12 @@ export function AmountDialog(p: Props) {
         <div>
           <h2 id={id} className="text-lg font-bold text-fg">{p.title}</h2>
           <p className="mt-1 text-xs text-muted">{p.intro}</p>
+          {p.networkBadge && (
+            <span data-testid="network-badge" className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 font-mono text-[11px] font-semibold text-emerald">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald" aria-hidden="true" />
+              {p.networkBadge}
+            </span>
+          )}
         </div>
         <button type="button" aria-label="Close" disabled={p.busy} onClick={p.onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-muted hover:bg-white/5 hover:text-fg disabled:opacity-40">
           ✕

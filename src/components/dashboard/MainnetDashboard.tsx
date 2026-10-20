@@ -238,6 +238,7 @@ export function MainnetDashboard() {
         open={modal === "deposit"}
         onClose={close}
         testId="deposit-dialog"
+        networkBadge="Arbitrum One · Native USDC"
         title="Deposit USDC"
         intro="Your USDC goes into Aave from your own Safe. You can withdraw your principal any time."
         max={a.walletUsdc}

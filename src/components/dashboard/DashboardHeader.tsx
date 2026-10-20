@@ -88,7 +88,7 @@ function ModeToggle() {
 function WalletButton() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  const { openWalletModal } = useAppMode();
+  const { openWalletModal, mode } = useAppMode();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -113,7 +113,7 @@ function WalletButton() {
         onClick={() => openWalletModal({ thenMainnet: true })}
         className="min-h-10 rounded-xl bg-cyan px-4 text-xs font-semibold text-bg shadow-[0_0_20px_rgba(0,240,255,0.25)] transition hover:brightness-110"
       >
-        Connect Wallet
+        {mode === "playground" ? "Go to Real Mainnet →" : "Connect Wallet"}
       </button>
     );
   }
@@ -193,6 +193,11 @@ export function DashboardHeader({ onResetDemo }: { onResetDemo?: () => void }) {
             <span data-testid="network-pill" className="hidden items-center gap-2 rounded-lg border border-white/5 bg-surface-2 px-2.5 py-1.5 font-mono text-xs text-fg sm:flex">
               <span className="h-2 w-2 rounded-full bg-emerald" aria-hidden="true" />
               Arbitrum One
+            </span>
+          )}
+          {mode === "playground" && !isConnected && (
+            <span data-testid="demo-badge" className="hidden items-center gap-1.5 rounded-lg border border-amber/30 bg-amber/10 px-2.5 py-1.5 text-xs font-semibold text-amber md:flex">
+              <span aria-hidden="true">🧪</span> Demo Mode
             </span>
           )}
           {mode === "playground" && onResetDemo && (
