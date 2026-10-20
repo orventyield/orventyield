@@ -6,41 +6,18 @@ import { BankCashout } from "@/components/dashboard/BankCashout";
 import { CardManager } from "@/components/dashboard/CardManager";
 import { PosSimulator } from "@/components/dashboard/PosSimulator";
 import { VaultOverview } from "@/components/dashboard/VaultOverview";
-import dynamic from "next/dynamic";
-import type { Activation } from "@/components/dashboard/ActivateCardDialog";
 import { VoucherCenter } from "@/components/dashboard/VoucherCenter";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
-import { useIdentity } from "@/features/identity/IdentityProvider";
 import type { useVaultState } from "@/features/vault/useVaultState";
-
-// Loaded on demand: it pulls in the phone-number metadata, which most visits never need.
-const ActivateCardDialog = dynamic(() => import("@/components/dashboard/ActivateCardDialog").then((m) => m.ActivateCardDialog), { ssr: false });
 
 type DashboardTab = "overview" | "pos" | "vouchers" | "cashout" | "activity";
 
 /** The fully simulated account: no wallet needed. */
 export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVaultState> }) {
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
-  const [activating, setActivating] = useState(false);
-  const { owner } = useIdentity();
-
-  const onActivated = (a: Activation) => {
-    // Mirror the one-user-one-card rule in the engine; the verification service is the authority.
-    if (a.identityId && owner) vault.activateCard(owner, a.identityId);
-    else vault.setCardActive(true);
-    // Cache for instant unlock on the next visit. Written only here, at the moment of a real activation.
-    if (owner) {
-      try {
-        window.localStorage.setItem(`oy.card.${owner}`, "1");
-      } catch {
-        /* storage unavailable */
-      }
-    }
-  };
 
   return (
     <div className="space-y-6" data-testid="playground-dashboard">
-      {activating && <ActivateCardDialog open onClose={() => setActivating(false)} onActivated={onActivated} />}
       {/* Navigation tabs: floating segmented pill bar */}
       <SegmentedTabs<DashboardTab>
         layoutId="pg-tab-pill"
@@ -73,8 +50,6 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
             <div className="lg:col-span-6">
               <CardManager
                 card={vault.card}
-                cardActive={vault.cardActive}
-                onActivate={() => setActivating(true)}
                 isCardFrozen={vault.isCardFrozen}
                 onToggleFreeze={() => vault.setIsCardFrozen(!vault.isCardFrozen)}
                 monthlyLimit={vault.monthlyLimit}

@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { pickCountry } from "./helpers";
+import { installForkWallet, pickCountry } from "./helpers";
 
 /**
  * The Mainnet Card tab end to end on the Anvil fork: deposit -> yield -> phone OTP (browser demo verifier) -> card issuer
@@ -25,45 +25,6 @@ async function rpc<T = unknown>(method: string, params: unknown[] = []): Promise
   const j = (await r.json()) as { result: T; error?: { message: string } };
   if (j.error) throw new Error(j.error.message);
   return j.result;
-}
-
-async function installForkWallet(page: Page) {
-  await page.addInitScript(
-    ({ account, fork }) => {
-      const info = { uuid: "00000000-0000-4000-8000-0000000000f2", name: "Anvil Test Wallet", icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=", rdns: "test.anvil.wallet" };
-      const call = (method: string, params: unknown[]) =>
-        fetch(fork, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }) })
-          .then((r) => r.json())
-          .then((j) => {
-            if (j.error) throw Object.assign(new Error(j.error.message), { code: j.error.code });
-            return j.result;
-          });
-      let authorized = false;
-      const w = window as unknown as { __rejectSign?: boolean };
-      const provider = {
-        request: async ({ method, params }: { method: string; params?: unknown[] }) => {
-          if (method === "eth_requestAccounts") {
-            authorized = true;
-            return [account];
-          }
-          if (method === "eth_accounts") return authorized ? [account] : [];
-          if (method === "eth_chainId") return "0x7a69";
-          if (method === "wallet_switchEthereumChain") return null;
-          if (method === "personal_sign" && w.__rejectSign) {
-            w.__rejectSign = false;
-            throw Object.assign(new Error("User rejected the request."), { code: 4001 });
-          }
-          return call(method, params ?? []);
-        },
-        on() {},
-        removeListener() {},
-      };
-      const announce = () => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: Object.freeze({ info, provider }) }));
-      window.addEventListener("eip6963:requestProvider", announce);
-      announce();
-    },
-    { account: ACCOUNT, fork: FORK },
-  );
 }
 
 const usdcOf = async (a: string) => BigInt(await rpc<string>("eth_call", [{ to: USDC, data: `0x70a08231${a.toLowerCase().replace("0x", "").padStart(64, "0")}` }, "latest"]));

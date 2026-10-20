@@ -169,6 +169,7 @@ function WalletButton() {
 
 export function DashboardHeader({ onResetDemo }: { onResetDemo?: () => void }) {
   const { mode } = useAppMode();
+  const { isConnected } = useAccount();
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-[#07080C]/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-3 px-4 py-3 sm:px-6">
@@ -179,9 +180,12 @@ export function DashboardHeader({ onResetDemo }: { onResetDemo?: () => void }) {
           </span>
         </Link>
 
-        <div className="order-3 flex w-full justify-center md:order-none md:w-auto">
-          <ModeToggle />
-        </div>
+        {/* Disconnected: the choice (connect or try the playground) lives on the page itself, not in three places. */}
+        {isConnected && (
+          <div className="order-3 flex w-full justify-center md:order-none md:w-auto">
+            <ModeToggle />
+          </div>
+        )}
 
         <div className="flex items-center gap-2 sm:gap-3">
           <ForkWalletBadge />

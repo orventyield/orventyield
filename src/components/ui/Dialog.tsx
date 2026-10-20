@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Accessible modal: overlay click and Escape close it, Tab is trapped inside, and focus returns to the opener.
@@ -68,7 +69,10 @@ export function Dialog({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [open, close]);
 
-  return (
+  // Portaled to <body>: a parent with backdrop-filter (every glass card) would otherwise become the containing block of
+  // `fixed` and squeeze the sheet into the card.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -95,6 +99,7 @@ export function Dialog({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -7,16 +7,13 @@ import {
   authorizeCardSpend,
   cashOut,
   checkWithdrawPrincipal,
-  issueCard,
   purchaseVoucher,
   spendable,
   yieldOver,
   type AccountState,
-  type CardRegistry,
   type DeclineCode,
   type Funding,
 } from "@/utils/engine";
-import { emptyRegistry, type ClaimRejection } from "@/lib/identity/registry";
 import { authCode, generateCardDetails, generateVoucherCode, simTxHash, type CardDetails, type VoucherBrandId } from "@/utils/card";
 import { RAILS, maskDestination, validateDestination, type RailId } from "@/utils/payments";
 
@@ -82,7 +79,7 @@ interface Core {
 export const DEMO_APY = 3.5;
 
 const INITIAL_CORE: Core = {
-  cardActive: false,
+  cardActive: true,
   principalUsd: 5000,
   yieldUsd: 12.4,
   frozen: false,
@@ -138,7 +135,6 @@ export function useVaultState() {
   const [timeScale, setTimeScale] = useState<TimeScale>(1);
   const counter = useRef(0);
   // Engine-level mirror of the one-user-one-card rule (the verification server is the authority).
-  const registryRef = useRef<CardRegistry>(emptyRegistry());
 
   /** Synchronous read-modify-write so callers always decide against the latest state. */
   const commit = useCallback((next: Core) => {
@@ -247,35 +243,11 @@ export function useVaultState() {
     [commit, record],
   );
 
-  /**
-   * Activate the card for a verified identity. Rejects a duplicate: the same identity on another owner
-   * ("Card already active for this verified identity.") or a second identity on the same owner.
-   */
-  const activateCard = useCallback(
-    (owner: string, identityId: string): { success: boolean; error?: string; code?: ClaimRejection } => {
-      const r = issueCard(registryRef.current, owner, identityId);
-      if (!r.ok) return { success: false, error: r.message, code: r.code };
-      registryRef.current = r.registry;
-      commit({ ...coreRef.current, cardActive: true });
-      return { success: true };
-    },
-    [commit],
-  );
-
-  /** Restore or clear activation from the verification service (e.g. on load or when the owner changes). */
-  const setCardActive = useCallback(
-    (active: boolean) => {
-      if (coreRef.current.cardActive !== active) commit({ ...coreRef.current, cardActive: active });
-    },
-    [commit],
-  );
-
   const setIsCardFrozen = useCallback((frozen: boolean) => commit({ ...coreRef.current, frozen }), [commit]);
   const setMonthlyLimit = useCallback((limit: number) => commit({ ...coreRef.current, monthlyLimitUsd: limit }), [commit]);
 
   const resetToDemo = useCallback(() => {
-    // Resetting balances never un-activates the card: that would let a verified identity re-claim.
-    commit({ ...INITIAL_CORE, cardActive: coreRef.current.cardActive });
+    commit(INITIAL_CORE);
     setTransactions([]);
     setTimeScale(1);
   }, [commit]);
@@ -289,8 +261,6 @@ export function useVaultState() {
     spendableUsd,
     card,
     cardActive: core.cardActive,
-    activateCard,
-    setCardActive,
     isCardFrozen: core.frozen,
     setIsCardFrozen,
     monthlyLimit: core.monthlyLimitUsd,

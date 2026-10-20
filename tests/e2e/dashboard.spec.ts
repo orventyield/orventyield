@@ -1,5 +1,4 @@
 import { expect, test, type Page } from "@playwright/test";
-import { activateCard } from "./helpers";
 
 const num = (s: string | null) => Number((s ?? "").replace(/[^0-9.\-]/g, ""));
 const text = async (page: Page, id: string) => (await page.getByTestId(id).first().textContent()) ?? "";
@@ -40,32 +39,31 @@ test.describe("playground dashboard", () => {
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
     const res = await page.goto("/dashboard");
     expect(res?.status()).toBe(200);
-    await expect(page.getByTestId("mode-toggle")).toBeVisible();
+    await expect(page.getByTestId("playground-dashboard")).toBeVisible();
   });
 
   test.afterEach(() => {
     expect(errors, "no console errors or page errors").toEqual([]);
   });
 
-  test("starts in Playground with a Playground/Mainnet toggle and no warning banners", async ({ page }) => {
-    await expect(page.getByTestId("mode-playground")).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByTestId("mode-mainnet")).toHaveAttribute("aria-checked", "false");
+  test("starts in Playground with no mode toggle while disconnected, and no warning banners", async ({ page }) => {
+    await expect(page.getByTestId("mode-toggle")).toHaveCount(0); // the choice lives in one place, not three
+    await expect(page.getByTestId("playground-dashboard")).toBeVisible();
     await expect(page.getByTestId("sandbox-banner")).toHaveCount(0);
     await expect(page.getByText("Nothing here moves real funds")).toHaveCount(0);
     await expect(page.getByTestId("connect-wallet")).toBeEnabled();
   });
 
-  test("the card is locked until the mobile number is verified, and a swipe is declined", async ({ page }) => {
-    await expect(page.getByTestId("card-locked")).toBeVisible();
-    await expect(page.getByTestId("card-status")).toHaveText("NOT ACTIVATED");
-    await expect(page.getByTestId("freeze-toggle")).toHaveCount(0);
-    await expect(page.getByTestId("card-pan")).toHaveCount(0);
+  test("the demo card is active from the first visit: no phone or KYC, a swipe is approved", async ({ page }) => {
+    await expect(page.getByTestId("card-unlocked")).toBeVisible();
+    await expect(page.getByTestId("card-status")).toHaveText("ACTIVE");
+    await expect(page.getByTestId("card-activate")).toHaveCount(0);
+    await expect(page.getByTestId("otp-dialog")).toHaveCount(0);
     await page.getByTestId("pos-pay").click();
-    await expect(page.getByTestId("pos-terminal")).toHaveText("DECLINED: CARD NOT ACTIVATED");
+    await expect(page.getByTestId("pos-terminal")).toContainText("APPROVED");
   });
 
   test("virtual card: masked PAN toggle, valid Luhn PAN, expiry, CVV on flip", async ({ page }) => {
-    await activateCard(page);
     const pan = page.getByTestId("card-pan");
     await expect(pan).toHaveText(/^•••• •••• •••• \d{4}$/);
     await page.getByTestId("pan-toggle").click();
@@ -82,7 +80,6 @@ test.describe("playground dashboard", () => {
   });
 
   test("POS: a swipe is paid from earned yield only; principal never moves", async ({ page }) => {
-    await activateCard(page);
     await page.getByTestId("preset-starbucks").click();
     const principal = await text(page, "principal-value");
     const yieldBefore = await money(page, "yield-value");
@@ -101,7 +98,6 @@ test.describe("playground dashboard", () => {
   });
 
   test("POS: a swipe larger than the earned yield is declined, never borrowed", async ({ page }) => {
-    await activateCard(page);
     await page.getByTestId("preset-apple").click(); // $149 against about $12 of yield on $5,000
     const principal = await text(page, "principal-value");
     await page.getByTestId("pos-pay").click();
@@ -111,7 +107,6 @@ test.describe("playground dashboard", () => {
   });
 
   test("POS: frozen card declines every swipe with DECLINED: CARD FROZEN", async ({ page }) => {
-    await activateCard(page);
     await page.getByTestId("freeze-toggle").click();
     await expect(page.getByTestId("card-status")).toHaveText("FROZEN");
     await page.getByTestId("pos-pay").click();
@@ -123,7 +118,6 @@ test.describe("playground dashboard", () => {
   });
 
   test("POS: monthly limit, earned-yield limit and invalid amount", async ({ page }) => {
-    await activateCard(page);
     await page.getByTestId("preset-custom").click();
     await page.getByTestId("custom-merchant").fill("Big Purchase");
     await page.getByTestId("custom-amount").fill("4000");
@@ -142,7 +136,6 @@ test.describe("playground dashboard", () => {
   });
 
   test("monthly limit slider spans $200-$5,000", async ({ page }) => {
-    await activateCard(page);
     const slider = page.locator("#monthly-limit");
     await expect(slider).toHaveAttribute("min", "200");
     await expect(slider).toHaveAttribute("max", "5000");
@@ -228,7 +221,6 @@ test.describe("playground dashboard", () => {
   });
 
   test("no credit-line, advance, health-factor or collateral wording on any tab", async ({ page }) => {
-    await activateCard(page);
     const banned = /micro-?buffer|credit (line|available|advance)|auto-?pilot|\bLTV\b|collateral|health factor:|liquidation \(|advance outstanding/i;
     for (const tab of [/Vault & Card/, /POS Terminal/, /Voucher Store/, /1-Click Bank/, /Ledger/]) {
       await openTab(page, tab);

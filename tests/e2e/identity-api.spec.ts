@@ -8,6 +8,7 @@ import { validateE164 } from "../../src/lib/identity/phone";
 import { DEMO_CODE, installMockWallet, pickCountry } from "./helpers";
 
 const API = "http://localhost:8787";
+const FORK_RPC = "http://127.0.0.1:8545";
 const WEB_ORIGIN = "http://localhost:3200";
 let ipSeq = 0;
 const nextIp = () => `198.51.100.${(++ipSeq % 250) + 1}.`.replace(/\.$/, "");
@@ -28,7 +29,7 @@ async function newWalletPage(browser: Browser) {
   const ip = nextIp();
   // Local stand-in for Cloudflare setting CF-Connecting-IP: gives each "user" their own rate-limit bucket.
   await page.route(`${API}/**`, (route) => route.continue({ headers: { ...route.request().headers(), "cf-connecting-ip": ip } }));
-  await installMockWallet(page, account.address, (message) => account.signMessage({ message }), "0xa");
+  await installMockWallet(page, account.address, (message) => account.signMessage({ message }), "0x7a69", FORK_RPC);
   return { account, ctx, page, ip };
 }
 
@@ -37,11 +38,12 @@ async function connectWallet(page: Page) {
   await page.getByTestId("connect-wallet").click();
   await page.getByTestId("wallet-option-test.wallet").click();
   await expect(page.getByTestId("account-button")).toBeVisible();
-  await page.getByTestId("mode-playground").click(); // the activation lives in the Playground card
+  // Phone verification lives in the Mainnet Card step; the connected wallet lands there.
+  await expect(page.getByTestId("mainnet-dashboard")).toBeVisible({ timeout: 30_000 });
 }
 
 async function fillPhone(page: Page, national: string) {
-  await page.getByTestId("card-activate").click();
+  await page.getByTestId("card-verify-phone").click();
   await pickCountry(page, "IN");
   await page.getByTestId("phone-input").fill(national);
   await page.getByTestId("phone-submit").click();
@@ -57,12 +59,12 @@ test.describe("verification through the real API", () => {
     });
 
     await connectWallet(w.page);
-    await expect(w.page.getByTestId("card-locked")).toBeVisible();
+    await expect(w.page.getByTestId("card-verify-phone")).toBeVisible();
     await fillPhone(w.page, phone.national);
     await expect(w.page.getByTestId("otp-step")).toBeVisible();
     await expect(w.page.getByTestId("otp-hint")).toHaveCount(0); // real API: no demo-code hint
     await w.page.getByTestId("otp-input").fill(DEMO_CODE);
-    await expect(w.page.getByTestId("card-unlocked")).toBeVisible();
+    await expect(w.page.getByTestId("card-step-login")).toBeVisible();
 
     // Privacy: the service only ever echoes a masked number.
     const all = bodies.join("\n");
@@ -74,9 +76,9 @@ test.describe("verification through the real API", () => {
     const again = await browser.newContext({ baseURL: WEB_ORIGIN });
     const p2 = await again.newPage();
     await p2.route(`${API}/**`, (route) => route.continue({ headers: { ...route.request().headers(), "cf-connecting-ip": w.ip } }));
-    await installMockWallet(p2, w.account.address, (message) => w.account.signMessage({ message }), "0xa");
+    await installMockWallet(p2, w.account.address, (message) => w.account.signMessage({ message }), "0x7a69", FORK_RPC);
     await connectWallet(p2);
-    await expect(p2.getByTestId("card-unlocked")).toBeVisible({ timeout: 15_000 });
+    await expect(p2.getByTestId("card-step-login")).toBeVisible({ timeout: 15_000 });
     await w.ctx.close();
     await again.close();
   });
@@ -90,22 +92,22 @@ test.describe("verification through the real API", () => {
     await connectWallet(a.page);
     await fillPhone(a.page, phone.national);
     await a.page.getByTestId("otp-input").fill(DEMO_CODE);
-    await expect(a.page.getByTestId("card-unlocked")).toBeVisible();
+    await expect(a.page.getByTestId("card-step-login")).toBeVisible();
 
     await connectWallet(b.page);
-    await expect(b.page.getByTestId("card-locked")).toBeVisible();
+    await expect(b.page.getByTestId("card-verify-phone")).toBeVisible();
     await b.page.waitForTimeout(31_000); // the real Worker keeps a 30s resend cooldown per phone
     await fillPhone(b.page, phone.national);
     await expect(b.page.getByTestId("dup-error")).toHaveCount(0);
     await expect(b.page.getByTestId("relink-note")).toBeVisible();
     await b.page.getByTestId("otp-input").fill(DEMO_CODE);
-    await expect(b.page.getByTestId("activation-success")).toContainText("now linked to this wallet");
-    await expect(b.page.getByTestId("card-unlocked")).toBeVisible();
+    await expect(b.page.getByTestId("otp-dialog")).toHaveCount(0, { timeout: 10_000 });
+    await expect(b.page.getByTestId("card-step-login")).toBeVisible();
 
     // One holder per phone: the first wallet no longer has the card
     await a.page.reload();
     await connectWallet(a.page);
-    await expect(a.page.getByTestId("card-locked")).toBeVisible({ timeout: 15_000 });
+    await expect(a.page.getByTestId("card-verify-phone")).toBeVisible({ timeout: 15_000 });
     await a.ctx.close();
     await b.ctx.close();
   });
@@ -115,7 +117,7 @@ test.describe("verification through the real API", () => {
     await connectWallet(a.page);
     await fillPhone(a.page, freshPhone().national);
     await a.page.getByTestId("otp-input").fill(DEMO_CODE);
-    await expect(a.page.getByTestId("card-unlocked")).toBeVisible();
+    await expect(a.page.getByTestId("card-step-login")).toBeVisible();
 
     const res = await request.post(`${API}/api/verify/start`, {
       headers: { "content-type": "application/json", "cf-connecting-ip": nextIp() },

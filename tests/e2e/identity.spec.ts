@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { DEMO_CODE, activateCard, pickCountry } from "./helpers";
+import { DEMO_CODE, activateCard, connectForkWallet, pickCountry } from "./helpers";
 
 test.describe("mobile OTP verification and one user = one card", () => {
   let errors: string[] = [];
@@ -8,14 +8,13 @@ test.describe("mobile OTP verification and one user = one card", () => {
     errors = [];
     page.on("console", (m) => m.type() === "error" && errors.push(`console: ${m.text()}`));
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
-    await page.goto("/dashboard");
-    await expect(page.getByTestId("card-locked")).toBeVisible();
+    await connectForkWallet(page);
   });
 
   test.afterEach(() => expect(errors).toEqual([]));
 
   test("the activation dialog opens with a custom glass country picker, number field and a clear promise", async ({ page }) => {
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").click();
     const dialog = page.getByRole("dialog", { name: "Activate your card" });
     await expect(dialog).toBeVisible();
     await expect(page.getByTestId("phone-input")).toBeFocused();
@@ -41,7 +40,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
   });
 
   test("country picker: search by name or code, keyboard selection, selected value shows flag and dial code", async ({ page }) => {
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").click();
     const trigger = page.getByTestId("phone-country");
     await trigger.click();
     await expect(page.getByTestId("phone-country-search")).toBeFocused();
@@ -70,7 +69,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
 
   test("country picker stays inside the phone screen: no horizontal scroll and it opens fully on a phone", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 640 });
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").click();
     await page.getByTestId("phone-country").click();
     const box = await page.getByTestId("phone-country-panel").boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
@@ -83,7 +82,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
   });
 
   test("phone validation: empty, letters, wrong length, landline, and a live E.164 preview", async ({ page }) => {
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").click();
     await pickCountry(page, "IN");
 
     await page.getByTestId("phone-submit").click();
@@ -108,8 +107,8 @@ test.describe("mobile OTP verification and one user = one card", () => {
     await expect(page.getByTestId("phone-error")).toHaveCount(0);
   });
 
-  test("OTP step: masked number, auto-focus, resend countdown, wrong code, then success unlocks the card", async ({ page }) => {
-    await page.getByTestId("card-activate").click();
+  test("OTP step: masked number, auto-focus, resend countdown, wrong code, then success moves on to the issuer sign-in", async ({ page }) => {
+    await page.getByTestId("card-verify-phone").click();
     await pickCountry(page, "IN");
     await page.getByTestId("phone-input").fill("98765 43210");
     await page.getByTestId("phone-submit").click();
@@ -137,20 +136,12 @@ test.describe("mobile OTP verification and one user = one card", () => {
 
     // Right code, typed digit by digit: verifies automatically on the sixth digit.
     await page.getByTestId("otp-input").pressSequentially(DEMO_CODE, { delay: 40 });
-    await expect(page.getByTestId("activation-success")).toBeVisible();
-    await expect(page.getByTestId("card-unlocked")).toBeVisible();
-    await expect(page.getByTestId("card-status")).toHaveText("ACTIVE");
     await expect(page.getByTestId("otp-dialog")).toHaveCount(0, { timeout: 5000 });
-
-    // The unlocked card works: reveal, flip, and a swipe is approved.
-    await page.getByTestId("pan-toggle").click();
-    await expect(page.getByTestId("card-pan")).toHaveText(/^\d{4} \d{4} \d{4} \d{4}$/);
-    await page.getByTestId("pos-pay").click();
-    await expect(page.getByTestId("pos-terminal")).toContainText("APPROVED");
+    await expect(page.getByTestId("card-step-login")).toBeVisible(); // next: sign in to the card issuer
   });
 
   test("pasting the code works, including spaces", async ({ page }) => {
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").click();
     await pickCountry(page, "GB");
     await page.getByTestId("phone-input").fill("07911 123456");
     await page.getByTestId("phone-submit").click();
@@ -160,11 +151,11 @@ test.describe("mobile OTP verification and one user = one card", () => {
       setter.call(el, v);
       el.dispatchEvent(new Event("input", { bubbles: true }));
     }, "123 456");
-    await expect(page.getByTestId("card-unlocked")).toBeVisible();
+    await expect(page.getByTestId("card-step-login")).toBeVisible();
   });
 
   test("five wrong codes lock the session and ask for a new code", async ({ page }) => {
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").click();
     await pickCountry(page, "IN");
     await page.getByTestId("phone-input").fill("98765 43210");
     await page.getByTestId("phone-submit").click();
@@ -173,53 +164,32 @@ test.describe("mobile OTP verification and one user = one card", () => {
       await expect(page.getByTestId("otp-error")).toBeVisible();
     }
     await expect(page.getByTestId("otp-error")).toContainText("Too many incorrect codes");
-    await expect(page.getByTestId("card-locked")).toBeVisible();
+    await expect(page.getByTestId("card-verify-phone")).toBeVisible();
   });
 
   test("activation survives a reload", async ({ page }) => {
     await activateCard(page);
     await page.reload();
-    await expect(page.getByTestId("card-unlocked")).toBeVisible();
-    await expect(page.getByTestId("card-locked")).toHaveCount(0);
-  });
-
-  test("the same number on a new account signs in and moves the card (re-link), instead of blocking", async ({ page }) => {
-    await activateCard(page);
-    // Become "another wallet": a fresh account id, but the same browser registry (the demo stand-in for a shared one).
-    await page.evaluate(() => {
-      window.localStorage.removeItem("oy.guest");
-      for (const k of Object.keys(window.localStorage)) if (k.startsWith("oy.card.")) window.localStorage.removeItem(k);
-    });
-    await page.reload();
-    await expect(page.getByTestId("card-locked")).toBeVisible();
-
-    await page.getByTestId("card-activate").click();
-    await pickCountry(page, "IN");
-    await page.getByTestId("phone-input").fill("98765 43210");
-    await page.getByTestId("phone-submit").click();
-
-    // No red error and no dead end: the user is told this is a sign-in and gets a code
-    await expect(page.getByTestId("dup-error")).toHaveCount(0);
-    await expect(page.getByTestId("otp-step")).toBeVisible();
-    await expect(page.getByTestId("relink-note")).toContainText("already has a card");
-    await page.getByTestId("otp-input").fill(DEMO_CODE);
-    await expect(page.getByTestId("activation-success")).toContainText("now linked to this wallet");
-    await expect(page.getByTestId("card-unlocked")).toBeVisible();
+    // The test wallet forgets its authorisation on reload, so connect again; the verified phone comes back from storage.
+    await page.getByTestId("connect-wallet").click();
+    await page.getByTestId("wallet-option-test.anvil.wallet").click();
+    await expect(page.getByTestId("card-step-login")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("card-verify-phone")).toHaveCount(0);
   });
 
   test("a number the account has not used yet works as before (no re-link note)", async ({ page }) => {
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").click();
     await pickCountry(page, "GB");
     await page.getByTestId("phone-input").fill("07911 123456");
     await page.getByTestId("phone-submit").click();
     await expect(page.getByTestId("otp-step")).toBeVisible();
     await expect(page.getByTestId("relink-note")).toHaveCount(0);
     await page.getByTestId("otp-input").fill(DEMO_CODE);
-    await expect(page.getByTestId("card-unlocked")).toBeVisible();
+    await expect(page.getByTestId("card-step-login")).toBeVisible();
   });
 
   test("Escape closes the dialog, focus returns to the button, and Tab stays inside", async ({ page }) => {
-    const opener = page.getByTestId("card-activate");
+    const opener = page.getByTestId("card-verify-phone");
     await opener.click();
     await expect(page.getByTestId("otp-dialog")).toBeVisible();
     for (let i = 0; i < 8; i++) {
@@ -233,8 +203,8 @@ test.describe("mobile OTP verification and one user = one card", () => {
 
   test("mobile: bottom sheet, 44px+ controls, no horizontal scroll through the whole flow", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByTestId("card-activate").scrollIntoViewIfNeeded();
-    await page.getByTestId("card-activate").click();
+    await page.getByTestId("card-verify-phone").scrollIntoViewIfNeeded();
+    await page.getByTestId("card-verify-phone").click();
     const dialog = page.getByRole("dialog");
     const box = (await dialog.boundingBox())!;
     expect(box.width).toBeGreaterThan(380);

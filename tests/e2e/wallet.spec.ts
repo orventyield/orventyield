@@ -40,7 +40,7 @@ async function installMockWallet(page: Page) {
 test.describe("wallet modal", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByTestId("mode-toggle")).toBeVisible();
+    await expect(page.getByTestId("connect-wallet")).toBeVisible();
   });
 
   test("Connect Wallet is always available and opens a proper modal with every option", async ({ page }) => {
@@ -82,7 +82,7 @@ test.describe("wallet modal", () => {
     await page.getByTestId("connect-wallet").click();
     await page.getByTestId("guest-button").click();
     await expect(page.getByTestId("wallet-modal")).toHaveCount(0);
-    await expect(page.getByTestId("mode-playground")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("mode-toggle")).toHaveCount(0);
     await expect(page.getByTestId("playground-dashboard")).toBeVisible();
   });
 
