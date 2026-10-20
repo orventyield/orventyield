@@ -1,14 +1,11 @@
 "use client";
 
-import { motion } from "motion/react";
 import Link from "next/link";
-import { useState } from "react";
 import { Magnetic, SplitWords } from "../ui/motion";
 import { Logo } from "../ui/Icons";
 import { NAV_LINKS } from "./Nav";
 
 export function Cta() {
-  const [clicked, setClicked] = useState(false);
   return (
     <section id="cta" className="relative isolate overflow-hidden px-5 py-28 sm:px-6 sm:py-40">
       <div aria-hidden="true" className="absolute inset-0 -z-10">
@@ -22,23 +19,17 @@ export function Cta() {
           <SplitWords text="finally working." wordClassName="text-shimmer" delay={0.2} />
         </h2>
         <p className="mx-auto mt-6 max-w-md text-muted">
-          Early access is opening soon. Be first through the door.
+          Spend the yield. Keep the principal. Connect your wallet and start now.
         </p>
         <Magnetic className="mt-10 inline-block">
-          <button
-            type="button"
-            onClick={() => setClicked(true)}
-            className="relative min-h-14 overflow-hidden rounded-full bg-cyan px-9 text-base font-bold text-bg shadow-[0_0_0_1px_rgba(0,240,255,0.7),0_18px_70px_-8px_rgba(0,240,255,0.85)] transition active:scale-[0.97]"
+          <Link
+            href="/dashboard"
+            className="relative inline-flex items-center justify-center min-h-14 overflow-hidden rounded-full bg-cyan px-9 text-base font-bold text-bg shadow-[0_0_0_1px_rgba(0,240,255,0.7),0_18px_70px_-8px_rgba(0,240,255,0.85)] transition hover:brightness-110 active:scale-[0.97]"
           >
             <span className="absolute inset-y-0 -left-1/2 w-1/3 animate-sheen bg-white/60 blur-md" aria-hidden="true" />
-            <span className="relative">{clicked ? "Launching soon ✓" : "Get early access"}</span>
-          </button>
+            <span className="relative">Launch App →</span>
+          </Link>
         </Magnetic>
-        {clicked && (
-          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4 text-sm text-muted">
-            Early access opens soon. We&rsquo;ll announce it right here.
-          </motion.p>
-        )}
       </div>
     </section>
   );
