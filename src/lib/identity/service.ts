@@ -15,7 +15,7 @@
 import { isAddress, verifyMessage } from "viem";
 import { ipKey, phoneHash as hashPhone } from "./hash";
 import { maskPhone, validateE164, type PhoneErrorCode } from "./phone";
-import type { OtpProvider } from "./otp";
+import { OtpProviderError, type OtpProvider } from "./otp";
 import { CLAIM_MESSAGES, normalizeOwner } from "./registry";
 import type { VerifyStore } from "./store";
 
@@ -64,6 +64,9 @@ export type VerifyErrorCode =
   | "TOO_MANY_ATTEMPTS"
   | "INVALID_CODE"
   | "BAD_SIGNATURE"
+  | "SMS_BLOCKED"
+  | "NUMBER_UNREACHABLE"
+  | "COUNTRY_UNSUPPORTED"
   | "PROVIDER_ERROR";
 
 const STATUS: Record<VerifyErrorCode, number> = {
@@ -83,6 +86,9 @@ const STATUS: Record<VerifyErrorCode, number> = {
   TOO_MANY_ATTEMPTS: 429,
   INVALID_CODE: 400,
   BAD_SIGNATURE: 401,
+  SMS_BLOCKED: 503,
+  NUMBER_UNREACHABLE: 422,
+  COUNTRY_UNSUPPORTED: 422,
   PROVIDER_ERROR: 502,
 };
 
@@ -110,8 +116,38 @@ const MESSAGES: Partial<Record<VerifyErrorCode, string>> = {
   TOO_MANY_ATTEMPTS: "Too many incorrect codes. Request a new one.",
   INVALID_CODE: "That code isn't right.",
   BAD_SIGNATURE: "Wallet signature didn't match this account.",
+  SMS_BLOCKED: "SMS is temporarily unavailable for your region. Please try again later.",
+  NUMBER_UNREACHABLE: "We can't send a code to that number. Check it, or try another mobile number.",
+  COUNTRY_UNSUPPORTED: "We can't send codes to that country yet.",
   PROVIDER_ERROR: "We couldn't send the code. Please try again.",
 };
+
+/**
+ * What a provider failure means for the user. Twilio Verify codes, from docs: 60410 / 60605 delivery blocked and 60412 / 60238
+ * fraud prevention (Fraud Guard); 60205 landline, 60612 not mobile, 60625 cancelled number, 21211 invalid number, 21608 unverified
+ * number on a trial account, 60200 invalid parameter; 60610 / 60607 unsupported country. Everything else stays a generic failure,
+ * and the exact code is in the log either way.
+ */
+export function classifyProviderError(e: unknown): { code: VerifyErrorCode; retryAfterSec?: number } {
+  const c = e instanceof OtpProviderError ? e.providerCode : 0;
+  if ([60410, 60605, 60412, 60238].includes(c)) return { code: "SMS_BLOCKED" };
+  if ([60205, 60612, 60625, 21211, 21608, 60200].includes(c)) return { code: "NUMBER_UNREACHABLE" };
+  if ([60610, 60607].includes(c)) return { code: "COUNTRY_UNSUPPORTED" };
+  if ([60203, 60212, 60626, 60624].includes(c)) return { code: "RATE_LIMITED", retryAfterSec: 3600 };
+  return { code: "PROVIDER_ERROR" };
+}
+
+/** A structured, number-free record of a provider failure, for the Worker log (`wrangler tail` / Workers Logs). */
+export interface ProviderFailureLog {
+  evt: "otp_provider_failed";
+  operation: "start" | "check";
+  httpStatus: number;
+  providerCode: number;
+  detail: string;
+  userCode: VerifyErrorCode;
+  /** ISO country of the number, e.g. "IN". No digits of the number itself. */
+  country?: string;
+}
 const msg = (c: VerifyErrorCode) => MESSAGES[c] ?? "Request rejected.";
 
 const GUEST = /^guest:[A-Za-z0-9_-]{16,64}$/;
@@ -180,6 +216,8 @@ export class VerificationService {
       config: VerifyConfig;
       now?: () => number;
       randomId?: () => string;
+      /** Receives number-free diagnostics when the provider fails (the Worker writes them to its log). */
+      log?: (entry: ProviderFailureLog) => void;
     },
   ) {
     this.now = deps.now ?? Date.now;
@@ -262,8 +300,18 @@ export class VerificationService {
     await store.recordEvent("sms_global", "all", now);
     try {
       await otp.start(phone.e164);
-    } catch {
-      throw new VerifyError("PROVIDER_ERROR", msg("PROVIDER_ERROR"));
+    } catch (e) {
+      const k = classifyProviderError(e);
+      this.deps.log?.({
+        evt: "otp_provider_failed",
+        operation: "start",
+        httpStatus: e instanceof OtpProviderError ? e.httpStatus : 0,
+        providerCode: e instanceof OtpProviderError ? e.providerCode : 0,
+        detail: e instanceof OtpProviderError ? e.detail : "network or unknown error",
+        userCode: k.code,
+        country: phone.country,
+      });
+      throw new VerifyError(k.code, msg(k.code), k.retryAfterSec ? { retryAfterSec: k.retryAfterSec } : {});
     }
 
     const nonce = this.id();
@@ -324,7 +372,16 @@ export class VerificationService {
     let verdict;
     try {
       verdict = await otp.check(phone.e164, input.code);
-    } catch {
+    } catch (e) {
+      this.deps.log?.({
+        evt: "otp_provider_failed",
+        operation: "check",
+        httpStatus: e instanceof OtpProviderError ? e.httpStatus : 0,
+        providerCode: e instanceof OtpProviderError ? e.providerCode : 0,
+        detail: e instanceof OtpProviderError ? e.detail : "network or unknown error",
+        userCode: "PROVIDER_ERROR",
+        country: phone.country,
+      });
       throw new VerifyError("PROVIDER_ERROR", msg("PROVIDER_ERROR"));
     }
     if (verdict === "expired") {

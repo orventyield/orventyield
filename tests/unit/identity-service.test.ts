@@ -1,8 +1,8 @@
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { D1Store } from "../../src/lib/identity/d1";
-import { MockOtpProvider, type OtpProvider } from "../../src/lib/identity/otp";
-import { DEFAULT_CONFIG, VerificationService, VerifyError, type VerifyConfig } from "../../src/lib/identity/service";
+import { MockOtpProvider, OtpProviderError, type OtpProvider } from "../../src/lib/identity/otp";
+import { DEFAULT_CONFIG, VerificationService, VerifyError, classifyProviderError, type ProviderFailureLog, type VerifyConfig } from "../../src/lib/identity/service";
 import { MemoryStore, type VerifyStore } from "../../src/lib/identity/store";
 import { sqliteD1 } from "../helpers/sqliteD1";
 
@@ -418,5 +418,63 @@ describe("D1 constraints (the database enforces 1U1C itself)", () => {
     expect(await store.insertCard({ phoneHash: "h1", owner: "o2", activatedAt: 2 })).toBe("phone_taken");
     expect(await store.insertCard({ phoneHash: "h2", owner: "o1", activatedAt: 3 })).toBe("owner_taken");
     expect((await store.getCardByPhone("h1"))?.owner).toBe("o1");
+  });
+});
+
+describe("provider failures are classified, explained to the user, and logged without the number", () => {
+  const PHONE = "+919876543210";
+  const mkSvc = (err: unknown) => {
+    const logs: ProviderFailureLog[] = [];
+    const otp = new MockOtpProvider();
+    vi.spyOn(otp, "start").mockRejectedValue(err);
+    const svc = new VerificationService({ store: new MemoryStore(), otp, log: (l) => logs.push(l), config: { ...DEFAULT_CONFIG, pepper: "test-pepper", requireWalletSignature: false } });
+    return { svc, logs };
+  };
+  const err = (code: number, httpStatus = 400, detail = "") => new OtpProviderError("start", httpStatus, code, detail);
+
+  it.each([
+    [60410, "SMS_BLOCKED", 503], [60605, "SMS_BLOCKED", 503], [60412, "SMS_BLOCKED", 503], [60238, "SMS_BLOCKED", 503],
+    [60205, "NUMBER_UNREACHABLE", 422], [60612, "NUMBER_UNREACHABLE", 422], [21211, "NUMBER_UNREACHABLE", 422], [21608, "NUMBER_UNREACHABLE", 422],
+    [60610, "COUNTRY_UNSUPPORTED", 422], [60607, "COUNTRY_UNSUPPORTED", 422],
+    [60203, "RATE_LIMITED", 429], [60212, "RATE_LIMITED", 429], [60626, "RATE_LIMITED", 429],
+    [20003, "PROVIDER_ERROR", 502], [0, "PROVIDER_ERROR", 502], [99999, "PROVIDER_ERROR", 502],
+  ])("Twilio %i becomes %s (HTTP %i)", async (code, userCode, status) => {
+    const { svc, logs } = mkSvc(err(code as number, 403, "some detail"));
+    const e = await fails(svc.start({ phone: PHONE, owner: guest("alice"), ip: "1.1.1.1" }));
+    expect(e.code).toBe(userCode);
+    expect(e.status).toBe(status);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ evt: "otp_provider_failed", operation: "start", providerCode: code, httpStatus: 403, userCode, country: "IN" });
+  });
+
+  it("tells the user in plain words that SMS is temporarily unavailable for their region", async () => {
+    const { svc } = mkSvc(err(60410, 403));
+    const e = await fails(svc.start({ phone: PHONE, owner: guest("alice"), ip: "1.1.1.1" }));
+    expect(e.message).toBe("SMS is temporarily unavailable for your region. Please try again later.");
+  });
+
+  it("the log line never contains the phone number, the owner or the IP", async () => {
+    const { svc, logs } = mkSvc(err(60410, 403, "blocked prefix"));
+    await fails(svc.start({ phone: PHONE, owner: guest("alice"), ip: "203.0.113.77" }));
+    const line = JSON.stringify(logs[0]);
+    expect(line).not.toMatch(/9876543210|203\.0\.113|alice/);
+  });
+
+  it("an unknown error (network, not a provider reply) is a generic failure and is still logged", async () => {
+    const { svc, logs } = mkSvc(new Error("socket hang up"));
+    const e = await fails(svc.start({ phone: PHONE, owner: guest("alice"), ip: "1.1.1.1" }));
+    expect(e.code).toBe("PROVIDER_ERROR");
+    expect(logs[0]).toMatchObject({ providerCode: 0, httpStatus: 0, detail: "network or unknown error" });
+  });
+
+  it("a failed send still counts against the limits (no free retry loop)", async () => {
+    const { svc } = mkSvc(err(60410, 403));
+    await fails(svc.start({ phone: PHONE, owner: guest("alice"), ip: "1.1.1.1" }));
+    const again = await fails(svc.start({ phone: PHONE, owner: guest("alice"), ip: "1.1.1.1" }));
+    expect(again.code).toBe("COOLDOWN");
+  });
+
+  it("classifyProviderError is total: anything unknown is a generic provider error", () => {
+    for (const x of [null, undefined, "x", {}, new Error("e"), new OtpProviderError("start", 500, 0, "")]) expect(classifyProviderError(x).code).toBe("PROVIDER_ERROR");
   });
 });

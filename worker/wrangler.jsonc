@@ -19,10 +19,17 @@
   //      Run `npm run cashout:probe` first: it confirms which order field is the payment address; put that field name in the
   //      TRANSAK_DEPOSIT_FIELD var below. Until it is set the app refuses to send any cashout. TRANSAK_ENV defaults to staging.
   //      Production needs KYB approval plus explicit TRANSAK_ENV=production, TRANSAK_GATEWAY_BASE and TRANSAK_PARTNERS_BASE.
+  //   8. SMS troubleshooting: when a code cannot be sent, the Worker logs one JSON line, e.g.
+  //        {"evt":"otp_provider_failed","operation":"start","httpStatus":403,"providerCode":60410,"userCode":"SMS_BLOCKED","country":"IN"}
+  //      Read it with `npx wrangler tail --config worker/wrangler.jsonc` or in the Cloudflare dashboard (Workers Logs). It never
+  //      contains the phone number. 60410/60605 = Twilio Fraud Guard blocked a region (usually clears in 12h); 21608 = unverified
+  //      number on a trial account; 60205/60612 = landline or not a mobile; 60610/60607 = unsupported country.
   // Never set ALLOW_MOCK_OTP in production: it enables the fixed test code.
   "name": "orventyield-verify",
   "main": "index.ts",
   "compatibility_date": "2026-10-01",
+  // Keep Worker logs (including the otp_provider_failed lines) in the Cloudflare dashboard, not just in `wrangler tail`.
+  "observability": { "enabled": true },
   "d1_databases": [
     {
       "binding": "DB",

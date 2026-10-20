@@ -4,6 +4,40 @@
  */
 export type CheckResult = "approved" | "rejected" | "expired";
 
+/**
+ * A failure reported by the provider, with the provider's own error code. `detail` is Twilio's message with every number
+ * and digit run removed, so it is safe to log and never contains a phone number.
+ */
+export class OtpProviderError extends Error {
+  constructor(
+    readonly operation: "start" | "check",
+    readonly httpStatus: number,
+    /** The provider's error code, e.g. Twilio 60410 (Fraud Guard blocked) or 21608 (unverified number). 0 when unknown. */
+    readonly providerCode: number,
+    readonly detail: string,
+  ) {
+    super(`otp ${operation} failed: http ${httpStatus}, code ${providerCode}`);
+    this.name = "OtpProviderError";
+  }
+}
+
+/** Remove phone numbers and any long digit run from provider text before it goes anywhere. */
+export function redactDigits(text: string): string {
+  return text.replace(/[+(]?\d[\d\s().-]{5,}\d/g, "[number]").slice(0, 200);
+}
+
+async function providerError(op: "start" | "check", res: Response): Promise<OtpProviderError> {
+  let code = 0;
+  let detail = "";
+  try {
+    const j = (await res.json()) as { code?: unknown; message?: unknown };
+    if (typeof j.code === "number" && Number.isFinite(j.code)) code = j.code;
+    if (typeof j.message === "string") detail = redactDigits(j.message);
+  } catch {
+    /* not JSON: keep only the HTTP status */
+  }
+  return new OtpProviderError(op, res.status, code, detail);
+}
 export interface OtpProvider {
   readonly name: string;
   /** Send a code to an E.164 number. Throws on delivery failure. */
@@ -85,17 +119,21 @@ export class TwilioVerifyProvider implements OtpProvider {
   async start(e164: string): Promise<void> {
     const brand = cleanBrand(this.cfg.brand);
     let res = await this.post("Verifications", { To: e164, Channel: "sms", ...(brand ? { CustomFriendlyName: brand } : {}) });
-    // Never let the cosmetic name stop a real user from getting a code: if Twilio rejects the request as invalid
-    // (400), try once more without it. Rate limits (429) and server errors are not retried: they are not about the name.
-    if (res.status === 400 && brand) res = await this.post("Verifications", { To: e164, Channel: "sms" });
-    if (!res.ok) throw new Error(`twilio start failed: ${res.status}`);
+    // Never let the cosmetic name stop a real user from getting a code: if Twilio says a PARAMETER is invalid (400, code 60200
+    // or no code at all), try once more without it. Blocks (60410), rate limits, bad numbers and server errors are not about the
+    // name, so they are not retried: a retry would only burn another delivery attempt.
+    if (res.status === 400 && brand) {
+      const first = await providerError("start", res.clone());
+      if (first.providerCode === 0 || first.providerCode === 60200) res = await this.post("Verifications", { To: e164, Channel: "sms" });
+    }
+    if (!res.ok) throw await providerError("start", res);
   }
 
   async check(e164: string, code: string): Promise<CheckResult> {
     const res = await this.post("VerificationCheck", { To: e164, Code: code });
     // 404: the verification expired, was already approved, or hit Twilio's own attempt limit.
     if (res.status === 404 || res.status === 429) return "expired";
-    if (!res.ok) throw new Error(`twilio check failed: ${res.status}`);
+    if (!res.ok) throw await providerError("check", res);
     const json = (await res.json()) as { status?: string };
     return json.status === "approved" ? "approved" : "rejected";
   }

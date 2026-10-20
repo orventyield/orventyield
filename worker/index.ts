@@ -122,7 +122,13 @@ export async function handle(request: Request, env: Env): Promise<Response> {
 
   try {
     if (!url.pathname.startsWith("/api/verify/")) return json({ ok: false, code: "NOT_FOUND", message: "Not found." }, 404, h);
-    const svc = new VerificationService({ store: new D1Store(env.DB), otp: provider(env), config: config(env) });
+    const svc = new VerificationService({
+      store: new D1Store(env.DB),
+      otp: provider(env),
+      config: config(env),
+      // One JSON line per provider failure: find it with `wrangler tail` or in Workers Logs. It never contains a phone number.
+      log: (entry) => console.error(JSON.stringify(entry)),
+    });
     const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
 
     if (url.pathname === "/api/verify/status") {

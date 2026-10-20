@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MockOtpProvider, TwilioVerifyProvider, cleanBrand } from "../../src/lib/identity/otp";
+import { MockOtpProvider, OtpProviderError, TwilioVerifyProvider, cleanBrand, redactDigits } from "../../src/lib/identity/otp";
 import { claimCard, emptyRegistry, hasCard, normalizeOwner } from "../../src/lib/identity/registry";
 
 const A = "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01";
@@ -167,6 +167,35 @@ describe("TwilioVerifyProvider request shape", () => {
     expect(f).toHaveBeenCalledTimes(2);
     expect(new URLSearchParams((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).has("CustomFriendlyName")).toBe(true);
     expect(new URLSearchParams((f.mock.calls[1] as unknown as [string, RequestInit])[1].body as string).has("CustomFriendlyName")).toBe(false);
+  });
+  it("surfaces Twilio's own error code and a number-free message", async () => {
+    const f = mk(403, { code: 60410, message: "Verification delivery attempt blocked for +919876543210 (Fraud Guard)", status: 403 });
+    const e = await new TwilioVerifyProvider({ ...cfg, fetchImpl: f as unknown as typeof fetch }).start("+919876543210").catch((x) => x);
+    expect(e).toBeInstanceOf(OtpProviderError);
+    expect(e).toMatchObject({ operation: "start", httpStatus: 403, providerCode: 60410 });
+    expect(e.detail).toContain("Fraud Guard");
+    expect(e.detail).not.toMatch(/9876543210/);
+    expect(e.message).not.toMatch(/\d{8}/);
+  });
+  it("keeps the HTTP status when Twilio sends a non-JSON error page, and tags check failures too", async () => {
+    const html = vi.fn(async () => new Response("<html>bad gateway</html>", { status: 502 }));
+    const e = await new TwilioVerifyProvider({ ...cfg, fetchImpl: html as unknown as typeof fetch }).start("+1").catch((x) => x);
+    expect(e).toMatchObject({ httpStatus: 502, providerCode: 0, detail: "" });
+    const c = await new TwilioVerifyProvider({ ...cfg, fetchImpl: mk(500, { code: 20500 }) as unknown as typeof fetch }).check("+1", "1").catch((x) => x);
+    expect(c).toMatchObject({ operation: "check", httpStatus: 500, providerCode: 20500 });
+  });
+  it("retries without the brand only for an invalid-parameter 400 (60200 or no code), never for a block", async () => {
+    for (const [body, retried] of [[{ code: 60200, message: "Invalid parameter" }, true], [{}, true], [{ code: 60410 }, false], [{ code: 60205 }, false], [{ code: 21211 }, false]] as const) {
+      const f = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 400 }));
+      await new TwilioVerifyProvider({ ...cfg, brand: "OrventYield", fetchImpl: f as unknown as typeof fetch }).start("+1").catch(() => undefined);
+      expect(f.mock.calls.length, JSON.stringify(body)).toBe(retried ? 2 : 1);
+    }
+  });
+  it("redactDigits removes phone numbers and long digit runs, keeps ordinary text", () => {
+    expect(redactDigits("The 'To' number +919876543210 is not valid")).toBe("The 'To' number [number] is not valid");
+    expect(redactDigits("call (415) 555-2671 now")).toBe("call [number] now");
+    expect(redactDigits("Error 60410 blocked")).toBe("Error 60410 blocked");
+    expect(redactDigits("x".repeat(500))).toHaveLength(200);
   });
   it("does not retry rate limits or server errors, and does not retry a 400 that had no name to drop", async () => {
     for (const status of [429, 500]) {

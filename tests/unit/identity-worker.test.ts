@@ -172,3 +172,25 @@ describe("verification API (Worker)", () => {
     });
   });
 });
+
+describe("Worker: a Twilio block is explained and logged", () => {
+  it("returns the plain-language message and writes one number-free log line with Twilio's code", async () => {
+    const errors: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((m: unknown) => void errors.push(String(m)));
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ code: 60410, message: "Verification delivery attempt blocked for +919876543210", status: 403 }), { status: 403 })) as unknown as typeof fetch;
+    try {
+      const env = { ...base(), OTP_PROVIDER: "twilio", TWILIO_ACCOUNT_SID: "ACxx", TWILIO_AUTH_TOKEN: "tok-SECRET", TWILIO_VERIFY_SERVICE_SID: "VAyy", ALLOW_MOCK_OTP: undefined } as unknown as Env;
+      const r = await handle(req("/api/verify/start", { body: { phone: "+919876543210", owner: guest("alice") } }), env);
+      expect(r.status).toBe(503);
+      expect(await j(r)).toMatchObject({ ok: false, code: "SMS_BLOCKED", message: "SMS is temporarily unavailable for your region. Please try again later." });
+      expect(errors).toHaveLength(1);
+      const entry = JSON.parse(errors[0]!);
+      expect(entry).toMatchObject({ evt: "otp_provider_failed", operation: "start", httpStatus: 403, providerCode: 60410, userCode: "SMS_BLOCKED", country: "IN" });
+      expect(errors[0]).not.toMatch(/9876543210|tok-SECRET|ACxx/);
+    } finally {
+      globalThis.fetch = realFetch;
+      spy.mockRestore();
+    }
+  });
+});
