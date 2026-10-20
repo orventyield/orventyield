@@ -3,11 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { useIdentity } from "@/features/identity/IdentityProvider";
-import { ImmersveClient, ImmersveError, immersveConfig, readiness, type Card, type CardReadiness, type CardSecrets } from "@/lib/immersve";
-import { allowanceCents, deriveStage, type CardStage } from "@/lib/immersve/stage";
+import type { Address } from "viem";
+import { ARBITRUM } from "@/lib/contracts/arbitrum";
+import { ImmersveClient, ImmersveError, immersveConfig, readiness, type Card, type CardReadiness, type CardSecrets, type CardTransaction } from "@/lib/immersve";
+import { baseToCents, fundingAction, fundsStorageFor, planTopUp, type FundingAction } from "@/lib/immersve/funding";
+import { deriveStage, type CardStage } from "@/lib/immersve/stage";
 
 const REVEAL_SECONDS = 30;
 const POLL_MS = 6000;
+/** After a deposit, how long we wait for the issuer to credit the funding source. */
+const CREDIT_TRIES = 40;
+const CREDIT_POLL_MS = 3000;
 /** Immersve asks for an expected spend amount during onboarding; never declare less than $1.00. */
 const MIN_DECLARED_CENTS = 100;
 
@@ -47,6 +53,8 @@ export function friendlyCardError(e: unknown): string {
         return "Your card session expired. Continue again to sign in.";
       case "REVEAL_FAILED":
         return "The one-time card link was already used or expired. Tap reveal again for a fresh one.";
+      case "UNSAFE_URL":
+        return "The card issuer sent an address we don't trust, so we stopped. Nothing was sent.";
       default:
         if (e.status === 401) return "Your card session expired. Continue again to sign in.";
         if (e.status >= 500 || e.status === 502) return "The card provider is unavailable right now. Try again in a moment.";
@@ -58,14 +66,17 @@ export function friendlyCardError(e: unknown): string {
 
 /**
  * The unified card flow: phone OTP (1 phone = 1 card) -> card provider session -> KYC -> issue -> active card with a
- * single-use PAN/CVV reveal. `yieldBaseUnits` is the user's live available yield (USDC, 6 decimals); the card's spend
- * allowance is exactly that, rounded down to cents.
+ * single-use PAN/CVV reveal -> fund the card from earned yield. `maxYield` is the yield that can be withdrawn right now
+ * (USDC, 6 decimals). Funding withdraws exactly that much yield from Aave and deposits it to the issuer; the card can
+ * then spend its funded balance, never more, and never principal.
  */
-export function useCardSuite(yieldBaseUnits: bigint) {
+export function useCardSuite({ maxYield, pay }: { maxYield: bigint; pay: (amount: bigint, to: Address, label: string) => Promise<boolean> }) {
   const { address, isConnected } = useAccount();
   const { client: identity, owner: identityOwner, isWallet, sign } = useIdentity();
   const imsv = useRef<ImmersveClient | null>(null);
-  if (imsv.current === null) imsv.current = new ImmersveClient(immersveConfig());
+  const cfg = useRef(immersveConfig());
+  if (imsv.current === null) imsv.current = new ImmersveClient(cfg.current);
+  const isSandbox = cfg.current.baseUrl !== "https://api.immersve.com";
 
   const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
@@ -76,8 +87,12 @@ export function useCardSuite(yieldBaseUnits: bigint) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [busy, setBusy] = useState<"login" | "kyc" | "issue" | "reveal" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [balanceBase, setBalanceBase] = useState<bigint | null>(null);
+  const [cardTransactions, setCardTransactions] = useState<CardTransaction[]>([]);
+  const [fundingKind, setFundingKind] = useState<FundingAction["kind"] | null>(null);
+  const [funding, setFunding] = useState<{ busy: boolean; error: string | null; done: string | null; steps: "api" | "chain" | null }>({ busy: false, error: null, done: null, steps: null });
 
-  const cents = allowanceCents(yieldBaseUnits);
+  const cents = baseToCents(maxYield);
   const walletConnected = isConnected && !!address && isWallet;
 
   // 1. Phone verification status (instant from cache, confirmed by the verification service).
@@ -109,22 +124,32 @@ export function useCardSuite(yieldBaseUnits: bigint) {
     setReady(null);
     setCards(null);
     setFundingSourceId(null);
+    setBalanceBase(null);
+    setCardTransactions([]);
     setSecrets(null);
     setError(null);
+    setFunding({ busy: false, error: null, done: null, steps: null });
   }, [address]);
 
   const refresh = useCallback(async () => {
     const c = imsv.current!;
     if (!c.isLoggedIn || !address) return;
     try {
+      // OPEN ITEM for production deposit mode: deposits come from the Safe, so the funding source must be created for the
+      // Safe's address (Immersve: a smart contract wallet implementing ERC-1271 is allowed, proved with a signed challenge from
+      // POST /api/challenges). Until that is verified against a real partner account, the funding source uses the login wallet.
       const fs = fundingSourceId ? { id: fundingSourceId } : await c.ensureFundingSource(address);
       setFundingSourceId(fs.id);
-      const [prereqs, list] = await Promise.all([
+      const [prereqs, list, source, txs] = await Promise.all([
         c.spendingPrerequisites(fs.id, Math.max(cents, MIN_DECLARED_CENTS), kycReturnUrl()),
         c.listCards(),
+        c.getFundingSource(fs.id),
+        c.listTransactions().catch(() => [] as CardTransaction[]), // the ledger is nice to have, never a blocker
       ]);
       setReady(readiness(prereqs));
       setCards(list);
+      setBalanceBase(/^\d+$/.test(source.balance) ? BigInt(source.balance) : 0n);
+      setCardTransactions(txs);
     } catch (e) {
       if (e instanceof ImmersveError && (e.status === 401 || e.errorCode === "NOT_LOGGED_IN")) setSessionActive(false);
       setError(friendlyCardError(e));
@@ -220,13 +245,107 @@ export function useCardSuite(yieldBaseUnits: bigint) {
     }
   }, [stage]);
 
+  /** Ask the issuer how it wants to be funded, so the dialog can say exactly what will happen before anything is sent. */
+  const probeFunding = useCallback(async () => {
+    const c = imsv.current!;
+    setFundingKind(null);
+    if (!c.isLoggedIn || !fundingSourceId || balanceBase === null) return;
+    const plan = planTopUp(maxYield, balanceBase, null);
+    if (!plan) return;
+    try {
+      setFundingKind(fundingAction(await c.spendingPrerequisites(fundingSourceId, plan.targetCents, kycReturnUrl())).kind);
+    } catch {
+      setFundingKind("unsupported");
+    }
+  }, [fundingSourceId, balanceBase, maxYield]);
+
+  /**
+   * Put earned yield on the card. Never more than the yield that can be withdrawn, whole cents only.
+   * Sandbox: the issuer's simulator credits the balance (no real money moves). Production deposit mode: ONE Safe
+   * transaction withdraws exactly that yield from Aave and transfers it to the issuer's funds address.
+   */
+  const fund = useCallback(
+    async (requestedCents: number | null): Promise<boolean> => {
+      const c = imsv.current!;
+      if (funding.busy || !c.isLoggedIn || !fundingSourceId || balanceBase === null) return false;
+      const plan = planTopUp(maxYield, balanceBase, requestedCents);
+      if (!plan) {
+        setFunding({ busy: false, error: "There is no earned yield to put on the card yet.", done: null, steps: null });
+        return false;
+      }
+      setFunding({ busy: true, error: null, done: null, steps: null });
+      try {
+        const action = fundingAction(await c.spendingPrerequisites(fundingSourceId, plan.targetCents, kycReturnUrl()));
+        if (action.kind === "funded") {
+          setFunding({ busy: false, error: null, done: "Your card already has this much on it.", steps: null });
+          return true;
+        }
+        if (action.kind === "unsupported") throw new ImmersveError(422, "UNSUPPORTED_FUNDING", `The card issuer asked for a funding step we don't support yet (${action.actionType}). Nothing was sent.`);
+
+        if (action.kind === "simulator") {
+          if (!isSandbox) throw new ImmersveError(422, "UNSUPPORTED_FUNDING", "Sandbox funding is not available here. Nothing was sent.");
+          // The issuer computes the shortfall; refuse if it is not exactly what we planned.
+          if (action.payload.amount !== plan.base.toString() || action.payload.fundingSourceId !== fundingSourceId) {
+            throw new ImmersveError(422, "FUNDING_MISMATCH", "The amount the issuer asked for does not match what we planned, so we stopped. Nothing was sent.");
+          }
+          setFunding((f) => ({ ...f, steps: "api" }));
+          await c.executeSimulatorDeposit(action.url, action.payload);
+        } else {
+          // Production deposit mode: the transfer goes to the funding channel's Funds Storage address, checked below.
+          const channel = await c.getFundingChannel(cfg.current.fundingChannelId);
+          if (channel.mode !== "deposit") throw new ImmersveError(422, "UNSUPPORTED_FUNDING", `This funding channel works in "${channel.mode}" mode, which we don't support yet. Nothing was sent.`);
+          const target = fundsStorageFor(channel, cfg.current, [ARBITRUM.usdc, ARBITRUM.aavePool, ARBITRUM.safeProxyFactory, ARBITRUM.safeL2Singleton, ARBITRUM.safeMultiSendCallOnly, address ?? ""]);
+          if (!target.ok) throw new ImmersveError(422, "BAD_FUNDS_ADDRESS", target.reason);
+          setFunding((f) => ({ ...f, steps: "chain" }));
+          const sent = await pay(plan.base, target.address, "card funding");
+          if (!sent) {
+            // The wallet was rejected or the transaction failed: nothing left the Safe.
+            setFunding({ busy: false, error: "The funding transaction was not completed. Nothing was added to your card.", done: null, steps: null });
+            return false;
+          }
+        }
+
+        // The issuer credits the funding source once the deposit is confirmed.
+        const want = balanceBase + plan.base;
+        for (let i = 0; i < CREDIT_TRIES; i++) {
+          const src = await c.getFundingSource(fundingSourceId);
+          const now = /^\d+$/.test(src.balance) ? BigInt(src.balance) : 0n;
+          setBalanceBase(now);
+          if (now >= want) {
+            setFunding({ busy: false, error: null, done: `Added $${(plan.cents / 100).toFixed(2)} of earned yield to your card.`, steps: action.kind === "simulator" ? "api" : "chain" });
+            void refresh();
+            return true;
+          }
+          await new Promise((r) => setTimeout(r, CREDIT_POLL_MS));
+        }
+        setFunding({ busy: false, error: "Your deposit was sent but the issuer hasn't credited it yet. It will appear on your card once it is confirmed.", done: null, steps: null });
+        return false;
+      } catch (e) {
+        setFunding({ busy: false, error: friendlyCardError(e), done: null, steps: null });
+        return false;
+      }
+    },
+    [funding.busy, fundingSourceId, balanceBase, maxYield, isSandbox, pay, address, refresh],
+  );
+
   return {
     stage,
     busy,
     error,
     secrets,
     secondsLeft,
-    allowanceCents: cents,
+    isSandbox,
+    /** What the card can spend right now: the funded balance, in whole cents. */
+    cardBalanceCents: baseToCents(balanceBase ?? 0n),
+    /** Earned yield that could be added to the card now, in whole cents. */
+    fundableCents: cents,
+    fundingReady: !!fundingSourceId && balanceBase !== null,
+    funding,
+    fundingKind,
+    probeFunding,
+    fund,
+    clearFunding: () => setFunding({ busy: false, error: null, done: null, steps: null }),
+    cardTransactions,
     markPhoneVerified,
     connectProvider,
     openKyc,

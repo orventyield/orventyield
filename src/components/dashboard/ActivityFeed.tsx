@@ -151,7 +151,7 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
                   ${tx.amountUsd.toFixed(2)}
                 </span>
                 <span className="text-[10px] text-emerald font-mono flex items-center gap-1">
-                  {tx.simulated ? "Playground" : "On-chain"}
+                  {tx.label ?? (tx.simulated ? "Playground" : "On-chain")}
                 </span>
               </div>
             </div>

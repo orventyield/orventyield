@@ -76,9 +76,13 @@ export function MainnetDashboard() {
   const yieldMax = snap ? maxYieldWithdrawal(snap) : 0n;
 
   // One card flow and one voucher shop for the whole dashboard, so state survives tab switches.
-  const suite = useCardSuite(snap?.yieldAvailable ?? 0n);
+  const suite = useCardSuite({ maxYield: yieldMax, pay: a.payFromYield });
   const shop = useVoucherShop({ owner: a.owner, safe: a.safe, maxYield: yieldMax, pay: a.payFromYield, enabled: tab === "vouchers" });
-  const ledger = useMemo(() => (a.safe ? buildLedger(snap?.events ?? [], a.safe, shop.history, explorer) : []), [a.safe, snap?.events, shop.history, explorer]);
+  const cardTxs = useMemo(
+    () => suite.cardTransactions.filter((t) => t.creditDebitIndicator !== "credit").map((t) => ({ id: t.id, amountCents: Number(t.amount) || 0, merchant: t.cardAcceptor?.name ?? "Merchant", timestamp: Date.parse(t.transactionDate) || 0 })),
+    [suite.cardTransactions],
+  );
+  const ledger = useMemo(() => (a.safe ? buildLedger(snap?.events ?? [], a.safe, shop.history, explorer, cardTxs) : []), [a.safe, snap?.events, shop.history, explorer, cardTxs]);
 
   const close = () => {
     if (a.busy) return;
@@ -90,16 +94,17 @@ export function MainnetDashboard() {
     setModal(m);
   };
 
-  // The POS terminal tests a swipe against the yield the user has REALLY earned. It never charges anything.
+  // The POS terminal tests a swipe against the balance that is REALLY on the card (funded from earned yield). It never charges anything.
   const active = suite.stage.stage === "active" ? suite.stage.card : null;
   const posCard: CardDetails | null = active
     ? { pan: `${active.panFirst6}••••••${active.panLast4}`, cvv: "", expiry: formatExpiry(active.expiry), network: "mastercard" }
     : null;
-  const allowanceUsd = suite.allowanceCents / 100;
+  const allowanceUsd = suite.cardBalanceCents / 100;
   const previewSpend = (amountUsd: number, merchant: string): SpendResult => {
     if (!active) return { success: false, error: "CARD NOT ACTIVE" };
     if (active.isBlocked) return { success: false, error: "CARD BLOCKED" };
-    if (amountUsd > allowanceUsd + 1e-9) return { success: false, error: "EXCEEDS EARNED YIELD" };
+    if (suite.cardBalanceCents <= 0) return { success: false, error: "CARD NOT FUNDED" };
+    if (amountUsd > allowanceUsd + 1e-9) return { success: false, error: "EXCEEDS CARD BALANCE" };
     const now = new Date();
     return {
       success: true,
@@ -174,7 +179,7 @@ export function MainnetDashboard() {
       <div className="space-y-6">
         <MainnetVaultOverview a={a} open={openModal} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-6"><CardPanel suite={suite} /></div>
+          <div className="lg:col-span-6"><CardPanel suite={suite} txSteps={a.steps} accountBusy={a.busy} explorer={explorer} /></div>
           <div className="lg:col-span-6">
             {posCard ? (
               <PosSimulator
@@ -187,7 +192,7 @@ export function MainnetDashboard() {
             ) : (
               <div data-testid="pos-locked" className="h-full rounded-2xl border border-white/5 bg-surface p-5">
                 <h3 className="text-base font-bold text-fg">POS Merchant Terminal</h3>
-                <p className="mt-2 text-sm text-muted">Get your virtual card first. Then you can test a swipe at Uber, Starbucks or Amazon against the yield you have really earned.</p>
+                <p className="mt-2 text-sm text-muted">Get your virtual card and fund it with earned yield first. Then you can test a swipe at Uber, Starbucks or Amazon against the money on your card.</p>
               </div>
             )}
           </div>

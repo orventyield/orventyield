@@ -1,4 +1,5 @@
-import type { Card, CardSecrets, CardReadiness, FundingSource, ImmersveConfig, Prerequisite, Region, Session } from "./types";
+import { sameApiHost } from "./funding";
+import type { Card, CardReadiness, CardSecrets, CardTransaction, FundingChannel, FundingSource, ImmersveConfig, Prerequisite, Region, Session } from "./types";
 
 export class ImmersveError extends Error {
   constructor(readonly status: number, readonly errorCode: string, message?: string) {
@@ -102,6 +103,34 @@ export class ImmersveClient {
     return r.items ?? [];
   }
 
+  getFundingSource(id: string): Promise<FundingSource> {
+    return this.request<FundingSource>("GET", `/api/funding-source/${id}`);
+  }
+
+  getFundingChannel(id: string): Promise<FundingChannel> {
+    return this.request<FundingChannel>("GET", `/api/funding-channel/${id}`);
+  }
+
+  /**
+   * SANDBOX ONLY: the simulator funding channel asks the client to POST a deposit to the issuer's own test API. The bearer
+   * token is only ever sent to the issuer's host.
+   */
+  async executeSimulatorDeposit(url: string, payload: { amount: string; fundingSourceId: string }): Promise<void> {
+    if (!sameApiHost(url, this.cfg.baseUrl)) throw new ImmersveError(400, "UNSAFE_URL", "Refusing to call a URL outside the card issuer.");
+    const res = await this.doFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${this.requireSession().accessToken}` },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new ImmersveError(res.status, `HTTP_${res.status}`);
+  }
+
+  /** Card payments for this cardholder, newest first as the API returns them. */
+  async listTransactions(): Promise<CardTransaction[]> {
+    const r = await this.request<{ items: CardTransaction[] }>("GET", `/api/accounts/${this.accountId}/transactions`);
+    return r.items ?? [];
+  }
+
   /** Idempotent: returns the existing source for this channel when one already exists. */
   async ensureFundingSource(fundingAddress: string): Promise<FundingSource> {
     const existing = (await this.listFundingSources()).find((f) => f.fundingChannelId === this.cfg.fundingChannelId);
@@ -159,7 +188,10 @@ export class ImmersveClient {
   }
 }
 
-/** Turn the raw prerequisite list into the one next step the UI should show. */
+/**
+ * Turn the raw prerequisite list into the one next step the UI should show. The funding stage is NOT a blocker here: a
+ * card can be issued before it is funded (verified in the sandbox); funding is its own step, see funding.ts.
+ */
 export function readiness(prereqs: Prerequisite[]): CardReadiness {
   const kyc = prereqs.find((p) => p.stage === "kyc");
   if (kyc && kyc.status !== "ok") {
@@ -167,7 +199,6 @@ export function readiness(prereqs: Prerequisite[]): CardReadiness {
     return kyc.status === "pending" || !url ? { state: "pending" } : { state: "kyc-required", kycUrl: url };
   }
   if (prereqs.some((p) => p.stage === "aml" && p.status !== "ok")) return { state: "pending" };
-  if (prereqs.some((p) => p.stage === "funding" && p.status !== "ok")) return { state: "funding-required" };
   return { state: "ready" };
 }
 

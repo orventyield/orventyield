@@ -56,6 +56,12 @@ describe("mainnet ledger", () => {
     expect(rows[0]!.title).toContain("Zomato"); // unmatched one, newest
   });
 
+  it("adds real card payments, labelled as coming from the card network", () => {
+    const rows = buildLedger([], SAFE, [], undefined, [{ id: "t1", amountCents: 485, merchant: "Starbucks", timestamp: 9000 }]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ type: "card_spend", title: "Card swipe - Starbucks", amountUsd: 4.85, simulated: false, label: "Card network" });
+  });
+
   it("builds explorer links only when a hash and explorer exist", () => {
     const [a] = buildLedger([ev({ kind: "supply", amount: 1n, counterparty: SAFE, txHash: "0xabc" })], SAFE, [], "https://arbiscan.io");
     expect(a!.explorerUrl).toBe("https://arbiscan.io/tx/0xabc");

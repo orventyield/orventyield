@@ -34,6 +34,8 @@ export interface Transaction {
   simulated: boolean;
   /** Block explorer link for a real transaction. */
   explorerUrl?: string;
+  /** Where it happened when that is neither the Playground nor the chain, e.g. "Card network". */
+  label?: string;
   status: "confirmed" | "pending";
   voucherCode?: string;
   rail?: string;

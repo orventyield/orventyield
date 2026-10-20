@@ -92,11 +92,11 @@ export function PosSimulator({
         <h3 className="text-base font-bold text-fg flex flex-wrap items-center gap-2">
           POS Merchant Terminal
           <span className="text-xs px-2 py-0.5 rounded bg-cyan/10 border border-cyan/20 text-cyan font-mono">
-            {live ? "live yield preview" : "playground"}
+            {live ? "card preview" : "playground"}
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
-          {live ? "Tests a swipe against the yield you have really earned. Nothing is charged." : "Simulates a contactless swipe paid from your earned yield. Your principal is never used."}
+          {live ? "Tests a swipe against the money on your card. Nothing is charged." : "Simulates a contactless swipe paid from your earned yield. Your principal is never used."}
         </p>
       </div>
 
@@ -174,7 +174,7 @@ export function PosSimulator({
           )}
 
           <div className="rounded-xl border border-white/5 bg-surface-2 p-3 text-[11px] font-mono text-muted space-y-1">
-            <div className="flex justify-between"><span>Earned yield you can spend</span><span data-testid="pos-spendable" className="text-emerald">{money(spendableUsd)}</span></div>
+            <div className="flex justify-between"><span>{live ? "Card balance" : "Earned yield you can spend"}</span><span data-testid="pos-spendable" className="text-emerald">{money(spendableUsd)}</span></div>
           </div>
         </div>
 
@@ -243,7 +243,7 @@ export function PosSimulator({
               {receipt.funding && <Row k="Funded by earned yield" v={money(receipt.funding.fromYield)} testId="receipt-funding" />}
               <Row
                 k="Verified by"
-                v={receipt.source === "mainnet-preview" ? "Your live yield" : "Playground engine"}
+                v={receipt.source === "mainnet-preview" ? "Your card balance" : "Playground engine"}
                 testId="receipt-source"
               />
               {receipt.txHash ? (

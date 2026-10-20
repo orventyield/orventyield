@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allowanceCents, deriveStage, formatExpiry, groupPan, maskedPan, type StageInput } from "../../src/lib/immersve/stage";
+import { deriveStage, formatExpiry, groupPan, maskedPan, type StageInput } from "../../src/lib/immersve/stage";
 import type { Card } from "../../src/lib/immersve";
 
 const card = (status: string): Card => ({ id: "c1", type: "virtual", status, expiry: "203006", panFirst6: "528854", panLast4: "1179" });
@@ -19,10 +19,9 @@ describe("card journey order", () => {
     expect(at({ readiness: null })).toBe("checking");
     expect(at({ cards: null })).toBe("checking");
   });
-  it("walks KYC -> pending -> funding -> issue", () => {
+  it("walks KYC -> pending -> issue", () => {
     expect(deriveStage({ ...base, readiness: { state: "kyc-required", kycUrl: "https://v/k" } })).toEqual({ stage: "kyc", kycUrl: "https://v/k" });
     expect(at({ readiness: { state: "pending" } })).toBe("pending");
-    expect(at({ readiness: { state: "funding-required" } })).toBe("funding");
     expect(at({ readiness: { state: "ready" } })).toBe("issue");
   });
   it("an active card wins over every later state (one account, one card)", () => {
@@ -46,20 +45,5 @@ describe("display helpers", () => {
   it("groups a revealed PAN", () => {
     expect(groupPan("5288541234561179")).toBe("5288 5412 3456 1179");
     expect(groupPan("123")).toBe("123");
-  });
-});
-
-describe("spend allowance = available yield", () => {
-  it("is zero for zero or negative yield (zero)", () => {
-    expect(allowanceCents(0n)).toBe(0);
-    expect(allowanceCents(-5n)).toBe(0);
-  });
-  it("rounds down to whole cents (dust)", () => {
-    expect(allowanceCents(9_999n)).toBe(0); // $0.009999
-    expect(allowanceCents(10_000n)).toBe(1);
-    expect(allowanceCents(1_908_755n)).toBe(190); // $1.908755 -> $1.90
-  });
-  it("handles large values (max)", () => {
-    expect(allowanceCents(1_000_000_000_000n)).toBe(100_000_000); // $1,000,000.00
   });
 });

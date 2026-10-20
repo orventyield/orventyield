@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 /**
  * The Mainnet Card tab end to end on the Anvil fork: deposit -> yield -> phone OTP (browser demo verifier) -> card issuer
- * session -> KYC -> issue -> Mastercard -> single-use PAN/CVV reveal -> allowance = live yield.
+ * session -> KYC -> issue -> Mastercard -> single-use PAN/CVV reveal -> fund the card from earned yield -> POS preview.
  * The card issuer (Immersve sandbox) is mocked at the network layer: tests never depend on its uptime, and its KYC step
  * needs a human with a camera. The real sandbox is exercised by `node scripts/immersve-sandbox.mjs`.
  */
@@ -10,6 +10,9 @@ const ACCOUNT = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const FORK = "http://127.0.0.1:8545";
 const KYC_URL = "https://verify.test.immersve.com/kyc/session/e2e";
 const PAN = "5288541234561179";
+const USDC = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
+/** A stand-in for the issuer's Funds Storage address in the on-chain (deposit mode) test. */
+const STORAGE = "0x5707A6E00000000000000000000000000000f00d".toLowerCase();
 
 async function rpc<T = unknown>(method: string, params: unknown[] = []): Promise<T> {
   const r = await fetch(FORK, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
@@ -57,7 +60,13 @@ async function installForkWallet(page: Page) {
   );
 }
 
+const usdcOf = async (a: string) => BigInt(await rpc<string>("eth_call", [{ to: USDC, data: `0x70a08231${a.toLowerCase().replace("0x", "").padStart(64, "0")}` }, "latest"]));
+
 interface Issuer {
+  /** Card funding source balance in USDC base units (6 decimals). */
+  balance: number;
+  deposits: { amount: string; fundingSourceId: string }[];
+  transactions: { id: string; amount: string; currency: string; status: string; transactionDate: string; cardAcceptor: { name: string }; creditDebitIndicator: string }[];
   kycDone: boolean;
   issued: boolean;
   revealCalls: number;
@@ -67,8 +76,8 @@ interface Issuer {
 }
 
 /** A stateful stand-in for the card issuer. The test flips `kycDone` the way a human finishing KYC would. */
-async function mockIssuer(page: Page): Promise<Issuer> {
-  const st: Issuer = { kycDone: false, issued: false, revealCalls: 0, tokensIssued: 0, logins: 0, spendableAmounts: [] };
+async function mockIssuer(page: Page, opts: { onchain?: boolean } = {}): Promise<Issuer> {
+  const st: Issuer = { balance: 0, deposits: [], transactions: [], kycDone: !!opts.onchain, issued: !!opts.onchain, revealCalls: 0, tokensIssued: 0, logins: 0, spendableAmounts: [] };
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST" };
   const json = (route: Route, body: unknown, status = 200) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(body) });
 
@@ -87,12 +96,32 @@ async function mockIssuer(page: Page): Promise<Issuer> {
     if (path === "/api/spending-prerequisites") {
       st.spendableAmounts.push(Number(body.spendableAmount));
       expect(String(body.kycRedirectUrl).startsWith("https://")).toBe(true); // the gateway rejects http://localhost
+      // Funding stage exactly as the sandbox sends it: the balance must reach spendableAmount (cents), else a simulator call
+      const need = Number(body.spendableAmount) * 10_000;
+      if (opts.onchain) st.balance = Number(await usdcOf(STORAGE)); // the issuer credits what reached its funds address
+      const funding = st.balance >= need
+        ? { stage: "funding", status: "ok" }
+        : opts.onchain
+          ? { stage: "funding", status: "action-required", type: "smart_contract_write", actionType: "smart_contract_write", params: { opaque: "shape not in the public docs, so the app must not depend on it" } }
+          : { stage: "funding", status: "action-required", type: "simulator_call", actionType: "simulator_call", params: { url: "https://test.immersve.com/api/simulator/execute-deposit", payload: { amount: String(need - st.balance), fundingSourceId: "fs1" } } };
       return json(route, {
         prerequisites: st.kycDone
-          ? [{ stage: "aml", status: "ok", params: {} }, { stage: "kyc", status: "ok", params: {} }]
-          : [{ stage: "aml", status: "pending", params: {} }, { stage: "kyc", status: "action-required", actionType: "follow_kyc_url", params: { kycUrl: KYC_URL } }],
+          ? [{ stage: "aml", status: "ok" }, { stage: "kyc", status: "ok" }, funding]
+          : [{ stage: "aml", status: "pending", params: {} }, { stage: "kyc", status: "action-required", actionType: "follow_kyc_url", params: { kycUrl: KYC_URL } }, funding],
       });
     }
+    if (path.startsWith("/api/funding-channel/")) return json(route, { id: "ch", fundingTypeName: "arbitrum-mainnet-usdc-universal-evm", mode: "deposit", params: { storageAddress: STORAGE } });
+    if (path === "/api/funding-source/fs1") {
+      if (opts.onchain) st.balance = Number(await usdcOf(STORAGE));
+      return json(route, { id: "fs1", accountId: "acc1", fundingChannelId: "ch", balance: String(st.balance), balanceCurrency: "USDC" });
+    }
+    if (path === "/api/simulator/execute-deposit") {
+      expect(req.headers().authorization).toBe("Bearer AT");
+      st.deposits.push(body as { amount: string; fundingSourceId: string });
+      st.balance += Number((body as { amount: string }).amount);
+      return json(route, {});
+    }
+    if (path === "/api/accounts/acc1/transactions") return json(route, { items: st.transactions });
     if (path === "/api/accounts/acc1/cards") {
       return json(route, { items: st.issued ? [{ id: "c1", type: "virtual", network: "simulator", status: "active", isBlocked: false, expiry: "203006", panFirst6: "528854", panLast4: "1179", regionCode: "NZ", cardholderName: "E2E TESTER" }] : [] });
     }
@@ -135,13 +164,16 @@ test.describe("mainnet card suite", () => {
 
   test.beforeAll(async () => {
     test.skip(((await rpc<string>("eth_chainId").catch(() => null)) as string | null) !== "0x7a69", "Anvil fork not running: start it with `npm run fork`");
+  });
+  // Each test starts from a clean fork, so one test's deposit never leaks into the next.
+  test.beforeEach(async () => {
     snapshot = await rpc<string>("evm_snapshot");
   });
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     if (snapshot) await rpc("evm_revert", [snapshot]);
   });
 
-  test("phone OTP -> issuer sign-in -> KYC -> card -> single-use reveal -> allowance equals live yield", async ({ page, context }) => {
+  test("phone OTP -> issuer sign-in -> KYC -> card -> single-use reveal -> fund from yield -> POS preview -> ledger", async ({ page, context }) => {
     test.setTimeout(180_000); // real transactions, a yield refresh and polling
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -239,27 +271,114 @@ test.describe("mainnet card suite", () => {
     expect(issuer.revealCalls).toBe(2);
     await page.getByTestId("card-hide").click();
 
-    // Step 6: the allowance is the live yield (30 days on 1,000 USDC is well over $1), never principal
-    await expect.poll(async () => Number(((await page.getByTestId("card-allowance").textContent()) ?? "").replace(/[^0-9.]/g, "")), { timeout: 60_000 }).toBeGreaterThan(1);
-    const allowance = Number(((await page.getByTestId("card-allowance").textContent()) ?? "").replace(/[^0-9.]/g, ""));
-    expect(allowance).toBeLessThan(10); // far below the $1,000 principal
-    expect(Math.max(...issuer.spendableAmounts)).toBeGreaterThanOrEqual(100); // never declares under $1.00
-
-    // POS terminal: the same terminal as the Playground, but it tests a swipe against REAL earned yield and charges nothing
-    await expect(page.getByTestId("pos-locked")).toHaveCount(0);
+    // Step 6: the card starts empty. The POS preview refuses a swipe on an unfunded card.
+    await expect(page.getByTestId("card-balance")).toHaveText("$0.00");
     await page.getByTestId("tab-pos").click();
     await page.getByTestId("preset-custom").click();
     await page.getByTestId("custom-merchant").fill("Test Cafe");
     await page.getByTestId("custom-amount").fill("1");
     await page.getByTestId("pos-pay").click();
+    await expect(page.getByTestId("pos-terminal")).toContainText("CARD NOT FUNDED");
+    await page.getByTestId("tab-vault").click();
+
+    // Step 7: fund the card from EARNED YIELD (30 days on 1,000 USDC is a little under $2): never principal
+    await expect.poll(async () => Number(((await page.getByTestId("card-fundable").textContent()) ?? "").replace(/[^0-9.]/g, "")), { timeout: 60_000 }).toBeGreaterThan(1);
+    const fundable = Number(((await page.getByTestId("card-fundable").textContent()) ?? "").replace(/[^0-9.]/g, ""));
+    expect(fundable).toBeLessThan(10); // far below the $1,000 principal
+    expect(Math.max(...issuer.spendableAmounts)).toBeGreaterThanOrEqual(100); // never declares under $1.00
+    issuer.transactions.push({ id: "tx1", amount: "100", currency: "USD", status: "holding", transactionDate: "2026-10-20T05:15:10.967Z", cardAcceptor: { name: "Test Cafe" }, creditDebitIndicator: "debit" });
+
+    await page.getByTestId("card-fund-open").click();
+    await page.getByTestId("amount-input").fill("999"); // more than the yield: refused before anything is sent
+    await expect(page.getByTestId("amount-over")).toBeVisible();
+    await page.getByTestId("amount-max").click();
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toContainText("Added $", { timeout: 60_000 });
+    expect(issuer.deposits).toHaveLength(1);
+    expect(issuer.deposits[0]!.fundingSourceId).toBe("fs1");
+    expect(BigInt(issuer.deposits[0]!.amount) % 10_000n).toBe(0n); // whole cents only
+    expect(Number(issuer.deposits[0]!.amount) / 1e6).toBeLessThanOrEqual(fundable + 0.005); // never more than the earned yield
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("card-balance")).toHaveText(new RegExp(`^\\$${(Number(issuer.deposits[0]!.amount) / 1e6).toFixed(2).replace(".", "\\.")}$`));
+    await page.getByTestId("tab-vault").click();
+    await expect(page.getByTestId("principal-value")).toHaveText("$1,000.00"); // principal untouched
+
+    // POS terminal: tests a swipe against the money really on the card and charges nothing
+    await expect(page.getByTestId("pos-locked")).toHaveCount(0);
+    await page.getByTestId("tab-pos").click();
+    await page.getByTestId("preset-custom").click(); // the terminal remounts with its default merchant
+    await page.getByTestId("custom-merchant").fill("Test Cafe");
+    await page.getByTestId("custom-amount").fill("1");
+    await page.getByTestId("pos-pay").click();
     await expect(page.getByTestId("pos-terminal")).toContainText("APPROVED");
-    await expect(page.getByTestId("receipt-source")).toHaveText("Your live yield");
+    await expect(page.getByTestId("receipt-source")).toHaveText("Your card balance");
     await expect(page.getByTestId("pos-receipt")).toContainText("Preview: nothing was charged");
     await expect(page.getByTestId("receipt-hf")).toHaveCount(0); // no debt model on Mainnet
     await page.getByTestId("custom-amount").fill("500");
     await page.getByTestId("pos-pay").click();
-    await expect(page.getByTestId("pos-terminal")).toContainText("EXCEEDS EARNED YIELD");
+    await expect(page.getByTestId("pos-terminal")).toContainText("EXCEEDS CARD BALANCE");
+
+    // The ledger shows the real card payment from the card network
+    await page.getByTestId("tab-activity").click();
+    await expect(page.getByTestId("ledger-row").filter({ hasText: "Card swipe - Test Cafe" })).toContainText("Card network");
+
+    // Mobile: the grid and tabs wrap cleanly at 360px and 390px on every tab
+    for (const width of [360, 390]) {
+      await page.setViewportSize({ width, height: 800 });
+      for (const tab of ["tab-vault", "tab-pos", "tab-vouchers", "tab-cashout", "tab-activity"]) {
+        await page.getByTestId(tab).click();
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(overflow, `${tab} at ${width}px`).toBeLessThanOrEqual(0);
+        if (process.env.SHOT && width === 360) await page.screenshot({ path: `/tmp/oy-m360-${tab}.png`, fullPage: true });
+      }
+    }
     if (process.env.SHOT) await page.screenshot({ path: "/tmp/oy-main-pos.png", fullPage: true });
+    expect(errors).toEqual([]);
+  });
+
+  test("production deposit mode: ONE Safe transaction moves exactly the earned yield to the issuer's funds address", async ({ page }) => {
+    test.setTimeout(180_000);
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    const issuer = await mockIssuer(page, { onchain: true }); // KYC done and card already issued
+    await installForkWallet(page);
+    await page.goto("/dashboard");
+    await page.getByTestId("connect-wallet").click();
+    await page.getByTestId("wallet-option-test.anvil.wallet").click();
+    await expect(page.getByTestId("mainnet-dashboard")).toBeVisible({ timeout: 30_000 });
+
+    await page.getByTestId("open-deposit").click();
+    await page.getByTestId("amount-input").fill("1000");
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toBeVisible({ timeout: 90_000 });
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("principal-value")).toHaveText("$1,000.00", { timeout: 30_000 });
+    await rpc("evm_increaseTime", [30 * 24 * 3600]);
+    await rpc("evm_mine");
+
+    await verifyPhone(page);
+    await page.getByTestId("card-continue").click();
+    await expect(page.getByTestId("card-active")).toBeVisible({ timeout: 30_000 });
+    await expect.poll(async () => Number(((await page.getByTestId("card-fundable").textContent()) ?? "").replace(/[^0-9.]/g, "")), { timeout: 60_000 }).toBeGreaterThan(1);
+
+    expect(await usdcOf(STORAGE)).toBe(0n);
+    await page.getByTestId("card-fund-open").click();
+    await expect(page.getByTestId("tx-preview")).toContainText("Withdraw yield and deposit"); // production wording: real money moves
+    await page.getByTestId("amount-max").click();
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toContainText("Added $", { timeout: 120_000 });
+    await expect(page.getByTestId("step-pay-yield")).toHaveAttribute("data-status", "done");
+
+    // On-chain truth: the funds address received an exact whole-cent amount, no more than the earned yield
+    const received = await usdcOf(STORAGE);
+    expect(received).toBeGreaterThan(1_000_000n);
+    expect(received % 10_000n).toBe(0n);
+    expect(received).toBeLessThan(10_000_000n); // far below the 1,000 USDC principal
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("card-balance")).toHaveText(`$${(Number(received) / 1e6).toFixed(2)}`);
+    expect(issuer.deposits).toHaveLength(0); // no sandbox call was used
+    await page.getByTestId("tab-vault").click();
+    await expect(page.getByTestId("principal-value")).toHaveText("$1,000.00"); // principal untouched
     expect(errors).toEqual([]);
   });
 });

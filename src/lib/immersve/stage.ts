@@ -2,7 +2,8 @@ import type { Card, CardReadiness } from "./types";
 
 /**
  * Where the user is in the card journey. The order is fixed by product rules:
- * phone verified (1 phone = 1 card) -> card provider session -> identity check (KYC) -> issue -> active.
+ * phone verified (1 phone = 1 card) -> card provider session -> identity check (KYC) -> issue -> active. Funding the
+ * card with yield is a separate step after that, not a stage of getting a card.
  */
 export type CardStage =
   | { stage: "no-wallet" }
@@ -11,7 +12,6 @@ export type CardStage =
   | { stage: "checking" }
   | { stage: "kyc"; kycUrl: string }
   | { stage: "pending" }
-  | { stage: "funding" }
   | { stage: "issue" }
   | { stage: "active"; card: Card };
 
@@ -39,8 +39,6 @@ export function deriveStage(i: StageInput): CardStage {
       return { stage: "kyc", kycUrl: i.readiness.kycUrl };
     case "pending":
       return { stage: "pending" };
-    case "funding-required":
-      return { stage: "funding" };
     case "ready":
       return { stage: "issue" };
   }
@@ -64,11 +62,3 @@ export function groupPan(pan: string): string {
   return /^\d{16}$/.test(pan) ? pan.replace(/(\d{4})(?=\d)/g, "$1 ") : pan;
 }
 
-/**
- * The card's spend allowance in USD minor units (cents) is the user's available yield, rounded DOWN.
- * USDC has 6 decimals, so cents = base units / 10_000. Never rounds up, never negative.
- */
-export function allowanceCents(yieldBaseUnits: bigint): number {
-  if (yieldBaseUnits <= 0n) return 0;
-  return Number(yieldBaseUnits / 10_000n);
-}

@@ -6,6 +6,11 @@ export interface ImmersveConfig {
   partnerAccountId: string;
   cardProgramId: string;
   fundingChannelId: string;
+  /**
+   * Pinned Funds Storage address (production). When set, the channel's storage address MUST equal it, so a wrong or
+   * tampered response can never redirect a deposit. Immersve provides it with production access.
+   */
+  fundsStorageAddress?: string;
   /** Network name used for SIWE login, e.g. "arbitrum-mainnet" or (sandbox) "polygon-amoy". */
   network: string;
 }
@@ -26,8 +31,29 @@ export interface FundingSource {
   id: string;
   accountId: string;
   fundingChannelId: string;
+  /** USDC base units (6 decimals) as a decimal string, e.g. "5000000" = $5.00. */
   balance: string;
   balanceCurrency: string;
+}
+
+/** Seen in the sandbox: the simulator channel has mode "deposit" and no params; Universal EVM channels carry params.storageAddress. */
+export interface FundingChannel {
+  id: string;
+  fundingTypeName: string;
+  mode: string;
+  params: { storageAddress?: string; [k: string]: unknown };
+}
+
+/** A card payment as listed by GET /api/accounts/:id/transactions (amounts in USD cents). */
+export interface CardTransaction {
+  id: string;
+  amount: string;
+  currency: string;
+  status: string;
+  transactionDate: string;
+  cardAcceptor?: { name?: string; city?: string; countryCode?: string };
+  creditDebitIndicator?: string;
+  paymentType?: string;
 }
 
 export type PrerequisiteStatus = "ok" | "pending" | "action-required" | string;
@@ -65,5 +91,4 @@ export interface CardSecrets {
 export type CardReadiness =
   | { state: "kyc-required"; kycUrl: string }
   | { state: "pending" }
-  | { state: "funding-required" }
   | { state: "ready" };

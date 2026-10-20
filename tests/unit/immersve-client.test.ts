@@ -91,6 +91,37 @@ describe("Immersve client", () => {
   });
 });
 
+describe("funding calls", () => {
+  it("reads the funding source balance and channel config", async () => {
+    const { c } = client({
+      ...loginRoutes,
+      "GET /api/funding-source/fs1": () => ok({ id: "fs1", balance: "5000000", balanceCurrency: "USDC", accountId: "acc1", fundingChannelId: "ch1" }),
+      "GET /api/funding-channel/ch1": () => ok({ id: "ch1", fundingTypeName: "simulator-usdc", mode: "deposit", params: {} }),
+    });
+    await c.login("0xabc", "https://x.y", async () => "0xs");
+    expect((await c.getFundingSource("fs1")).balance).toBe("5000000");
+    expect((await c.getFundingChannel("ch1")).mode).toBe("deposit");
+  });
+
+  it("posts the sandbox deposit with the bearer token, and only to the issuer's own host", async () => {
+    const { c, calls } = client({ ...loginRoutes, "POST /api/simulator/execute-deposit": () => ok({}) });
+    await c.login("0xabc", "https://x.y", async () => "0xs");
+    await c.executeSimulatorDeposit(`${cfg.baseUrl}/api/simulator/execute-deposit`, { amount: "1000000", fundingSourceId: "fs1" });
+    const sent = calls.at(-1)!;
+    expect((sent.init.headers as Record<string, string>).authorization).toBe("Bearer AT");
+    expect(JSON.parse(String(sent.init.body))).toEqual({ amount: "1000000", fundingSourceId: "fs1" });
+    const before = calls.length;
+    await expect(c.executeSimulatorDeposit("https://evil.example/steal", { amount: "1", fundingSourceId: "fs1" })).rejects.toMatchObject({ errorCode: "UNSAFE_URL" });
+    expect(calls.length).toBe(before); // nothing was sent
+  });
+
+  it("lists card transactions", async () => {
+    const { c } = client({ ...loginRoutes, "GET /api/accounts/acc1/transactions": () => ok({ items: [{ id: "t1", amount: "100", currency: "USD", status: "holding", transactionDate: "2026-10-20T05:15:10Z" }] }) });
+    await c.login("0xabc", "https://x.y", async () => "0xs");
+    expect((await c.listTransactions())[0]!.amount).toBe("100");
+  });
+});
+
 describe("readiness", () => {
   it("is ready only when every stage is ok", () => {
     expect(readiness([{ stage: "kyc", status: "ok" }, { stage: "aml", status: "ok" }, { stage: "funding", status: "ok" }])).toEqual({ state: "ready" });
@@ -104,8 +135,8 @@ describe("readiness", () => {
   it("falls back to pending (not a dead link) when KYC has no url", () => {
     expect(readiness([{ stage: "kyc", status: "action-required" }])).toEqual({ state: "pending" });
   });
-  it("needs funding last", () => {
-    expect(readiness([{ stage: "kyc", status: "ok" }, { stage: "funding", status: "action-required" }])).toEqual({ state: "funding-required" });
+  it("does not wait for funding: a card can be issued before it is funded", () => {
+    expect(readiness([{ stage: "kyc", status: "ok" }, { stage: "aml", status: "ok" }, { stage: "funding", status: "action-required" }])).toEqual({ state: "ready" });
   });
 });
 

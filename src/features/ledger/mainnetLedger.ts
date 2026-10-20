@@ -17,7 +17,15 @@ const usd = (base: bigint) => Number(base) / 1_000_000;
  * Safe, plus the vouchers this browser bought. A yield withdrawal whose amount equals a voucher's price is shown as that
  * voucher (it IS the payment), not as two rows. Newest first.
  */
-export function buildLedger(events: PoolEvent[], safe: string, vouchers: LedgerVoucher[], explorer?: string): Transaction[] {
+export interface LedgerCardTx {
+  id: string;
+  /** USD cents as the card network reports it. */
+  amountCents: number;
+  merchant: string;
+  timestamp: number;
+}
+
+export function buildLedger(events: PoolEvent[], safe: string, vouchers: LedgerVoucher[], explorer?: string, cardTxs: LedgerCardTx[] = []): Transaction[] {
   const s = safe.toLowerCase();
   const unmatched = [...vouchers];
   const rows: Transaction[] = [];
@@ -46,6 +54,10 @@ export function buildLedger(events: PoolEvent[], safe: string, vouchers: LedgerV
   // Vouchers whose payment is not in the loaded events yet (still confirming, or older than the loaded range).
   for (const v of unmatched) {
     rows.push({ id: `voucher-${v.invoiceId}`, type: "voucher_redeem", title: `${v.brand} voucher · ${v.face}`, amountUsd: v.priceUsdc, timestamp: v.at, txHash: "", simulated: false, status: "confirmed" });
+  }
+  // Real card payments as reported by the card network.
+  for (const c of cardTxs) {
+    rows.push({ id: `card-${c.id}`, type: "card_spend", title: `Card swipe - ${c.merchant}`, merchant: c.merchant, amountUsd: c.amountCents / 100, timestamp: c.timestamp, txHash: "", simulated: false, status: "confirmed", label: "Card network" });
   }
   return rows.sort((a, b) => b.timestamp - a.timestamp);
 }

@@ -28,7 +28,7 @@ export function MastercardCard({ card, secrets, blocked }: { card: Card; secrets
         <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">Virtual</span>
       </div>
       <div aria-hidden="true" className="relative mt-5 h-8 w-11 rounded-md bg-gradient-to-br from-amber/80 to-amber/40" />
-      <p data-testid="card-pan" className="relative mt-4 font-mono text-lg tracking-[0.14em] text-fg tabular sm:text-xl">{pan}</p>
+      <p data-testid="card-pan" className="relative mt-4 font-mono text-[15px] tracking-[0.1em] text-fg tabular min-[400px]:text-lg min-[400px]:tracking-[0.14em] sm:text-xl">{pan}</p>
       <div className="relative mt-3 flex items-end justify-between gap-3">
         <div className="min-w-0 font-mono text-[11px] uppercase text-muted">
           <p className="truncate">{secrets?.embossedName || card.cardholderName || "Cardholder"}</p>

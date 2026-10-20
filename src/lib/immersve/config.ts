@@ -10,6 +10,7 @@ const BUILD_ENV: Env = {
   NEXT_PUBLIC_IMMERSVE_CARD_PROGRAM_ID: process.env.NEXT_PUBLIC_IMMERSVE_CARD_PROGRAM_ID,
   NEXT_PUBLIC_IMMERSVE_FUNDING_CHANNEL_ID: process.env.NEXT_PUBLIC_IMMERSVE_FUNDING_CHANNEL_ID,
   NEXT_PUBLIC_IMMERSVE_NETWORK: process.env.NEXT_PUBLIC_IMMERSVE_NETWORK,
+  NEXT_PUBLIC_IMMERSVE_FUNDS_STORAGE: process.env.NEXT_PUBLIC_IMMERSVE_FUNDS_STORAGE,
 };
 
 /** Public IDs only (safe for the browser bundle). Defaults are Immersve's documented PUBLIC SANDBOX. */
@@ -21,5 +22,6 @@ export function immersveConfig(env: Env = BUILD_ENV): ImmersveConfig {
     cardProgramId: env.NEXT_PUBLIC_IMMERSVE_CARD_PROGRAM_ID || "7dfa2e3ed390493ab307fac622f05ae9",
     fundingChannelId: env.NEXT_PUBLIC_IMMERSVE_FUNDING_CHANNEL_ID || "4cdc4310718674342d561647194e2446",
     network: env.NEXT_PUBLIC_IMMERSVE_NETWORK || "polygon-amoy",
+    fundsStorageAddress: env.NEXT_PUBLIC_IMMERSVE_FUNDS_STORAGE || undefined,
   };
 }

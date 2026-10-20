@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { MastercardCard, MastercardMark } from "@/components/dashboard/mainnet/MastercardCard";
+import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
+import type { TxStep } from "@/features/account/useSafeAccount";
 import type { useCardSuite } from "@/features/card/useCardSuite";
 
 // Loaded on demand: it pulls in the phone-number metadata, which most visits never need.
@@ -17,7 +19,7 @@ const STEPS = [
 ] as const;
 
 function Progress({ stage }: { stage: string }) {
-  const idx = stage === "phone" || stage === "provider-login" ? 0 : stage === "kyc" || stage === "pending" || stage === "funding" || stage === "checking" ? 1 : 2;
+  const idx = stage === "phone" || stage === "provider-login" ? 0 : stage === "kyc" || stage === "pending" || stage === "checking" ? 1 : 2;
   return (
     <ol className="mb-5 flex flex-wrap items-center gap-2 text-[11px] font-mono" aria-label="Card setup progress">
       {STEPS.map((s, i) => (
@@ -42,8 +44,9 @@ function Panel({ children, testId }: { children: React.ReactNode; testId: string
 const primary = "min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.25)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
 
 /** The unified card flow: phone OTP -> identity check -> virtual Mastercard -> single-use PAN/CVV reveal. */
-export function CardPanel({ suite: s }: { suite: ReturnType<typeof useCardSuite> }) {
+export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite: ReturnType<typeof useCardSuite>; txSteps: TxStep[]; accountBusy: boolean; explorer?: string }) {
   const [activating, setActivating] = useState(false);
+  const [funding, setFunding] = useState(false);
   const st = s.stage;
 
   return (
@@ -104,12 +107,6 @@ export function CardPanel({ suite: s }: { suite: ReturnType<typeof useCardSuite>
         </Panel>
       )}
 
-      {st.stage === "funding" && (
-        <Panel testId="card-step-funding">
-          <p className="text-sm text-muted">The card issuer needs your card to be linked to a funding source before it can be issued. This step is not available yet.</p>
-        </Panel>
-      )}
-
       {st.stage === "issue" && (
         <Panel testId="card-step-issue">
           <p className="text-sm text-muted">You are verified. Issue your virtual Mastercard now.</p>
@@ -124,9 +121,15 @@ export function CardPanel({ suite: s }: { suite: ReturnType<typeof useCardSuite>
           <MastercardCard card={st.card} secrets={s.secrets} blocked={!!st.card.isBlocked} />
           <div className="space-y-4">
             <div className="rounded-xl border border-emerald/20 bg-emerald/5 p-4">
-              <p className="font-mono text-[11px] uppercase tracking-wider text-muted">Spend allowance · your live yield</p>
-              <p data-testid="card-allowance" className="mt-1 text-2xl font-extrabold text-emerald tabular">{usd(s.allowanceCents)}</p>
-              <p className="mt-1 text-xs text-muted">Only earned yield can be spent. Your principal is never used.</p>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-muted">Card balance · funded from your yield</p>
+              <p data-testid="card-balance" className="mt-1 text-2xl font-extrabold text-emerald tabular">{usd(s.cardBalanceCents)}</p>
+              <p className="mt-1 text-xs text-muted">The card can spend what is on it. Only earned yield is ever added; your principal is never used.</p>
+              <div className="mt-3 flex items-center justify-between gap-3 font-mono text-xs">
+                <span className="text-muted">Yield you can add: <span data-testid="card-fundable" className="text-fg">{usd(s.fundableCents)}</span></span>
+                <button type="button" data-testid="card-fund-open" disabled={!s.fundingReady || s.fundableCents <= 0} onClick={() => { s.clearFunding(); setFunding(true); void s.probeFunding(); }} className="min-h-11 rounded-lg border border-emerald/30 bg-emerald/10 px-3 font-semibold text-emerald hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
+                  Fund card
+                </button>
+              </div>
             </div>
             {s.secrets ? (
               <button type="button" data-testid="card-hide" onClick={s.hide} className="min-h-12 w-full rounded-xl border border-white/10 text-sm font-semibold text-fg hover:bg-white/5">
@@ -142,6 +145,30 @@ export function CardPanel({ suite: s }: { suite: ReturnType<typeof useCardSuite>
           </div>
         </div>
       )}
+
+      <AmountDialog
+        open={funding}
+        onClose={() => { if (!s.funding.busy && !accountBusy) setFunding(false); }}
+        testId="fund-dialog"
+        title="Fund your card"
+        intro="Choose how much earned yield goes on the card. The card can only spend what is on it."
+        max={BigInt(s.fundableCents) * 10_000n}
+        maxLabel="Yield you can add"
+        confirmLabel="Fund card"
+        preview={
+          s.fundingKind === "simulator"
+            ? [{ label: "Sandbox deposit", detail: "The card issuer's test service credits your card with this amount. No real money moves and your yield stays in Aave." }]
+            : s.fundingKind === "onchain"
+              ? [{ label: "Withdraw yield and deposit", detail: "Your Safe withdraws exactly this much earned yield from Aave and sends it to the card issuer's funds address in one transaction. Principal is untouched." }]
+              : [{ label: "Checking how the card issuer wants to be funded", detail: "Nothing is sent until you confirm. This only takes a moment." }]
+        }
+        steps={s.funding.steps === "chain" ? txSteps : []}
+        busy={s.funding.busy || accountBusy}
+        error={s.funding.error}
+        success={s.funding.done}
+        explorer={explorer}
+        onSubmit={(v) => void s.fund(Number(v / 10_000n))}
+      />
 
       {s.error && (
         <div role="alert" data-testid="card-error" className="mt-4 flex items-start justify-between gap-3 rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
