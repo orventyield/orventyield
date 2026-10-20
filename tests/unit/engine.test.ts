@@ -4,7 +4,6 @@ import {
   authorizeCardSpend,
   cashOut,
   checkWithdrawPrincipal,
-  issueCard,
   purchaseVoucher,
   spendable,
   yieldOver,
@@ -23,7 +22,6 @@ const base = (over: Partial<AccountState> = {}): AccountState => ({
 });
 
 describe("one user = one card (engine)", () => {
-  const empty = { byPhone: {}, byOwner: {} };
 
   it("a swipe on a card that is not activated is declined, before any other check", () => {
     const d = authorizeCardSpend(base({ cardActive: false, frozen: true, yieldUsd: 500 }), 4.85);
@@ -38,28 +36,6 @@ describe("one user = one card (engine)", () => {
     const s = base({ cardActive: false, yieldUsd: 50 });
     expect(authorizeCardSpend(s, 5).ok).toBe(false);
     expect(authorizeCardSpend({ ...s, cardActive: true }, 5).ok).toBe(true);
-  });
-
-  it("issueCard creates exactly one card per verified identity", () => {
-    const first = issueCard(empty, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "id-1");
-    expect(first.ok).toBe(true);
-    if (!first.ok) return;
-    // a second wallet proving the same identity re-links the card to itself: still exactly one holder
-    const relinked = issueCard(first.registry, "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "id-1");
-    expect(relinked.ok).toBe(true);
-    if (relinked.ok) {
-      expect(Object.keys(relinked.registry.byOwner)).toEqual(["0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]);
-      expect(Object.keys(relinked.registry.byPhone)).toEqual(["id-1"]);
-    }
-  });
-
-  it("issueCard rejects a second identity for the same owner and is idempotent for the same pair", () => {
-    const first = issueCard(empty, "guest:alice", "id-1");
-    if (!first.ok) throw new Error("setup");
-    const second = issueCard(first.registry, "guest:alice", "id-2");
-    expect(second.ok).toBe(false);
-    if (!second.ok) expect(second.code).toBe("OWNER_ALREADY_HAS_CARD");
-    expect(issueCard(first.registry, "guest:alice", "id-1")).toMatchObject({ ok: true, idempotent: true });
   });
 });
 

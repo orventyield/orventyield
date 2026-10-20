@@ -13,9 +13,7 @@
     "fork:stop": "bash scripts/anvil-fork.sh stop",
     "fork:test": "node scripts/fork-safe-aave.mjs",
     "cashout:probe": "node scripts/transak-staging-probe.mjs",
-    "e2e": "playwright test",
-    "api:migrate": "wrangler d1 migrations apply DB --local --config worker/wrangler.jsonc --persist-to .wrangler-api",
-    "api:dev": "npm run api:migrate && wrangler dev --config worker/wrangler.jsonc --port 8787 --local --persist-to .wrangler-api --var PEPPER:local-dev-pepper-change-me-please --var OTP_PROVIDER:mock --var ALLOW_MOCK_OTP:1 --var ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3200"
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@coinbase/wallet-sdk": "^4.4.0",
@@ -23,7 +21,6 @@
     "@lifi/widget-provider-ethereum": "4.1.6",
     "@tanstack/react-query": "^5.104.4",
     "@walletconnect/ethereum-provider": "^2.26.0",
-    "libphonenumber-js": "^1.13.15",
     "lucide-react": "^1.59.0",
     "motion": "^14.3.0",
     "next": "^15.5.28",

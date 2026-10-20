@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAccount } from "wagmi";
-import { useIdentity } from "@/features/identity/IdentityProvider";
+import { useAccount, useSignMessage } from "wagmi";
 import type { Address } from "viem";
 import { ARBITRUM } from "@/lib/contracts/arbitrum";
 import { ImmersveClient, ImmersveError, immersveConfig, readiness, type Card, type CardReadiness, type CardSecrets, type CardTransaction } from "@/lib/immersve";
@@ -61,7 +60,8 @@ export function friendlyCardError(e: unknown): string {
  */
 export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (amount: bigint, to: Address, label: string) => Promise<boolean>; exec: (calls: { to: Address; data: Hex }[], label: string, detail: string) => Promise<boolean> }) {
   const { address, isConnected } = useAccount();
-  const { isWallet, sign } = useIdentity();
+  const { signMessageAsync } = useSignMessage();
+  const sign = useCallback((message: string) => signMessageAsync({ message }), [signMessageAsync]);
   const imsv = useRef<ImmersveClient | null>(null);
   const cfg = useRef(immersveConfig());
   if (imsv.current === null) imsv.current = new ImmersveClient(cfg.current);
@@ -82,7 +82,7 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
   const [funding, setFunding] = useState<{ busy: boolean; error: string | null; done: string | null; steps: "api" | "chain" | null }>({ busy: false, error: null, done: null, steps: null });
 
   const cents = baseToCents(maxYield);
-  const walletConnected = isConnected && !!address && isWallet;
+  const walletConnected = isConnected && !!address;
 
   // A different wallet must never inherit the previous wallet's card session or revealed secrets.
   useEffect(() => {

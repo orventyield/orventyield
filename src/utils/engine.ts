@@ -8,8 +8,6 @@
  * There is no borrowing: no credit line, no debt, no health factor, no liquidation. A spend, voucher or payout is paid
  * from earned yield and nothing else.
  *
- * One user = one card: `issueCard` is the only way a card becomes active in the engine. It rejects a second card for
- * the same verified identity or the same owner (see lib/identity/registry.ts; the server enforces the same rule).
  * A swipe on a card that is not active is declined.
  *
  * Invariants (covered by tests/unit/engine.test.ts):
@@ -18,8 +16,6 @@
  *   - a frozen or inactive card declines everything
  *   - the monthly limit is never exceeded
  */
-import { claimCard, type CardRegistry, type ClaimRejection } from "../lib/identity/registry";
-
 export interface AccountState {
   /** USDC deposited. Only deposits and principal withdrawals change it, never spending. */
   principalUsd: number;
@@ -122,20 +118,4 @@ export function checkWithdrawPrincipal(s: Pick<AccountState, "principalUsd">, am
   if (!validAmount(amountUsd)) return { ok: false, reason: "Enter a valid amount" };
   if (r6(amountUsd) > r6(s.principalUsd)) return { ok: false, reason: "That is more than your deposited principal." };
   return { ok: true };
-}
-
-/** The set of verified identities that hold a card, as the engine sees them. */
-export type { CardRegistry };
-
-export type IssueCardResult =
-  | { ok: true; registry: CardRegistry; idempotent: boolean }
-  | { ok: false; code: ClaimRejection; message: string; registry: CardRegistry };
-
-/**
- * Create (activate) a card for `owner`, bound to a verified identity. Rejects duplicates:
- * "Card already active for this verified identity." for a second owner on the same identity,
- * and "This account already has an active card." for a second identity on the same owner.
- */
-export function issueCard(registry: CardRegistry, owner: string, identityId: string): IssueCardResult {
-  return claimCard(registry, owner, identityId);
 }
