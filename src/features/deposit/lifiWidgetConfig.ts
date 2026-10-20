@@ -140,12 +140,12 @@ export function buildLifiWidgetConfig(input: BuildLifiConfigInput): WidgetConfig
         MuiButton: { styleOverrides: { root: { textTransform: "none", fontWeight: 600 } } },
       },
     },
-    // Plain-English labels: the whole flow reads "You pay" -> "You receive" -> "Review & Bridge" -> "Confirm in Wallet".
+    // Plain-English labels: the whole flow reads "You pay" -> "You receive" -> "Review & Bridge" -> "Bridge & Deposit". The widget keeps the same label on a disabled button (it has no insufficient-funds label), so the reason is shown by useSourceFunds instead.
     languageResources: {
       en: {
         header: { exchange: "Pay with any token", from: "You pay", to: "You receive", youPay: "You pay", send: "Amount" },
         main: { from: "You pay", to: "You receive" },
-        button: { exchange: "Review & Bridge", review: "Review & Bridge", bridgeReview: "Review & Bridge", swapReview: "Review & Bridge", depositReview: "Review & Bridge", startBridging: "Confirm in Wallet", startSwapping: "Confirm in Wallet", confirm: "Confirm in Wallet" },
+        button: { exchange: "Review & Bridge", review: "Review & Bridge", bridgeReview: "Review & Bridge", swapReview: "Review & Bridge", depositReview: "Review & Bridge", startBridging: "Bridge & Deposit", startSwapping: "Bridge & Deposit", confirm: "Confirm" },
       },
     },
   };

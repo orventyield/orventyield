@@ -54,6 +54,7 @@ test.describe("mainnet bridge & deposit", () => {
     // The lazy widget mounts inside our dialog (not the "Loading bridge" placeholder) and takes the dark theme.
     await expect(page.getByTestId("bridge-dialog").getByText("Loading bridge...")).toHaveCount(0, { timeout: 30_000 });
     expect(await page.getByTestId("bridge-dialog").evaluate((el) => el.querySelectorAll("[class*='MuiBox'], [class*='MuiButton'], [class*='Mui']").length)).toBeGreaterThan(0);
+    await expect(page.getByTestId("bridge-gas-hint")).toContainText("native token"); // before a chain is picked, the generic gas note
     const bg = await page.getByRole("dialog").evaluate((el) => getComputedStyle(el).backgroundColor);
     const [r, g, b] = (bg.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
     expect(Math.max(r!, g!, b!)).toBeLessThan(60);
