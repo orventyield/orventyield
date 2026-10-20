@@ -18,23 +18,6 @@ const CREDIT_POLL_MS = 3000;
 /** Immersve asks for an expected spend amount during onboarding; never declare less than $1.00. */
 const MIN_DECLARED_CENTS = 100;
 
-const cacheKey = (owner: string) => `oy.card.${owner}`;
-const readFlag = (k: string) => {
-  try {
-    return window.localStorage.getItem(k) === "1";
-  } catch {
-    return false;
-  }
-};
-const writeFlag = (k: string, v: boolean) => {
-  try {
-    if (v) window.localStorage.setItem(k, "1");
-    else window.localStorage.removeItem(k);
-  } catch {
-    /* storage unavailable */
-  }
-};
-
 /** https is mandatory for the KYC return URL (Immersve's gateway rejects http://localhost). */
 function kycReturnUrl(): string {
   return window.location.protocol === "https:" ? `${window.location.origin}/dashboard` : "https://orventyield.tech/dashboard";
@@ -71,20 +54,19 @@ export function friendlyCardError(e: unknown): string {
 }
 
 /**
- * The unified card flow: phone OTP (1 phone = 1 card) -> card provider session -> KYC -> issue -> active card with a
+ * The unified card flow: wallet signature (card provider session) -> KYC -> issue -> active card with a
  * single-use PAN/CVV reveal -> fund the card from earned yield. `maxYield` is the yield that can be withdrawn right now
  * (USDC, 6 decimals). Funding withdraws exactly that much yield from Aave and deposits it to the issuer; the card can
  * then spend its funded balance, never more, and never principal.
  */
 export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (amount: bigint, to: Address, label: string) => Promise<boolean>; exec: (calls: { to: Address; data: Hex }[], label: string, detail: string) => Promise<boolean> }) {
   const { address, isConnected } = useAccount();
-  const { client: identity, owner: identityOwner, isWallet, sign } = useIdentity();
+  const { isWallet, sign } = useIdentity();
   const imsv = useRef<ImmersveClient | null>(null);
   const cfg = useRef(immersveConfig());
   if (imsv.current === null) imsv.current = new ImmersveClient(cfg.current);
   const isSandbox = cfg.current.baseUrl !== "https://api.immersve.com";
 
-  const [phoneVerified, setPhoneVerified] = useState<boolean | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [ready, setReady] = useState<CardReadiness | null>(null);
   const [cards, setCards] = useState<Card[] | null>(null);
@@ -101,28 +83,6 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
 
   const cents = baseToCents(maxYield);
   const walletConnected = isConnected && !!address && isWallet;
-
-  // 1. Phone verification status (instant from cache, confirmed by the verification service).
-  useEffect(() => {
-    if (!walletConnected || !identity || !identityOwner) {
-      setPhoneVerified(null);
-      return;
-    }
-    let alive = true;
-    const cached = readFlag(cacheKey(identityOwner));
-    setPhoneVerified(cached ? true : null);
-    identity
-      .status(identityOwner)
-      .then((active) => {
-        if (!alive) return;
-        setPhoneVerified(active);
-        writeFlag(cacheKey(identityOwner), active);
-      })
-      .catch(() => alive && setPhoneVerified(cached)); // offline: trust the cache, otherwise ask them to verify
-    return () => {
-      alive = false;
-    };
-  }, [walletConnected, identity, identityOwner]);
 
   // A different wallet must never inherit the previous wallet's card session or revealed secrets.
   useEffect(() => {
@@ -164,8 +124,8 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
   }, [address, fundingSourceId, cents]);
 
   const stage: CardStage = useMemo(
-    () => deriveStage({ walletConnected, phoneVerified, sessionActive, readiness: ready, cards }),
-    [walletConnected, phoneVerified, sessionActive, ready, cards],
+    () => deriveStage({ walletConnected, sessionActive, readiness: ready, cards }),
+    [walletConnected, sessionActive, ready, cards],
   );
 
   // 2. Poll while the user is finishing KYC in another tab or the checks are running.
@@ -192,11 +152,6 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
     };
   }, [secrets]);
   useEffect(() => () => setSecrets(null), []);
-
-  const markPhoneVerified = useCallback(() => {
-    if (identityOwner) writeFlag(cacheKey(identityOwner), true);
-    setPhoneVerified(true);
-  }, [identityOwner]);
 
   const connectProvider = useCallback(async () => {
     if (!address) return;
@@ -403,7 +358,6 @@ export function useCardSuite({ maxYield, pay, exec }: { maxYield: bigint; pay: (
     fund,
     clearFunding: () => setFunding({ busy: false, error: null, done: null, steps: null }),
     cardTransactions,
-    markPhoneVerified,
     connectProvider,
     openKyc,
     issueCard,

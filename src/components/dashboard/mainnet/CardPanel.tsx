@@ -1,25 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useState } from "react";
 import { MastercardCard, MastercardMark } from "@/components/dashboard/mainnet/MastercardCard";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import type { TxStep } from "@/features/account/useSafeAccount";
 import type { useCardSuite } from "@/features/card/useCardSuite";
 
-// Loaded on demand: it pulls in the phone-number metadata, which most visits never need.
-const ActivateCardDialog = dynamic(() => import("@/components/dashboard/ActivateCardDialog").then((m) => m.ActivateCardDialog), { ssr: false });
-
 const usd = (cents: number) => (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 const STEPS = [
-  { id: "phone", label: "Verify phone" },
+  { id: "sign", label: "Activate card" },
   { id: "kyc", label: "Verify identity" },
   { id: "card", label: "Get card" },
 ] as const;
 
 function Progress({ stage }: { stage: string }) {
-  const idx = stage === "phone" || stage === "provider-login" ? 0 : stage === "kyc" || stage === "pending" || stage === "checking" ? 1 : 2;
+  const idx = stage === "provider-login" ? 0 : stage === "kyc" || stage === "pending" || stage === "checking" ? 1 : 2;
   return (
     <ol className="mb-5 flex flex-wrap items-center gap-2 text-[11px] font-mono" aria-label="Card setup progress">
       {STEPS.map((s, i) => (
@@ -43,26 +39,14 @@ function Panel({ children, testId }: { children: React.ReactNode; testId: string
 
 const primary = "min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg shadow-[0_0_30px_rgba(0,240,255,0.25)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
 
-/** The unified card flow: phone OTP -> identity check -> virtual Mastercard -> single-use PAN/CVV reveal. */
+/** The unified card flow: wallet signature -> identity check -> virtual Mastercard -> single-use PAN/CVV reveal. */
 export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite: ReturnType<typeof useCardSuite>; txSteps: TxStep[]; accountBusy: boolean; explorer?: string }) {
-  const [activating, setActivating] = useState(false);
   const [funding, setFunding] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const st = s.stage;
 
   return (
     <div className="h-full rounded-2xl glass-card p-5" data-testid="card-panel">
-      {activating && (
-        <ActivateCardDialog
-          open
-          onClose={() => setActivating(false)}
-          onActivated={() => {
-            s.markPhoneVerified();
-            setActivating(false);
-          }}
-        />
-      )}
-
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-fg">Your virtual Mastercard</h2>
@@ -77,18 +61,11 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer }: { suite:
 
       {st.stage === "checking" && <div data-testid="card-checking" aria-busy="true" className="h-32 animate-pulse rounded-xl bg-white/[0.05]" />}
 
-      {st.stage === "phone" && (
-        <Panel testId="card-step-phone">
-          <p className="text-sm text-muted">First, verify your mobile number. One verified person gets one card, and we store only a salted hash of your number.</p>
-          <button type="button" data-testid="card-verify-phone" onClick={() => setActivating(true)} className={primary}>Verify phone number</button>
-        </Panel>
-      )}
-
       {st.stage === "provider-login" && (
         <Panel testId="card-step-login">
-          <p className="text-sm text-muted">Phone verified. Now sign in with your wallet to the card issuer. This is a free signature: no transaction and no gas.</p>
+          <p className="text-sm text-muted">Activate your card with one free wallet signature: no transaction and no gas. It signs you in to the card issuer, Immersve.</p>
           <button type="button" data-testid="card-continue" disabled={s.busy === "login"} onClick={() => void s.connectProvider()} className={primary}>
-            {s.busy === "login" ? "Waiting for your wallet…" : "Continue"}
+            {s.busy === "login" ? "Waiting for your wallet…" : "Activate card"}
           </button>
         </Panel>
       )}

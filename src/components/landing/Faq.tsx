@@ -16,7 +16,7 @@ const FAQ = [
   },
   {
     q: "Do I need KYC?",
-    a: "OrventYield never sees your ID documents. We check your phone number once, so one person gets one card, and store only a salted hash of it. The card issuer runs the identity check for the card, and voucher or cashout providers can have their own requirements.",
+    a: "OrventYield never sees your ID documents. Activating the card needs one free wallet signature, no phone number and no SMS. The card issuer runs the identity check for the card, and voucher or cashout providers can have their own requirements.",
   },
   {
     q: "What are the risks?",

@@ -2,12 +2,11 @@ import type { Card, CardReadiness } from "./types";
 
 /**
  * Where the user is in the card journey. The order is fixed by product rules:
- * phone verified (1 phone = 1 card) -> card provider session -> identity check (KYC) -> issue -> active. Funding the
+ * wallet signature (card provider sign-in) -> identity check (KYC) -> issue -> active. Funding the
  * card with yield is a separate step after that, not a stage of getting a card.
  */
 export type CardStage =
   | { stage: "no-wallet" }
-  | { stage: "phone" }
   | { stage: "provider-login" }
   | { stage: "checking" }
   | { stage: "kyc"; kycUrl: string }
@@ -17,8 +16,6 @@ export type CardStage =
 
 export interface StageInput {
   walletConnected: boolean;
-  /** null while still asking the verification service. */
-  phoneVerified: boolean | null;
   sessionActive: boolean;
   /** null until prerequisites have been read for this session. */
   readiness: CardReadiness | null;
@@ -27,8 +24,6 @@ export interface StageInput {
 
 export function deriveStage(i: StageInput): CardStage {
   if (!i.walletConnected) return { stage: "no-wallet" };
-  if (i.phoneVerified === null) return { stage: "checking" };
-  if (!i.phoneVerified) return { stage: "phone" };
   if (!i.sessionActive) return { stage: "provider-login" };
   if (i.cards === null || i.readiness === null) return { stage: "checking" };
   // An existing usable card wins: one account, one card. KYC state no longer matters once a card is active.

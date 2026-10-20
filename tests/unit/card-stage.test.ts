@@ -3,18 +3,12 @@ import { deriveStage, formatExpiry, groupPan, maskedPan, type StageInput } from 
 import type { Card } from "../../src/lib/immersve";
 
 const card = (status: string): Card => ({ id: "c1", type: "virtual", status, expiry: "203006", panFirst6: "528854", panLast4: "1179" });
-const base: StageInput = { walletConnected: true, phoneVerified: true, sessionActive: true, readiness: { state: "ready" }, cards: [] };
+const base: StageInput = { walletConnected: true, sessionActive: true, readiness: { state: "ready" }, cards: [] };
 const at = (o: Partial<StageInput>) => deriveStage({ ...base, ...o }).stage;
 
 describe("card journey order", () => {
   it("needs a wallet first", () => expect(at({ walletConnected: false })).toBe("no-wallet"));
-  it("asks the verification service before anything else", () => {
-    expect(at({ phoneVerified: null })).toBe("checking");
-    expect(at({ phoneVerified: false })).toBe("phone");
-    // Phone comes before the card provider even if a session exists.
-    expect(at({ phoneVerified: false, sessionActive: true })).toBe("phone");
-  });
-  it("then needs a provider session", () => expect(at({ sessionActive: false })).toBe("provider-login"));
+  it("then needs a wallet signature to start the card provider session (no phone step)", () => expect(at({ sessionActive: false })).toBe("provider-login"));
   it("waits for prerequisites and cards to load", () => {
     expect(at({ readiness: null })).toBe("checking");
     expect(at({ cards: null })).toBe("checking");

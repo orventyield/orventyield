@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { installForkWallet, pickCountry } from "./helpers";
+import { installForkWallet } from "./helpers";
 
 /**
- * The Mainnet Card tab end to end on the Anvil fork: deposit -> yield -> phone OTP (browser demo verifier) -> card issuer
+ * The Mainnet Card tab end to end on the Anvil fork: deposit -> yield -> wallet signature -> card issuer
  * session -> KYC -> issue -> Mastercard -> single-use PAN/CVV reveal -> fund the card from earned yield -> POS preview.
  * The card issuer (Immersve sandbox) is mocked at the network layer: tests never depend on its uptime, and its KYC step
  * needs a human with a camera. The real sandbox is exercised by `node scripts/immersve-sandbox.mjs`.
@@ -140,15 +140,6 @@ async function mockIssuer(page: Page, opts: { onchain?: boolean } = {}): Promise
   return st;
 }
 
-async function verifyPhone(page: Page, code = "123456") {
-  await page.getByTestId("card-verify-phone").click();
-  await pickCountry(page, "IN");
-  await page.getByTestId("phone-input").fill("98765 43210");
-  await page.getByTestId("phone-submit").click();
-  await page.getByTestId("otp-input").fill(code);
-  await expect(page.getByTestId("otp-dialog")).toHaveCount(0, { timeout: 15_000 });
-}
-
 test.describe("mainnet card suite", () => {
   test.describe.configure({ mode: "serial" });
   let snapshot: string;
@@ -164,7 +155,7 @@ test.describe("mainnet card suite", () => {
     if (snapshot) await rpc("evm_revert", [snapshot]);
   });
 
-  test("phone OTP -> issuer sign-in -> KYC -> card -> single-use reveal -> fund from yield -> POS preview -> ledger", async ({ page, context }) => {
+  test("wallet signature -> issuer sign-in -> KYC -> card -> single-use reveal -> fund from yield -> POS preview -> ledger", async ({ page, context }) => {
     test.setTimeout(180_000); // real transactions, a yield refresh and polling
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -212,14 +203,14 @@ test.describe("mainnet card suite", () => {
     await expect(page.getByText(/credit advance/i)).toHaveCount(0);
     await page.getByTestId("tab-vault").click();
 
-    // Step 1: phone first. Nothing of the issuer is touched before this is done.
+    // Step 1: no phone number, no SMS. Nothing of the issuer is touched until the user signs.
     await page.getByTestId("tab-vault").click(); // the card lives on the Vault & Card tab
-    await expect(page.getByTestId("card-step-phone")).toBeVisible();
-    expect(issuer.logins).toBe(0);
-    await verifyPhone(page);
-
-    // Step 2: free wallet signature. A rejection is explained and nothing is lost.
     await expect(page.getByTestId("card-step-login")).toBeVisible();
+    await expect(page.getByTestId("card-verify-phone")).toHaveCount(0);
+    await expect(page.getByText(/phone|SMS|OTP/i)).toHaveCount(0);
+    expect(issuer.logins).toBe(0);
+
+    // Step 2: free wallet signature ("Activate card"). A rejection is explained and nothing is lost.
     await page.evaluate(() => ((window as unknown as { __rejectSign: boolean }).__rejectSign = true));
     await page.getByTestId("card-continue").click();
     await expect(page.getByTestId("card-error")).toContainText("cancelled");
@@ -360,7 +351,6 @@ test.describe("mainnet card suite", () => {
     await rpc("evm_increaseTime", [30 * 24 * 3600]);
     await rpc("evm_mine");
 
-    await verifyPhone(page);
     await page.getByTestId("card-continue").click();
     await expect(page.getByTestId("card-active")).toBeVisible({ timeout: 30_000 });
     await expect.poll(async () => Number(((await page.getByTestId("card-fundable").textContent()) ?? "").replace(/[^0-9.]/g, "")), { timeout: 60_000 }).toBeGreaterThan(1);

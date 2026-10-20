@@ -68,7 +68,7 @@ const HOLDS = [
   ["You", "Your wallet keys and the decision to sign every transaction."],
   ["Your Safe", "Your principal and your Aave position, controlled by you."],
   ["Aave v3", "The rules: yield rates, prices and withdrawals. Set by the Aave protocol, not by us."],
-  ["OrventYield", "Nothing of yours. We are only the interface: no funds, no keys. A small verification service checks a phone number once so one person gets one card."],
+  ["OrventYield", "Nothing of yours. We are only the interface: no funds, no keys. A small server only brokers voucher and bank-cashout orders, so provider keys never reach your browser."],
 ];
 
 const CONTRACTS = [

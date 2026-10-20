@@ -66,7 +66,7 @@ export interface SpendResult {
 }
 
 interface Core {
-  /** Card activated through phone verification (one user = one card). */
+  /** Demo card state. The Playground card starts active; real activation lives in the Mainnet card flow. */
   cardActive: boolean;
   principalUsd: number;
   yieldUsd: number;

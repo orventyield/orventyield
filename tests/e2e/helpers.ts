@@ -1,16 +1,5 @@
 import { expect, type Page } from "@playwright/test";
 
-export const DEMO_CODE = "123456";
-
-/** Choose a country in the glass dropdown (it replaced the native <select>). */
-export async function pickCountry(page: Page, iso: string) {
-  const trigger = page.getByTestId("phone-country");
-  if ((await trigger.getAttribute("data-value")) === iso) return;
-  await trigger.click();
-  await page.getByTestId(`country-option-${iso}`).click();
-  await expect(page.getByTestId("phone-country-panel")).toHaveCount(0);
-}
-
 const FORK_ACCOUNT = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const FORK_RPC = "http://127.0.0.1:8545";
 
@@ -54,26 +43,14 @@ export async function installForkWallet(page: Page) {
   );
 }
 
-/** Connect the fork wallet; the Mainnet dashboard opens on the Card step that asks for a verified phone. */
+/** Connect the fork wallet; the Mainnet dashboard opens on the Card step that asks for one free wallet signature. */
 export async function connectForkWallet(page: Page) {
   await installForkWallet(page);
   await page.goto("/dashboard");
   await page.getByTestId("connect-wallet").click();
   await page.getByTestId("wallet-option-test.anvil.wallet").click();
   await expect(page.getByTestId("mainnet-dashboard")).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId("card-verify-phone")).toBeVisible({ timeout: 30_000 });
-}
-
-/** Verify a phone number with the demo code from the Mainnet Card step, and wait for the next step (issuer sign-in). */
-export async function activateCard(page: Page, opts: { country?: string; national?: string; code?: string } = {}) {
-  const { country = "IN", national = "98765 43210", code = DEMO_CODE } = opts;
-  await page.getByTestId("card-verify-phone").click();
-  await pickCountry(page, country);
-  await page.getByTestId("phone-input").fill(national);
-  await page.getByTestId("phone-submit").click();
-  await page.getByTestId("otp-input").fill(code);
-  await expect(page.getByTestId("otp-dialog")).toHaveCount(0, { timeout: 5000 });
-  await expect(page.getByTestId("card-step-login")).toBeVisible();
+  await expect(page.getByTestId("card-step-login")).toBeVisible({ timeout: 30_000 });
 }
 
 /**

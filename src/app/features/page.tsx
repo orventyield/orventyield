@@ -48,7 +48,7 @@ const FEATURES = [
     what: "A 3D card plus the stats that matter, with simple controls.",
     points: [
       "Principal locked, spendable yield, live APY",
-      "Phone verification, then the card issuer's identity check",
+      "One free wallet signature, then the card issuer's identity check",
       "Card numbers revealed with a one-time link, hidden after 30 seconds",
       "Spend allowance equals your live yield",
     ],

@@ -28,7 +28,7 @@ const GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
   {
     title: "Money",
     items: [
-      { q: "Do I need KYC?", a: "OrventYield never sees your ID documents. We check your phone number once, so one person gets one card, and store only a salted hash of it. The card issuer, Immersve, runs the identity check for the card, and voucher or cashout providers can have their own requirements." },
+      { q: "Do I need KYC?", a: "OrventYield never sees your ID documents. Activating the card needs one free wallet signature, no phone number and no SMS. The card issuer, Immersve, runs the identity check for the card, and voucher or cashout providers can have their own requirements." },
       { q: "What does it cost?", a: "The interface is free to use. You pay network gas, and any fees charged by Aave, the card issuer or other third-party providers. Exact figures will be shown before you sign." },
       { q: "Does spending touch my principal?", a: "No. Only accrued yield can be spent. Your principal stays in your Safe. Yield is variable and not guaranteed, and a bug or exploit in the underlying protocols could still cause loss of funds." },
     ],
@@ -39,7 +39,7 @@ const GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
       { q: "Which chains and assets?", a: "Starting on Arbitrum One with USDC, supplied to Aave v3. More assets and chains may follow." },
       { q: "Which wallets work?", a: "MetaMask, Rainbow, Coinbase Wallet and anything supporting WalletConnect." },
       { q: "Where do the numbers come from?", a: "Balances and yield are read live from Aave v3 and your Safe on-chain. Demos on this site use example values and are labelled as such." },
-      { q: "Do you run a backend or database?", a: "Balances and positions live on-chain. The only server is a small verification service that checks a phone number once, so one person gets one card. It stores a salted hash of the number, never the number itself." },
+      { q: "Do you run a backend or database?", a: "Balances and positions live on-chain. The only server is a small one that brokers voucher and bank-cashout orders so provider keys stay off your browser. It holds no balances and no personal data." },
     ],
   },
 ];
