@@ -261,7 +261,7 @@ export function useSafeAccount() {
 
   /**
    * Pay a third party from the PRINCIPAL, in ONE Safe transaction: the Safe withdraws exactly `amount` from Aave straight to
-   * `to`. Only for an explicit, user-chosen spend of principal (card top-up). The remaining balance keeps earning yield, and
+   * `to`. Only for an explicit, user-chosen spend of principal (adding money to the card). The remaining balance keeps earning yield, and
    * the principal figure drops by exactly `amount` (a Withdraw event whose recipient is not the Safe).
    */
   const payFromPrincipal = useCallback(

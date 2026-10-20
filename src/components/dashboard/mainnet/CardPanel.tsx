@@ -132,7 +132,7 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVou
                   Withdraw to Safe
                 </button>
                 <button type="button" data-testid="card-fund-open" disabled={!s.fundingReady || (s.fundableCents <= 0 && s.fundablePrincipalCents <= 0)} onClick={() => { s.clearFunding(); setSource(s.fundableCents > 0 ? "yield" : "principal"); setFunding(true); void s.probeFunding(); }} className="min-h-11 rounded-lg border border-emerald/30 bg-emerald/10 px-3 font-semibold text-emerald hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
-                  + Top Up Card
+                  Add money
                 </button>
               </div>
             </div>
@@ -155,15 +155,15 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVou
         open={funding}
         onClose={() => { if (!s.funding.busy && !accountBusy) setFunding(false); }}
         testId="fund-dialog"
-        title="Top up your card"
-        intro="One card, two ways to top it up. The card can only spend what is on it."
+        title="Add money to your card"
+        intro="Choose where the money comes from. Your card can only spend what you add to it."
         max={BigInt(source === "yield" ? s.fundableCents : s.fundablePrincipalCents) * 10_000n}
         maxLabel={source === "yield" ? "Earned yield available" : "Principal available"}
-        confirmLabel="Top up card"
+        confirmLabel="Add money"
         presets={[10, 25, 50, 100]}
         header={
           <fieldset className="space-y-2" disabled={s.funding.busy || accountBusy}>
-            <legend className="mb-1 text-xs font-mono uppercase tracking-wider text-muted">Pay from</legend>
+            <legend className="mb-1 text-xs font-mono uppercase tracking-wider text-muted">Add from</legend>
             {([
               { id: "yield", label: "Earned yield", note: "Spend purely from your earned interest. Your principal remains 100% intact.", cents: s.fundableCents, tag: "Recommended" },
               { id: "principal", label: "Principal vault", note: "Withdraw directly from your deposited principal for larger spending. It stops earning yield on what you take out.", cents: s.fundablePrincipalCents, tag: "" },

@@ -390,7 +390,7 @@ test.describe("mainnet card suite", () => {
     await expect(page.getByTestId("principal-value")).toHaveText("$1,000.00"); // principal untouched
     expect(errors).toEqual([]);
   });
-  test("top up from the PRINCIPAL vault: ONE Safe transaction moves exactly the chosen principal to the issuer, yield untouched", async ({ page }) => {
+  test("add money from the PRINCIPAL vault: ONE Safe transaction moves exactly the chosen principal to the issuer, yield untouched", async ({ page }) => {
     test.setTimeout(180_000);
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -434,7 +434,7 @@ test.describe("mainnet card suite", () => {
     await expect(page.getByTestId("preset-100")).toBeEnabled();
     await expect(page.getByTestId("tx-preview")).toContainText("Withdraw principal and deposit");
 
-    // Principal top-up of exactly $100
+    // Adding exactly $100 from principal
     const before = await aUsdc();
     await page.getByTestId("preset-100").click();
     await page.getByTestId("amount-confirm").click();
