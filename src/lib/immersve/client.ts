@@ -150,15 +150,28 @@ export class ImmersveClient {
     return r.items ?? [];
   }
 
-  /** Idempotent: returns the existing source for this channel when one already exists. */
+  /**
+   * Idempotent: returns the existing source for this channel instead of failing. If the issuer still answers
+   * FUNDING_SOURCE_EXISTS (list lagging behind, or a source it does not report for our channel), re-read the list and reuse
+   * the matching source, or the only one the account has. Anything else is a real error and is thrown.
+   */
   async ensureFundingSource(fundingAddress: string): Promise<FundingSource> {
-    const existing = (await this.listFundingSources()).find((f) => f.fundingChannelId === this.cfg.fundingChannelId);
+    const pick = (all: FundingSource[]) => all.find((f) => f.fundingChannelId === this.cfg.fundingChannelId);
+    const existing = pick(await this.listFundingSources());
     if (existing) return existing;
-    return this.request<FundingSource>("POST", "/api/funding-sources", {
-      accountId: this.accountId,
-      fundingAddress,
-      fundingChannelId: this.cfg.fundingChannelId,
-    });
+    try {
+      return await this.request<FundingSource>("POST", "/api/funding-sources", {
+        accountId: this.accountId,
+        fundingAddress,
+        fundingChannelId: this.cfg.fundingChannelId,
+      });
+    } catch (e) {
+      if (!(e instanceof ImmersveError) || e.errorCode !== "FUNDING_SOURCE_EXISTS") throw e;
+      const all = await this.listFundingSources();
+      const reuse = pick(all) ?? (all.length === 1 ? all[0] : undefined);
+      if (!reuse) throw e;
+      return reuse;
+    }
   }
 
   /** `redirectUrl` must be https (Immersve's gateway rejects http://localhost with an HTML 403). */

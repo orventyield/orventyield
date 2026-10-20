@@ -28,6 +28,44 @@ describe("Immersve client", () => {
     expect(immersveConfig({ NEXT_PUBLIC_IMMERSVE_BASE_URL: "https://api.immersve.com" }).baseUrl).toBe("https://api.immersve.com");
   });
 
+  describe("ensureFundingSource is idempotent", () => {
+    const exists = () => ok({ errorCode: "FUNDING_SOURCE_EXISTS" }, 409);
+    const login = async (c: ImmersveClient) => c.login("0xabc", "https://orventyield.tech", async () => "0xsig");
+    const src = (id: string, channel: string) => ({ id, accountId: "acc1", fundingChannelId: channel, balance: "0", balanceCurrency: "USD" });
+
+    it("reuses the source when POST says FUNDING_SOURCE_EXISTS and the list now has it", async () => {
+      let listed = 0;
+      const { c, calls } = client({
+        ...loginRoutes,
+        "GET /api/accounts/acc1/funding-sources": () => ok({ items: listed++ === 0 ? [] : [src("fs9", cfg.fundingChannelId)] }),
+        "POST /api/funding-sources": exists,
+      });
+      await login(c);
+      expect((await c.ensureFundingSource("0xabc")).id).toBe("fs9");
+      expect(calls.filter((x) => x.init.method === "POST" && x.url.endsWith("/api/funding-sources"))).toHaveLength(1);
+    });
+
+    it("reuses the account's only source when none is reported for our channel", async () => {
+      let listed = 0;
+      const { c } = client({
+        ...loginRoutes,
+        "GET /api/accounts/acc1/funding-sources": () => ok({ items: listed++ === 0 ? [] : [src("fs1", "other-channel")] }),
+        "POST /api/funding-sources": exists,
+      });
+      await login(c);
+      expect((await c.ensureFundingSource("0xabc")).id).toBe("fs1");
+    });
+
+    it("still throws when nothing can be reused, and for any other error", async () => {
+      const a = client({ ...loginRoutes, "GET /api/accounts/acc1/funding-sources": () => ok({ items: [] }), "POST /api/funding-sources": exists });
+      await login(a.c);
+      await expect(a.c.ensureFundingSource("0xabc")).rejects.toMatchObject({ errorCode: "FUNDING_SOURCE_EXISTS" });
+      const b = client({ ...loginRoutes, "GET /api/accounts/acc1/funding-sources": () => ok({ items: [] }), "POST /api/funding-sources": () => ok({ errorCode: "FORBIDDEN" }, 403) });
+      await login(b.c);
+      await expect(b.c.ensureFundingSource("0xabc")).rejects.toMatchObject({ errorCode: "FORBIDDEN" });
+    });
+  });
+
   it("refuses authenticated calls before login", async () => {
     const { c } = client({});
     await expect(c.listFundingSources()).rejects.toMatchObject({ errorCode: "NOT_LOGGED_IN" });
