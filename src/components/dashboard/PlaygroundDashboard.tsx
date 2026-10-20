@@ -71,23 +71,14 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
       {activeTab === "overview" && (
         <div className="space-y-6">
           <VaultOverview
-            selectedToken={vault.selectedToken}
-            onSelectToken={vault.setSelectedToken}
-            collateralAmount={vault.collateralAmount}
-            collateralUsd={vault.collateralUsd}
-            activeDebtUsd={vault.activeDebtUsd}
+            principalUsd={vault.principalUsd}
+            apyPercent={vault.apyPercent}
             accruedYieldUsd={vault.accruedYieldUsd}
-            availableLimit={vault.availableLimit}
-            healthFactor={vault.healthFactor}
-            healthStatus={vault.healthStatus}
-            microBuffer={vault.microBuffer}
-            advanceUsd={vault.advanceUsd}
-            advanceRoom={vault.advanceRoom}
+            spendableUsd={vault.spendableUsd}
             timeScale={vault.timeScale}
             onTimeScale={vault.setTimeScale}
             onDeposit={vault.deposit}
             onWithdraw={vault.withdraw}
-            onRepayWithYield={vault.repayDebtWithYield}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -96,15 +87,12 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
                 card={vault.card}
                 cardActive={vault.cardActive}
                 onActivate={() => setActivating(true)}
-                advanceUsd={vault.advanceUsd}
-                advanceRoom={vault.advanceRoom}
                 isCardFrozen={vault.isCardFrozen}
                 onToggleFreeze={() => vault.setIsCardFrozen(!vault.isCardFrozen)}
                 monthlyLimit={vault.monthlyLimit}
                 onSetMonthlyLimit={vault.setMonthlyLimit}
                 spentThisMonth={vault.spentThisMonth}
-                microBuffer={vault.microBuffer}
-                availableLimit={vault.availableLimit}
+                spendableUsd={vault.spendableUsd}
               />
             </div>
 
@@ -112,9 +100,7 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
               <PosSimulator
                 card={vault.card}
                 isCardFrozen={vault.isCardFrozen}
-                availableLimit={vault.availableLimit}
-                microBuffer={vault.microBuffer}
-                accruedYieldUsd={vault.accruedYieldUsd}
+                spendableUsd={vault.spendableUsd}
                 onSpendCard={vault.spendCard}
               />
             </div>
@@ -131,9 +117,7 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
           <PosSimulator
             card={vault.card}
             isCardFrozen={vault.isCardFrozen}
-            availableLimit={vault.availableLimit}
-            microBuffer={vault.microBuffer}
-            accruedYieldUsd={vault.accruedYieldUsd}
+            spendableUsd={vault.spendableUsd}
             onSpendCard={vault.spendCard}
           />
           <ActivityFeed
@@ -146,8 +130,7 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
       {activeTab === "vouchers" && (
         <div className="space-y-6">
           <VoucherCenter
-            accruedYieldUsd={vault.accruedYieldUsd}
-            availableLimit={vault.availableLimit}
+            accruedYieldUsd={vault.spendableUsd}
             onRedeemVoucher={vault.redeemVoucher}
           />
           <ActivityFeed
@@ -160,8 +143,7 @@ export function PlaygroundDashboard({ vault }: { vault: ReturnType<typeof useVau
       {activeTab === "cashout" && (
         <div className="space-y-6">
           <BankCashout
-            accruedYieldUsd={vault.accruedYieldUsd}
-            availableLimit={vault.availableLimit}
+            accruedYieldUsd={vault.spendableUsd}
             onCashout={vault.cashoutBank}
           />
           <ActivityFeed

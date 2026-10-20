@@ -109,9 +109,8 @@ export function MainnetDashboard() {
         timestampIso: now.toISOString(),
         merchant,
         amountUsd,
-        healthAfter: Infinity,
         txHash: null,
-        funding: { fromYield: amountUsd, fromAdvance: 0, fromCredit: 0 },
+        funding: { fromYield: amountUsd },
         source: "mainnet-preview",
       },
     };
@@ -181,11 +180,8 @@ export function MainnetDashboard() {
               <PosSimulator
                 card={posCard}
                 isCardFrozen={!!active?.isBlocked}
-                availableLimit={allowanceUsd}
-                microBuffer={0}
-                accruedYieldUsd={allowanceUsd}
+                spendableUsd={allowanceUsd}
                 onSpendCard={previewSpend}
-                summary={[{ k: "Earned yield you can spend", v: allowanceUsd }]}
                 live
               />
             ) : (
@@ -203,7 +199,7 @@ export function MainnetDashboard() {
       {tab === "pos" && (
       <div className="space-y-6">
         {posCard ? (
-          <PosSimulator card={posCard} isCardFrozen={!!active?.isBlocked} availableLimit={allowanceUsd} microBuffer={0} accruedYieldUsd={allowanceUsd} onSpendCard={previewSpend} summary={[{ k: "Earned yield you can spend", v: allowanceUsd }]} live />
+          <PosSimulator card={posCard} isCardFrozen={!!active?.isBlocked} spendableUsd={allowanceUsd} onSpendCard={previewSpend} live />
         ) : (
           <div className="rounded-2xl border border-white/5 bg-surface p-5 text-sm text-muted">Get your virtual card on the Vault &amp; Card tab to test spending here.</div>
         )}
@@ -222,7 +218,6 @@ export function MainnetDashboard() {
       <div className="space-y-6">
         <BankCashout
           accruedYieldUsd={Number(a.tickingYield) / 1_000_000}
-          availableLimit={0}
           onCashout={() => ({ success: false, error: "Cashout is not available yet." })}
           unavailable="Bank and UPI payouts need a regulated off-ramp partner, which isn't connected yet. Your earned yield stays safe in the meantime."
         />

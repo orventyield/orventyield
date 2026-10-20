@@ -11,7 +11,7 @@ interface ActivityFeedProps {
 }
 
 export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) {
-  const [filter, setFilter] = useState<"all" | "card_spend" | "voucher_redeem" | "deposit" | "withdraw" | "yield_repay" | "cashout">("all");
+  const [filter, setFilter] = useState<"all" | "card_spend" | "voucher_redeem" | "deposit" | "withdraw" | "cashout">("all");
 
   const filtered = transactions.filter((t) => {
     if (filter === "all") return true;
@@ -28,8 +28,6 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
         return "bg-cyan/10 border-cyan/30 text-cyan";
       case "voucher_redeem":
         return "bg-purple-500/10 border-purple-500/30 text-purple-400";
-      case "yield_repay":
-        return "bg-emerald/10 border-emerald/30 text-emerald";
       case "cashout":
         return "bg-blue-500/10 border-blue-500/30 text-blue-400";
     }
@@ -45,8 +43,6 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
         return "💳";
       case "voucher_redeem":
         return "🎁";
-      case "yield_repay":
-        return "⚡";
       case "cashout":
         return "🏦";
     }
@@ -76,11 +72,10 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
               { id: "voucher_redeem", label: "Vouchers" },
               { id: "deposit", label: "Deposits" },
               { id: "withdraw", label: "Withdrawals" },
-              { id: "yield_repay", label: "Repayments" },
               { id: "cashout", label: "Cashouts" },
             ] as const
           )
-            .filter((f) => !live || (f.id !== "yield_repay" && f.id !== "cashout"))
+            .filter((f) => !live || f.id !== "cashout")
             .map((f) => (
             <button
               key={f.id}
@@ -152,7 +147,7 @@ export function ActivityFeed({ transactions, live = false }: ActivityFeedProps) 
 
               <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
                 <span className="text-sm font-bold font-mono text-fg tabular">
-                  {tx.type === "deposit" ? "+" : tx.type === "yield_repay" ? "↺" : "-"}
+                  {tx.type === "deposit" ? "+" : "-"}
                   ${tx.amountUsd.toFixed(2)}
                 </span>
                 <span className="text-[10px] text-emerald font-mono flex items-center gap-1">

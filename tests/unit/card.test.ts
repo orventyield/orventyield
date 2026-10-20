@@ -66,8 +66,7 @@ describe("voucher codes and hashes", () => {
     expect(code).toMatch(/^AMZN-YLD-\d{4}-[A-Z2-9]{4}$/);
     expect(generateVoucherCode("uber", "x")).toMatch(/^UBER-YLD-/);
     expect(generateVoucherCode("swiggy", "x")).toMatch(/^SWGY-YLD-/);
-    expect(generateVoucherCode("apple", "x")).toMatch(/^APPL-YLD-/);
-    expect(generateVoucherCode("steam", "x")).toMatch(/^STEA-YLD-/);
+    expect(generateVoucherCode("zomato", "x")).toMatch(/^ZMTO-YLD-/);
   });
   it("is unique per seed and stable for the same seed", () => {
     expect(generateVoucherCode("amazon", "a")).toBe(generateVoucherCode("amazon", "a"));

@@ -78,8 +78,7 @@ export const VOUCHER_BRANDS = {
   amazon: "AMZN",
   uber: "UBER",
   swiggy: "SWGY",
-  apple: "APPL",
-  steam: "STEA",
+  zomato: "ZMTO",
 } as const;
 export type VoucherBrandId = keyof typeof VOUCHER_BRANDS;
 

@@ -4,29 +4,23 @@ import { useState } from "react";
 import { RAILS, validateDestination, type Rail } from "@/utils/payments";
 
 interface BankCashoutProps {
+  /** Earned yield: the only thing a payout can be paid with. */
   accruedYieldUsd: number;
-  availableLimit: number;
-  onCashout: (
-    amountUsd: number,
-    rail: Rail["id"],
-    destination: string,
-    allowCredit: boolean
-  ) => { success: boolean; error?: string };
+  onCashout: (amountUsd: number, rail: Rail["id"], destination: string) => { success: boolean; error?: string };
   /**
    * Mainnet: set to explain why payouts are not live yet. The form is shown (same experience) but disabled, and every
-   * credit-line option is hidden, because Mainnet only ever spends earned yield.
+   * Only earned yield is ever paid out.
    */
   unavailable?: string;
 }
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
-export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavailable }: BankCashoutProps) {
+export function BankCashout({ accruedYieldUsd, onCashout, unavailable }: BankCashoutProps) {
   const live = unavailable !== undefined;
   const [rail, setRail] = useState<Rail>(RAILS[0]!);
   const [amountUsd, setAmountUsd] = useState("50");
   const [destination, setDestination] = useState("");
-  const [allowCredit, setAllowCredit] = useState(false);
   const [touched, setTouched] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -35,7 +29,6 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavai
   const amountValid = Number.isFinite(amount) && amount > 0;
   const fiat = amountValid ? amount * rail.rate : 0;
   const fromYield = amountValid ? Math.min(amount, accruedYieldUsd) : 0;
-  const fromCredit = amountValid ? Math.max(0, amount - fromYield) : 0;
   const destCheck = destination.trim() ? validateDestination(rail.id, destination) : null;
   const destError = touched && destCheck && !destCheck.ok ? destCheck.error : null;
 
@@ -48,7 +41,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavai
     if (!destination.trim()) return setErrorMsg(`Enter your ${rail.id === "upi" ? "UPI ID" : rail.id === "sepa" ? "IBAN" : "routing and account number"}.`);
     // Invalid destinations are reported inline under the field only (no duplicate banner).
     if (!validateDestination(rail.id, destination).ok) return;
-    const res = onCashout(amount, rail.id, destination, allowCredit);
+    const res = onCashout(amount, rail.id, destination);
     if (!res.success) return setErrorMsg(res.error ?? "Cashout failed.");
     setSuccess(`Payout of ${fiat.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${rail.currency} queued via ${rail.name}. Playground payout: no real money moved.`);
     setDestination("");
@@ -65,7 +58,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavai
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
-          {live ? "Pay out earned yield to a bank account. Your principal is never touched." : "Pay out accrued yield to a bank account without selling your collateral."}
+          Pay out earned yield to a bank account. Your principal is never touched.
         </p>
       </div>
 
@@ -120,7 +113,7 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavai
           <div>
             <label htmlFor="cashout-amount" className="flex justify-between text-xs font-mono text-muted mb-1">
               <span>Amount (USD)</span>
-              <span>{live ? `Yield ${money(accruedYieldUsd)}` : `Yield ${money(accruedYieldUsd)} · Credit ${money(availableLimit)}`}</span>
+              <span>Yield {money(accruedYieldUsd)}</span>
             </label>
             <input
               id="cashout-amount"
@@ -161,20 +154,6 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavai
           </div>
         </div>
 
-        {!live && <label className="flex items-start gap-2 text-xs text-muted cursor-pointer">
-          <input
-            type="checkbox"
-            data-testid="allow-credit"
-            checked={allowCredit}
-            onChange={(e) => setAllowCredit(e.target.checked)}
-            className="mt-0.5 accent-cyan"
-          />
-          <span>
-            Allow a credit advance if my yield is not enough{" "}
-            <span className="text-muted/60">(borrows against collateral; HF must stay ≥ 1.20x)</span>
-          </span>
-        </label>}
-
         <div className="bg-[#090b10] border border-white/5 rounded-xl p-3 text-xs font-mono text-muted space-y-1">
           <div className="flex justify-between">
             <span>Recipient gets</span>
@@ -183,12 +162,6 @@ export function BankCashout({ accruedYieldUsd, availableLimit, onCashout, unavai
             </span>
           </div>
           <div className="flex justify-between text-[11px]"><span>From accrued yield</span><span>{money(fromYield)}</span></div>
-          {!live && (
-            <div className="flex justify-between text-[11px]">
-              <span>From credit advance</span>
-              <span className={fromCredit > 0 && !allowCredit ? "text-danger" : ""}>{money(fromCredit)}</span>
-            </div>
-          )}
         </div>
 
         <button

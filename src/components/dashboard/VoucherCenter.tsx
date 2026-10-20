@@ -4,14 +4,9 @@ import { useState } from "react";
 import type { VoucherBrandId } from "@/utils/card";
 
 interface VoucherCenterProps {
+  /** Earned yield: the only thing a voucher can be paid with. */
   accruedYieldUsd: number;
-  availableLimit: number;
-  onRedeemVoucher: (
-    brand: VoucherBrandId,
-    label: string,
-    amountUsd: number,
-    fundWith: "yield" | "credit"
-  ) => { success: boolean; voucherCode?: string; error?: string };
+  onRedeemVoucher: (brand: VoucherBrandId, label: string, amountUsd: number) => { success: boolean; voucherCode?: string; error?: string };
 }
 
 interface VoucherProduct {
@@ -23,54 +18,17 @@ interface VoucherProduct {
   badge?: string;
 }
 
+// Same four brands as the live store on Mainnet.
 const CATALOG: VoucherProduct[] = [
-  {
-    id: "amazon",
-    brand: "Amazon Gift Card",
-    category: "Shopping",
-    denominations: [10, 25, 50, 100],
-    icon: "📦",
-    badge: "Most Popular",
-  },
-  {
-    id: "uber",
-    brand: "Uber & UberEats",
-    category: "Ride & Food",
-    denominations: [15, 25, 50],
-    icon: "🚗",
-  },
-  {
-    id: "swiggy",
-    brand: "Swiggy / Zomato",
-    category: "Food Delivery",
-    denominations: [10, 20, 35],
-    icon: "🍔",
-    badge: "Instant Delivery",
-  },
-  {
-    id: "apple",
-    brand: "Apple App Store",
-    category: "Digital Services",
-    denominations: [15, 25, 50],
-    icon: "🍏",
-  },
-  {
-    id: "steam",
-    brand: "Steam Wallet",
-    category: "Gaming",
-    denominations: [20, 50],
-    icon: "🎮",
-  },
+  { id: "amazon", brand: "Amazon", category: "Shopping", denominations: [10, 25, 50, 100], icon: "📦", badge: "Most Popular" },
+  { id: "uber", brand: "Uber", category: "Ride & Food", denominations: [15, 25, 50], icon: "🚗" },
+  { id: "swiggy", brand: "Swiggy", category: "Food Delivery", denominations: [10, 20, 35], icon: "🍔", badge: "Instant Delivery" },
+  { id: "zomato", brand: "Zomato", category: "Food Delivery", denominations: [10, 20, 35], icon: "🍽️" },
 ];
 
-export function VoucherCenter({
-  accruedYieldUsd,
-  availableLimit,
-  onRedeemVoucher,
-}: VoucherCenterProps) {
+export function VoucherCenter({ accruedYieldUsd, onRedeemVoucher }: VoucherCenterProps) {
   const [selectedProduct, setSelectedProduct] = useState<VoucherProduct>(CATALOG[0]!);
   const [selectedAmount, setSelectedAmount] = useState<number>(CATALOG[0]!.denominations[1] ?? 25);
-  const [useYieldPayment, setUseYieldPayment] = useState<boolean>(true);
   const [redeemedCode, setRedeemedCode] = useState<string | null>(null);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -84,7 +42,7 @@ export function VoucherCenter({
 
   const handleRedeem = () => {
     setRedeemError(null);
-    const result = onRedeemVoucher(selectedProduct.id, selectedProduct.brand, selectedAmount, useYieldPayment ? "yield" : "credit");
+    const result = onRedeemVoucher(selectedProduct.id, selectedProduct.brand, selectedAmount);
     if (!result.success) {
       setRedeemError(result.error || "Redemption failed");
       setRedeemedCode(null);
@@ -111,7 +69,7 @@ export function VoucherCenter({
             </span>
           </h3>
           <p className="text-xs text-muted mt-0.5">
-            Buy digital gift cards with accrued yield or your credit line.
+            Buy digital gift cards with the yield you have earned. Your principal is never used.
           </p>
         </div>
 
@@ -120,10 +78,6 @@ export function VoucherCenter({
           <div className="flex items-center gap-2 bg-surface-2 border border-white/5 rounded-xl px-3 py-1.5 text-xs font-mono">
             <span className="text-muted">Available Yield:</span>
             <span className="text-emerald font-bold">${accruedYieldUsd.toFixed(2)}</span>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 bg-surface-2 border border-white/5 rounded-xl px-3 py-1.5 text-xs font-mono">
-            <span className="text-muted">Credit Line:</span>
-            <span className="text-cyan font-bold">${availableLimit.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -186,45 +140,11 @@ export function VoucherCenter({
             ))}
           </div>
 
-          {/* Payment Method Switch */}
           <div className="pt-2">
             <span className="text-[11px] font-mono text-muted block mb-1.5">Funding Source:</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                data-testid="fund-yield"
-                aria-pressed={useYieldPayment}
-                onClick={() => setUseYieldPayment(true)}
-                className={`flex-1 p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
-                  useYieldPayment
-                    ? "bg-emerald/15 border-emerald/40 text-emerald"
-                    : "bg-surface-2 border-white/5 text-muted hover:text-fg"
-                }`}
-              >
-                <div className="font-bold flex items-center gap-1">
-                  <span>⚡ Fund with Accrued Yield</span>
-                </div>
-                <div className="text-[10px] opacity-80 mt-0.5">
-                  $0 debt · collateral untouched
-                </div>
-              </button>
-
-              <button
-                type="button"
-                data-testid="fund-credit"
-                aria-pressed={!useYieldPayment}
-                onClick={() => setUseYieldPayment(false)}
-                className={`flex-1 p-2.5 rounded-xl border text-xs font-medium text-left transition-all ${
-                  !useYieldPayment
-                    ? "bg-cyan/15 border-cyan/40 text-cyan"
-                    : "bg-surface-2 border-white/5 text-muted hover:text-fg"
-                }`}
-              >
-                <div className="font-bold">🏦 Fund with Credit Line</div>
-                <div className="text-[10px] opacity-80 mt-0.5">
-                  Borrows against collateral (HF ≥ 1.20x)
-                </div>
-              </button>
+            <div data-testid="fund-yield" className="rounded-xl border border-emerald/40 bg-emerald/15 p-2.5 text-xs font-medium text-emerald">
+              <div className="font-bold">⚡ Fund with Earned Yield</div>
+              <div className="text-[10px] opacity-80 mt-0.5">$0 borrowed · principal untouched</div>
             </div>
           </div>
         </div>

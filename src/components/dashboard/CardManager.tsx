@@ -15,10 +15,8 @@ interface CardManagerProps {
   monthlyLimit: number;
   onSetMonthlyLimit: (limit: number) => void;
   spentThisMonth: number;
-  microBuffer: number;
-  advanceUsd: number;
-  advanceRoom: number;
-  availableLimit: number;
+  /** Earned yield: the only thing the card can spend. */
+  spendableUsd: number;
 }
 
 function NetworkBadge({ network }: { network: CardDetails["network"] }) {
@@ -85,10 +83,7 @@ export function CardManager({
   monthlyLimit,
   onSetMonthlyLimit,
   spentThisMonth,
-  microBuffer,
-  advanceUsd,
-  advanceRoom,
-  availableLimit,
+  spendableUsd,
 }: CardManagerProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [revealPan, setRevealPan] = useState(false);
@@ -286,31 +281,19 @@ export function CardManager({
           <span>
             Spent: ${spentThisMonth.toFixed(2)} ({percentSpent.toFixed(1)}%)
           </span>
-          <span>Credit available: ${availableLimit.toFixed(2)}</span>
+          <span data-testid="card-spendable">Spendable yield: ${spendableUsd.toFixed(2)}</span>
         </div>
 
-        {/* 7-day predictive micro-buffer */}
         <div className="pt-2 border-t border-white/5 space-y-1.5 text-xs font-mono">
           <div className="flex items-center justify-between">
             <span className="text-muted flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan" />
-              7-Day Micro-Buffer
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
+              Funded by
             </span>
-            <span data-testid="micro-buffer" className="text-cyan font-bold">
-              ${microBuffer.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-muted/80">
-            <span>Advance outstanding</span>
-            <span>${advanceUsd.toFixed(2)}</span>
-          </div>
-          <div className="flex items-center justify-between text-muted/80">
-            <span>Advance room left</span>
-            <span>${advanceRoom.toFixed(2)}</span>
+            <span className="text-emerald font-bold">Earned yield only</span>
           </div>
           <p className="text-[10px] leading-snug text-muted/60">
-            Collateral × APY ÷ 365 × 7. Short swipes can be covered by predicted yield; the advance is repaid
-            automatically as new yield accrues.
+            Swipes are paid from the yield you have earned. Your principal is never used, and nothing is borrowed.
           </p>
         </div>
       </div>

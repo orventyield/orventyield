@@ -19,15 +19,13 @@ async function openTab(page: Page, label: RegExp) {
   await page.getByRole("button", { name: label }).click();
 }
 
-async function deposit(page: Page, asset: string, amount: string) {
-  await page.getByTestId("asset-select").selectOption(asset);
+async function deposit(page: Page, amount: string) {
   await page.getByTestId("open-deposit").click();
   await page.getByTestId("deposit-input").fill(amount);
   await page.getByTestId("deposit-confirm").click();
 }
 
-async function withdraw(page: Page, asset: string, amount: string) {
-  await page.getByTestId("asset-select").selectOption(asset);
+async function withdraw(page: Page, amount: string) {
   await page.getByTestId("open-withdraw").click();
   await page.getByTestId("withdraw-input").fill(amount);
   await page.getByTestId("withdraw-confirm").click();
@@ -83,26 +81,33 @@ test.describe("playground dashboard", () => {
     await expect(page.getByTestId("card-flip")).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("POS: approve with receipt; post-spend health factor is liquidation-threshold based", async ({ page }) => {
+  test("POS: a swipe is paid from earned yield only; principal never moves", async ({ page }) => {
     await activateCard(page);
-    await page.getByTestId("preset-apple").click();
-    const collateral = await money(page, "collateral-value");
-    const yieldBefore = num(await text(page, "yield-value"));
-    const buffer = num(await text(page, "micro-buffer"));
-    const debtBefore = num(await text(page, "debt-value"));
+    await page.getByTestId("preset-starbucks").click();
+    const principal = await text(page, "principal-value");
+    const yieldBefore = await money(page, "yield-value");
 
     await page.getByTestId("pos-pay").click();
     await expect(page.getByTestId("pos-terminal")).toContainText("APPROVED");
-
-    const credit = Math.max(0, 149 - yieldBefore - buffer);
-    const expectedHf = (collateral * 0.75) / (debtBefore + credit); // weETH liquidation threshold 75%
-    const shown = num(await text(page, "receipt-hf"));
-    expect(Math.abs(shown - expectedHf)).toBeLessThan(0.02);
-
+    await expect(page.getByTestId("receipt-funding")).toHaveText("$4.85");
+    await expect(page.getByTestId("receipt-hf")).toHaveCount(0); // there is no health factor: nothing is borrowed
     await expect(page.getByTestId("receipt-auth")).toHaveText(/^\d{6}$/);
     await expect(page.getByTestId("receipt-hash")).toHaveText(/^0x[0-9a-f]{8}…[0-9a-f]{8}$/);
     await expect(page.getByTestId("receipt-source")).toHaveText("Playground engine");
     expect(num(await text(page, "pos-latency"))).toBeLessThan(300);
+
+    expect(await text(page, "principal-value")).toBe(principal); // principal untouched
+    expect(yieldBefore - (await money(page, "yield-value"))).toBeGreaterThan(4.5); // about $4.85 left the yield
+  });
+
+  test("POS: a swipe larger than the earned yield is declined, never borrowed", async ({ page }) => {
+    await activateCard(page);
+    await page.getByTestId("preset-apple").click(); // $149 against about $12 of yield on $5,000
+    const principal = await text(page, "principal-value");
+    await page.getByTestId("pos-pay").click();
+    await expect(page.getByTestId("pos-terminal")).toHaveText("DECLINED: EXCEEDS EARNED YIELD");
+    await expect(page.getByTestId("pos-receipt")).toHaveCount(0);
+    expect(await text(page, "principal-value")).toBe(principal);
   });
 
   test("POS: frozen card declines every swipe with DECLINED: CARD FROZEN", async ({ page }) => {
@@ -117,7 +122,7 @@ test.describe("playground dashboard", () => {
     await expect(page.getByTestId("pos-terminal")).toContainText("APPROVED");
   });
 
-  test("POS: monthly limit, borrow limit (LTV) and invalid amount", async ({ page }) => {
+  test("POS: monthly limit, earned-yield limit and invalid amount", async ({ page }) => {
     await activateCard(page);
     await page.getByTestId("preset-custom").click();
     await page.getByTestId("custom-merchant").fill("Big Purchase");
@@ -127,28 +132,13 @@ test.describe("playground dashboard", () => {
 
     await page.locator("#monthly-limit").fill("5000");
     await expect(page.getByTestId("monthly-limit-value")).toHaveText("$5,000");
-    await page.getByTestId("custom-amount").fill("4400"); // weETH borrows at 55% LTV: limit is ~$2,599
+    await page.getByTestId("custom-amount").fill("4400"); // within the monthly limit, far above the earned yield
     await page.getByTestId("pos-pay").click();
-    await expect(page.getByTestId("pos-terminal")).toHaveText("DECLINED: INSUFFICIENT LIMIT");
+    await expect(page.getByTestId("pos-terminal")).toHaveText("DECLINED: EXCEEDS EARNED YIELD");
 
     await page.getByTestId("custom-amount").fill("-5");
     await page.getByTestId("pos-pay").click();
     await expect(page.getByTestId("pos-terminal")).toHaveText("DECLINED: INVALID AMOUNT");
-  });
-
-  test("POS: the 1.20x health-factor floor binds for stable collateral (USDC: LTV 90%, liq 95%)", async ({ page }) => {
-    await activateCard(page);
-    await deposit(page, "USDC", "1000");
-    await withdraw(page, "weETH", "2"); // 1,000 USDC left against $350 debt: HF cap is debt <= 791.67
-    await expect(page.getByTestId("collateral-value")).toContainText("1,000.00");
-    await page.getByTestId("preset-custom").click();
-    await page.getByTestId("custom-merchant").fill("Laptop");
-    await page.getByTestId("custom-amount").fill("500"); // credit ~451 -> debt ~801 > 791.67
-    await page.getByTestId("pos-pay").click();
-    await expect(page.getByTestId("pos-terminal")).toHaveText("DECLINED: HEALTH FACTOR BELOW 1.20X");
-    await page.getByTestId("custom-amount").fill("400"); // credit ~351 -> debt ~701: allowed
-    await page.getByTestId("pos-pay").click();
-    await expect(page.getByTestId("pos-terminal")).toContainText("APPROVED");
   });
 
   test("monthly limit slider spans $200-$5,000", async ({ page }) => {
@@ -160,26 +150,28 @@ test.describe("playground dashboard", () => {
     await expect(page.getByTestId("monthly-limit-value")).toHaveText("$200");
   });
 
-  test("vouchers: yield funding is free; credit funding borrows; codes match the format", async ({ page }) => {
+  test("vouchers: paid from earned yield only, no credit option, codes match the format", async ({ page }) => {
     await openTab(page, /Voucher Store/);
-    await page.getByTestId("fund-yield").click();
-    await page.getByTestId("voucher-redeem").click();
+    await expect(page.getByTestId("fund-yield")).toContainText("Earned Yield");
+    await expect(page.getByTestId("fund-credit")).toHaveCount(0);
+    for (const brand of ["Amazon", "Uber", "Swiggy", "Zomato"]) await expect(page.getByRole("button", { name: new RegExp(brand) }).first()).toBeVisible();
+
+    await page.getByRole("button", { name: "$10 USD" }).click();
+    await page.getByTestId("voucher-redeem").click(); // Amazon $10 from about $12 of yield
     const code = await text(page, "voucher-code");
     expect(code).toMatch(/^AMZN-YLD-\d{4}-[A-Z2-9]{4}$/);
     await expect(page.getByText("Not redeemable").first()).toBeVisible();
 
-    for (let i = 0; i < 3; i++) await page.getByTestId("voucher-redeem").click();
-    await expect(page.getByTestId("voucher-error")).toContainText("Not enough accrued yield");
+    await page.getByTestId("voucher-redeem").click(); // not enough yield left for a second one
+    await expect(page.getByTestId("voucher-error")).toContainText("Only earned yield can be spent");
 
-    await page.getByTestId("fund-credit").click();
-    await page.getByTestId("voucher-redeem").click();
-    await expect(page.getByTestId("voucher-error")).toHaveCount(0);
     await openTab(page, /Vault & Card/);
-    expect(num(await text(page, "debt-value"))).toBeCloseTo(350 + 25, 0);
+    await expect(page.getByTestId("principal-value")).toHaveText("$5,000.00"); // principal untouched
   });
 
-  test("cashout: validates UPI/IBAN/ACH, needs opt-in for credit, playground payout", async ({ page }) => {
+  test("cashout: validates UPI/IBAN/ACH, only earned yield can be paid out, playground payout", async ({ page }) => {
     await openTab(page, /1-Click Bank/);
+    await expect(page.getByTestId("allow-credit")).toHaveCount(0);
     await page.getByTestId("cashout-amount").fill("30");
 
     await page.getByTestId("cashout-dest").fill("not-a-upi");
@@ -198,53 +190,51 @@ test.describe("playground dashboard", () => {
     await expect(page.locator("#cashout-dest-err")).toContainText("Routing number is invalid");
 
     await page.getByTestId("rail-upi").click();
-    await page.getByTestId("cashout-amount").fill("200");
+    await page.getByTestId("cashout-amount").fill("200"); // far more than the earned yield
     await page.getByTestId("cashout-dest").fill("name@oksbi");
     await page.getByTestId("cashout-submit").click();
-    await expect(page.getByTestId("cashout-error")).toContainText("Allow credit advance");
+    await expect(page.getByTestId("cashout-error")).toContainText("Only earned yield can be spent");
 
-    await page.getByTestId("allow-credit").check();
+    await page.getByTestId("cashout-amount").fill("5");
     await page.getByTestId("cashout-submit").click();
     await expect(page.getByTestId("cashout-success")).toContainText("Payout of");
     await expect(page.getByTestId("cashout-success")).toContainText("no real money moved");
   });
 
-  test("Auto-Pilot sweeps yield into debt and improves health factor", async ({ page }) => {
+  test("demo speed accrues yield from the principal, and the principal does not change", async ({ page }) => {
+    const principal = await text(page, "principal-value");
+    const before = await money(page, "yield-value");
     await page.getByTestId("speed-10000").click();
     await page.waitForTimeout(3000);
-    const hfBefore = num(await text(page, "hf-value"));
-    const debtBefore = num(await text(page, "debt-value"));
-    await page.getByTestId("autopilot-repay").click();
-    expect(num(await text(page, "debt-value"))).toBeLessThan(debtBefore);
-    expect(num(await text(page, "hf-value"))).toBeGreaterThan(hfBefore);
-    await openTab(page, /Ledger/);
-    await expect(page.getByTestId("ledger-row").first()).toContainText("Auto-Pilot");
+    expect(await money(page, "yield-value")).toBeGreaterThan(before);
+    expect(await text(page, "principal-value")).toBe(principal);
   });
 
-  test("micro-buffer advance is collateral-free and repaid first from newly accrued yield", async ({ page }) => {
-    await activateCard(page);
-    await page.getByTestId("preset-custom").click();
-    await page.getByTestId("custom-merchant").fill("Buffer test");
-    const yieldNow = num(await text(page, "yield-value"));
-    const buffer = num(await text(page, "micro-buffer"));
-    await page.getByTestId("custom-amount").fill((yieldNow + buffer / 2).toFixed(2));
-    const debtBefore = num(await text(page, "debt-value"));
-    await page.getByTestId("pos-pay").click();
-    await expect(page.getByTestId("pos-receipt")).toContainText("Funded by advance");
-    expect(num(await text(page, "debt-value"))).toBeCloseTo(debtBefore, 2);
-  });
+  test("principal: deposit adds to it, withdrawing more than it is refused, spend limit stays yield-backed", async ({ page }) => {
+    const limitBefore = await money(page, "limit-value");
+    await deposit(page, "1000");
+    await expect(page.getByTestId("principal-value")).toHaveText("$6,000.00");
+    // More principal does NOT raise what can be spent: the limit is the earned yield only
+    expect(Math.abs((await money(page, "limit-value")) - limitBefore)).toBeLessThan(1);
 
-  test("withdraw: borrow limit blocks a risky withdrawal; asset switch does not reinterpret amounts", async ({ page }) => {
     await page.getByTestId("open-withdraw").click();
-    await page.getByTestId("withdraw-input").fill("1.95"); // leaves 0.05 weETH against $350 debt
+    await page.getByTestId("withdraw-input").fill("9999");
     await page.getByTestId("withdraw-confirm").click();
-    await expect(page.getByTestId("modal-error")).toContainText(/borrow limit|1\.20x/);
+    await expect(page.getByTestId("modal-error")).toContainText("more than your deposited principal");
     await page.getByRole("button", { name: "Cancel" }).click();
 
-    const before = await money(page, "limit-value");
-    await deposit(page, "USDC", "1000");
-    const after = await money(page, "limit-value");
-    expect(after - before).toBeCloseTo(900, 0); // 1000 USDC at 90% LTV, not "1000 weETH"
+    await withdraw(page, "1000");
+    await expect(page.getByTestId("principal-value")).toHaveText("$5,000.00");
+  });
+
+  test("no credit-line, advance, health-factor or collateral wording on any tab", async ({ page }) => {
+    await activateCard(page);
+    const banned = /micro-?buffer|credit (line|available|advance)|auto-?pilot|\bLTV\b|collateral|health factor:|liquidation \(|advance outstanding/i;
+    for (const tab of [/Vault & Card/, /POS Terminal/, /Voucher Store/, /1-Click Bank/, /Ledger/]) {
+      await openTab(page, tab);
+      const body = (await page.locator("main").innerText()) ?? "";
+      expect(body, `${tab}`).not.toMatch(banned);
+    }
   });
 
   test("mobile layout has no horizontal scroll on any tab", async ({ page }) => {

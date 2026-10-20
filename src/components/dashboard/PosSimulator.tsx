@@ -7,12 +7,9 @@ import { shortHash, type CardDetails } from "@/utils/card";
 interface PosSimulatorProps {
   card: CardDetails;
   isCardFrozen: boolean;
-  availableLimit: number;
-  microBuffer: number;
-  accruedYieldUsd: number;
+  /** Earned yield: the only thing a swipe can spend. */
+  spendableUsd: number;
   onSpendCard: (amountUsd: number, merchant: string) => SpendResult | Promise<SpendResult>;
-  /** Overrides the balance rows under the merchant list. */
-  summary?: { k: string; v: number }[];
   /** Mainnet: a preview against real earned yield. Nothing is charged. */
   live?: boolean;
 }
@@ -33,16 +30,12 @@ const PRESET_MERCHANTS: MerchantPreset[] = [
 const LATENCY_BUDGET_MS = 300;
 
 const money = (n: number) => `$${n.toFixed(2)}`;
-const hf = (n: number) => (Number.isFinite(n) ? `${n.toFixed(2)}x` : "∞ (no debt)");
 
 export function PosSimulator({
   card,
   isCardFrozen,
-  availableLimit,
-  microBuffer,
-  accruedYieldUsd,
+  spendableUsd,
   onSpendCard,
-  summary,
   live = false,
 }: PosSimulatorProps) {
   const [selectedMerchant, setSelectedMerchant] = useState<string>(PRESET_MERCHANTS[0]!.name);
@@ -103,7 +96,7 @@ export function PosSimulator({
           </span>
         </h3>
         <p className="text-xs text-muted mt-0.5">
-          {live ? "Tests a swipe against the yield you have really earned. Nothing is charged." : "Simulates a contactless swipe against your yield, micro-buffer and credit line."}
+          {live ? "Tests a swipe against the yield you have really earned. Nothing is charged." : "Simulates a contactless swipe paid from your earned yield. Your principal is never used."}
         </p>
       </div>
 
@@ -181,17 +174,7 @@ export function PosSimulator({
           )}
 
           <div className="rounded-xl border border-white/5 bg-surface-2 p-3 text-[11px] font-mono text-muted space-y-1">
-            {summary ? (
-              summary.map((r) => (
-                <div key={r.k} className="flex justify-between"><span>{r.k}</span><span className="text-fg">{money(r.v)}</span></div>
-              ))
-            ) : (
-              <>
-                <div className="flex justify-between"><span>Settled yield</span><span className="text-emerald">{money(accruedYieldUsd)}</span></div>
-                <div className="flex justify-between"><span>Micro-buffer</span><span className="text-cyan">{money(microBuffer)}</span></div>
-                <div className="flex justify-between"><span>Credit available</span><span className="text-fg">{money(availableLimit)}</span></div>
-              </>
-            )}
+            <div className="flex justify-between"><span>Earned yield you can spend</span><span data-testid="pos-spendable" className="text-emerald">{money(spendableUsd)}</span></div>
           </div>
         </div>
 
@@ -257,23 +240,10 @@ export function PosSimulator({
               <Row k="Amount" v={money(receipt.amountUsd)} strong />
               <Row k="Auth code" v={receipt.authCode} testId="receipt-auth" />
               <Row k="Auth time" v={receipt.timestampIso} />
-              {receipt.source === "mainnet-preview" ? (
-                receipt.funding && <Row k="Funded by earned yield" v={money(receipt.funding.fromYield)} />
-              ) : (
-                <>
-                  <Row k="Health factor (after)" v={hf(receipt.healthAfter)} testId="receipt-hf" />
-                  {receipt.funding && (
-                    <>
-                      <Row k="Funded by yield" v={money(receipt.funding.fromYield)} />
-                      <Row k="Funded by advance" v={money(receipt.funding.fromAdvance)} />
-                      <Row k="Funded by credit" v={money(receipt.funding.fromCredit)} />
-                    </>
-                  )}
-                </>
-              )}
+              {receipt.funding && <Row k="Funded by earned yield" v={money(receipt.funding.fromYield)} testId="receipt-funding" />}
               <Row
                 k="Verified by"
-                v={receipt.source === "mainnet-preview" ? "Your live yield" : receipt.source === "engine-fallback" ? "OrventYield engine" : "Playground engine"}
+                v={receipt.source === "mainnet-preview" ? "Your live yield" : "Playground engine"}
                 testId="receipt-source"
               />
               {receipt.txHash ? (
