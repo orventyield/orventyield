@@ -1,5 +1,5 @@
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { handle, type Env } from "../../worker/index";
 import { sqliteD1 } from "../helpers/sqliteD1";
 
@@ -85,7 +85,7 @@ describe("verification API (Worker)", () => {
   });
 
   describe("end to end over HTTP", () => {
-    it("start, check, status; then the same phone is rejected for another user", async () => {
+    it("start, check, status; then the same phone re-links to another device", async () => {
       const env = base();
       const phone = "+919876543210";
       const start = await j(await handle(req("/api/verify/start", { body: { phone, owner: guest("alice") } }), env));
@@ -102,9 +102,19 @@ describe("verification API (Worker)", () => {
       expect(await j(await handle(req("/api/verify/status?owner=" + guest("alice")), env))).toMatchObject({ ok: true, active: true });
       expect(await j(await handle(req("/api/verify/status?owner=" + guest("bob")), env))).toMatchObject({ ok: true, active: false });
 
-      const dup = await handle(req("/api/verify/start", { body: { phone, owner: guest("mallory") } }), env);
-      expect(dup.status).toBe(409);
-      expect(await j(dup)).toMatchObject({ ok: false, code: "PHONE_ALREADY_BOUND", message: "Card already active for this verified identity." });
+      // A returning user on a new device is told it is a re-link; nothing moves until the code is proven
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(Date.now() + 31_000); // past the per-phone resend cooldown
+      const again = await handle(req("/api/verify/start", { body: { phone, owner: guest("newdevice") } }), env);
+      expect(again.status).toBe(200);
+      const relinkStart = await j(again);
+      expect(relinkStart).toMatchObject({ ok: true, alreadyActive: false, relink: true });
+      expect(await j(await handle(req("/api/verify/status?owner=" + guest("alice")), env))).toMatchObject({ active: true });
+      const moved = await handle(req("/api/verify/check", { body: { phone, owner: guest("newdevice"), nonce: relinkStart.nonce, code: "123456" } }), env);
+      expect(await j(moved)).toMatchObject({ ok: true, active: true, relinked: true });
+      expect(await j(await handle(req("/api/verify/status?owner=" + guest("newdevice")), env))).toMatchObject({ active: true });
+      expect(await j(await handle(req("/api/verify/status?owner=" + guest("alice")), env))).toMatchObject({ active: false });
+      vi.useRealTimers();
     });
 
     it("rate limiting returns 429 with a Retry-After header, keyed by cf-connecting-ip", async () => {

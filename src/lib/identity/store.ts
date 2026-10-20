@@ -16,6 +16,7 @@ export interface CardRow {
 }
 
 export type InsertCardResult = "ok" | "phone_taken" | "owner_taken";
+export type MoveCardResult = "ok" | "owner_taken" | "not_found";
 export type EventKind = "start_ip" | "start_phone" | "check_phone" | "sms_global";
 
 export interface VerifyStore {
@@ -23,6 +24,11 @@ export interface VerifyStore {
   getCardByPhone(phoneHash: string): Promise<CardRow | null>;
   /** Must be atomic: two concurrent claims of the same phone (or owner) cannot both succeed. */
   insertCard(row: CardRow): Promise<InsertCardResult>;
+  /**
+   * Re-link: move the card of `phoneHash` to `toOwner` (which must hold no card), keeping its activation time.
+   * Must be atomic with the UNIQUE(owner) rule.
+   */
+  moveCard(phoneHash: string, toOwner: string): Promise<MoveCardResult>;
   createSession(row: SessionRow): Promise<void>;
   getSession(nonce: string): Promise<SessionRow | null>;
   /** Returns the new attempt count. */
@@ -52,6 +58,17 @@ export class MemoryStore implements VerifyStore {
     if (this.cardsByOwner.has(row.owner)) return "owner_taken";
     this.cardsByPhone.set(row.phoneHash, row);
     this.cardsByOwner.set(row.owner, row);
+    return "ok";
+  }
+  async moveCard(phoneHash: string, toOwner: string): Promise<MoveCardResult> {
+    const card = this.cardsByPhone.get(phoneHash);
+    if (!card) return "not_found";
+    if (card.owner === toOwner) return "ok";
+    if (this.cardsByOwner.has(toOwner)) return "owner_taken";
+    this.cardsByOwner.delete(card.owner);
+    const moved = { ...card, owner: toOwner };
+    this.cardsByPhone.set(phoneHash, moved);
+    this.cardsByOwner.set(toOwner, moved);
     return "ok";
   }
   async createSession(row: SessionRow) {

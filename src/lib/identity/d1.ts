@@ -1,4 +1,4 @@
-import type { CardRow, EventKind, InsertCardResult, SessionRow, VerifyStore } from "./store";
+import type { CardRow, EventKind, InsertCardResult, MoveCardResult, SessionRow, VerifyStore } from "./store";
 
 /** The subset of Cloudflare D1's API we use, so the same SQL also runs against SQLite in tests. */
 export interface D1Like {
@@ -34,6 +34,21 @@ export class D1Store implements VerifyStore {
       if (/UNIQUE|constraint/i.test(msg)) return /cards\.owner/i.test(msg) ? "owner_taken" : "phone_taken";
       throw e;
     }
+  }
+
+  async moveCard(phoneHash: string, toOwner: string): Promise<MoveCardResult> {
+    const card = await this.getCardByPhone(phoneHash);
+    if (!card) return "not_found";
+    if (card.owner === toOwner) return "ok";
+    try {
+      // One statement, guarded by the current owner, so a concurrent move cannot be applied twice.
+      await this.db.prepare("UPDATE cards SET owner = ? WHERE phone_hash = ? AND owner = ?").bind(toOwner, phoneHash, card.owner).run();
+    } catch (e) {
+      if (/UNIQUE|constraint/i.test(String((e as Error)?.message ?? e))) return "owner_taken";
+      throw e;
+    }
+    const after = await this.getCardByPhone(phoneHash);
+    return after?.owner === toOwner ? "ok" : "not_found";
   }
 
   async createSession(r: SessionRow) {

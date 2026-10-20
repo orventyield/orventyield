@@ -14,15 +14,32 @@ describe("1U1C registry rule", () => {
     expect(hasCard(r1.registry, B)).toBe(false);
   });
 
-  it("rejects the same phone under a different wallet with the required message", () => {
+  it("re-links the same phone to a new wallet: the binding MOVES, still exactly one holder", () => {
     const r1 = claimCard(emptyRegistry(), A, "phone-1");
     if (!r1.ok) throw new Error("setup");
     const r2 = claimCard(r1.registry, B, "phone-1");
-    expect(r2.ok).toBe(false);
-    if (!r2.ok) {
-      expect(r2.code).toBe("PHONE_ALREADY_BOUND");
-      expect(r2.message).toBe("Card already active for this verified identity.");
+    expect(r2.ok).toBe(true);
+    if (r2.ok) {
+      expect(r2.idempotent).toBe(false);
+      expect(r2.relinkedFrom).toBe(A.toLowerCase());
+      expect(r2.registry.byPhone["phone-1"]).toBe(B.toLowerCase());
+      expect(Object.keys(r2.registry.byPhone)).toHaveLength(1);
+      expect(Object.keys(r2.registry.byOwner)).toEqual([B.toLowerCase()]); // the previous wallet no longer holds the card
+      expect(hasCard(r2.registry, A)).toBe(false);
     }
+    expect(Object.keys(r1.registry.byOwner)).toEqual([A.toLowerCase()]); // the input registry is never mutated
+  });
+
+  it("does not re-link onto a wallet that already holds another card", () => {
+    let reg = emptyRegistry();
+    for (const [o, p] of [[A, "phone-1"], [B, "phone-2"]] as const) {
+      const r = claimCard(reg, o, p);
+      if (!r.ok) throw new Error("setup");
+      reg = r.registry;
+    }
+    const r = claimCard(reg, B, "phone-1");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("OWNER_ALREADY_HAS_CARD");
   });
 
   it("rejects a second phone for the same owner", () => {
@@ -62,7 +79,13 @@ describe("1U1C registry rule", () => {
       if (r.ok) reg = r.registry;
     }
     expect(Object.keys(reg.byPhone)).toHaveLength(50);
-    expect(claimCard(reg, "guest:user-0000000000000099", "phone-7").ok).toBe(false);
+    // a newcomer proving phone-7 takes it over; there are still 50 cards, one per phone
+    const re = claimCard(reg, "guest:user-0000000000000099", "phone-7");
+    expect(re.ok).toBe(true);
+    if (re.ok) {
+      expect(Object.keys(re.registry.byPhone)).toHaveLength(50);
+      expect(Object.keys(re.registry.byOwner)).toHaveLength(50);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { DEMO_CODE, activateCard } from "./helpers";
+import { DEMO_CODE, activateCard, pickCountry } from "./helpers";
 
 test.describe("mobile OTP verification and one user = one card", () => {
   let errors: string[] = [];
@@ -14,24 +14,77 @@ test.describe("mobile OTP verification and one user = one card", () => {
 
   test.afterEach(() => expect(errors).toEqual([]));
 
-  test("the activation dialog opens with a country dropdown, number field and a clear promise", async ({ page }) => {
+  test("the activation dialog opens with a custom glass country picker, number field and a clear promise", async ({ page }) => {
     await page.getByTestId("card-activate").click();
     const dialog = page.getByRole("dialog", { name: "Activate your card" });
     await expect(dialog).toBeVisible();
     await expect(page.getByTestId("phone-input")).toBeFocused();
 
-    const select = page.getByTestId("phone-country");
-    for (const label of [/India.*\+91/, /United States.*\+1\)/, /United Kingdom.*\+44/]) {
-      await expect(select.locator("option", { hasText: label })).toHaveCount(1);
-    }
-    expect(await select.locator("option").count()).toBeGreaterThan(200);
+    // Not a native <select>: it is a themed combobox with a searchable list
+    await expect(dialog.locator("select")).toHaveCount(0);
+    const trigger = page.getByTestId("phone-country");
+    await expect(trigger).toHaveAttribute("role", "combobox");
+    await trigger.click();
+    const panel = page.getByTestId("phone-country-panel");
+    await expect(panel).toBeVisible();
+    for (const iso of ["IN", "US", "GB"]) await expect(page.getByTestId(`country-option-${iso}`)).toHaveCount(1);
+    expect(await page.locator('[data-testid^="country-option-"]').count()).toBeGreaterThan(200);
+    // The panel is dark glass, not the browser's white menu
+    const bg = await panel.evaluate((el) => getComputedStyle(el).backgroundColor);
+    const [r, g, b2] = (bg.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+    expect(Math.max(r!, g!, b2!)).toBeLessThan(60);
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+    await expect(dialog).toBeVisible(); // Escape closed only the dropdown
     await expect(dialog).toContainText("One verified person, one card");
     await expect(dialog).toContainText("never store your number");
   });
 
+  test("country picker: search by name or code, keyboard selection, selected value shows flag and dial code", async ({ page }) => {
+    await page.getByTestId("card-activate").click();
+    const trigger = page.getByTestId("phone-country");
+    await trigger.click();
+    await expect(page.getByTestId("phone-country-search")).toBeFocused();
+
+    await page.getByTestId("phone-country-search").fill("united k");
+    await expect(page.getByTestId("country-option-GB")).toBeVisible();
+    await expect(page.getByTestId("country-option-IN")).toHaveCount(0);
+    await page.getByTestId("phone-country-search").fill("zzzz");
+    await expect(page.getByText("No country matches")).toBeVisible();
+
+    await page.getByTestId("phone-country-search").fill("+91");
+    await expect(page.getByTestId("country-option-IN")).toBeVisible();
+    await page.keyboard.press("Enter"); // the first match
+    await expect(page.getByTestId("phone-country-panel")).toHaveCount(0);
+    await expect(trigger).toHaveAttribute("data-value", "IN");
+    await expect(trigger).toContainText("+91");
+    await expect(trigger).toBeFocused(); // focus returns to the trigger
+
+    // arrow keys + Enter
+    await trigger.press("ArrowDown");
+    await page.getByTestId("phone-country-search").fill("france");
+    await page.keyboard.press("Enter");
+    await expect(trigger).toHaveAttribute("data-value", "FR");
+    await expect(page.getByTestId("phone-preview")).toContainText("Standard SMS rates"); // nothing typed yet
+  });
+
+  test("country picker stays inside the phone screen: no horizontal scroll and it opens fully on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 640 });
+    await page.getByTestId("card-activate").click();
+    await page.getByTestId("phone-country").click();
+    const box = await page.getByTestId("phone-country-panel").boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(640);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    await page.getByTestId("country-option-IN").click();
+    await expect(page.getByTestId("phone-country")).toHaveAttribute("data-value", "IN");
+  });
+
   test("phone validation: empty, letters, wrong length, landline, and a live E.164 preview", async ({ page }) => {
     await page.getByTestId("card-activate").click();
-    await page.getByTestId("phone-country").selectOption("IN");
+    await pickCountry(page, "IN");
 
     await page.getByTestId("phone-submit").click();
     await expect(page.getByTestId("phone-error")).toHaveText("Enter your mobile number.");
@@ -44,12 +97,12 @@ test.describe("mobile OTP verification and one user = one card", () => {
     await page.getByTestId("phone-submit").click();
     await expect(page.getByTestId("phone-error")).toContainText("valid phone number");
 
-    await page.getByTestId("phone-country").selectOption("GB");
+    await pickCountry(page, "GB");
     await page.getByTestId("phone-input").fill("020 7183 8750"); // London landline
     await page.getByTestId("phone-submit").click();
     await expect(page.getByTestId("phone-error")).toContainText("mobile number that can receive SMS");
 
-    await page.getByTestId("phone-country").selectOption("IN");
+    await pickCountry(page, "IN");
     await page.getByTestId("phone-input").fill("98765 43210");
     await expect(page.getByTestId("phone-preview")).toContainText("+919876543210");
     await expect(page.getByTestId("phone-error")).toHaveCount(0);
@@ -57,7 +110,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
 
   test("OTP step: masked number, auto-focus, resend countdown, wrong code, then success unlocks the card", async ({ page }) => {
     await page.getByTestId("card-activate").click();
-    await page.getByTestId("phone-country").selectOption("IN");
+    await pickCountry(page, "IN");
     await page.getByTestId("phone-input").fill("98765 43210");
     await page.getByTestId("phone-submit").click();
 
@@ -98,7 +151,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
 
   test("pasting the code works, including spaces", async ({ page }) => {
     await page.getByTestId("card-activate").click();
-    await page.getByTestId("phone-country").selectOption("GB");
+    await pickCountry(page, "GB");
     await page.getByTestId("phone-input").fill("07911 123456");
     await page.getByTestId("phone-submit").click();
     await page.getByTestId("otp-input").evaluate((el: HTMLInputElement, v) => {
@@ -112,7 +165,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
 
   test("five wrong codes lock the session and ask for a new code", async ({ page }) => {
     await page.getByTestId("card-activate").click();
-    await page.getByTestId("phone-country").selectOption("IN");
+    await pickCountry(page, "IN");
     await page.getByTestId("phone-input").fill("98765 43210");
     await page.getByTestId("phone-submit").click();
     for (let i = 0; i < 5; i++) {
@@ -130,7 +183,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
     await expect(page.getByTestId("card-locked")).toHaveCount(0);
   });
 
-  test("the same number cannot activate a second card for a different account", async ({ page }) => {
+  test("the same number on a new account signs in and moves the card (re-link), instead of blocking", async ({ page }) => {
     await activateCard(page);
     // Become "another wallet": a fresh account id, but the same browser registry (the demo stand-in for a shared one).
     await page.evaluate(() => {
@@ -141,22 +194,26 @@ test.describe("mobile OTP verification and one user = one card", () => {
     await expect(page.getByTestId("card-locked")).toBeVisible();
 
     await page.getByTestId("card-activate").click();
-    await page.getByTestId("phone-country").selectOption("IN");
+    await pickCountry(page, "IN");
     await page.getByTestId("phone-input").fill("98765 43210");
     await page.getByTestId("phone-submit").click();
 
-    const dup = page.getByTestId("dup-error");
-    await expect(dup).toBeVisible();
-    await expect(dup).toHaveText("Card already active for this verified identity.");
-    await expect(page.getByTestId("otp-step")).toHaveCount(0); // no SMS step was offered
-    await page.getByTestId("otp-close").click();
-    await expect(page.getByTestId("card-locked")).toBeVisible();
+    // No red error and no dead end: the user is told this is a sign-in and gets a code
+    await expect(page.getByTestId("dup-error")).toHaveCount(0);
+    await expect(page.getByTestId("otp-step")).toBeVisible();
+    await expect(page.getByTestId("relink-note")).toContainText("already has a card");
+    await page.getByTestId("otp-input").fill(DEMO_CODE);
+    await expect(page.getByTestId("activation-success")).toContainText("now linked to this wallet");
+    await expect(page.getByTestId("card-unlocked")).toBeVisible();
+  });
 
-    // A different number works for the new account.
+  test("a number the account has not used yet works as before (no re-link note)", async ({ page }) => {
     await page.getByTestId("card-activate").click();
-    await page.getByTestId("phone-country").selectOption("GB");
+    await pickCountry(page, "GB");
     await page.getByTestId("phone-input").fill("07911 123456");
     await page.getByTestId("phone-submit").click();
+    await expect(page.getByTestId("otp-step")).toBeVisible();
+    await expect(page.getByTestId("relink-note")).toHaveCount(0);
     await page.getByTestId("otp-input").fill(DEMO_CODE);
     await expect(page.getByTestId("card-unlocked")).toBeVisible();
   });
@@ -185,7 +242,7 @@ test.describe("mobile OTP verification and one user = one card", () => {
     for (const id of ["phone-country", "phone-input", "phone-submit"]) {
       expect((await page.getByTestId(id).boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
-    await page.getByTestId("phone-country").selectOption("IN");
+    await pickCountry(page, "IN");
     await page.getByTestId("phone-input").fill("98765 43210");
     await page.getByTestId("phone-submit").click();
     await expect(page.getByTestId("otp-step")).toBeVisible();

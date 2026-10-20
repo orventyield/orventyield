@@ -5,7 +5,7 @@
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { validateE164 } from "../../src/lib/identity/phone";
-import { DEMO_CODE, installMockWallet } from "./helpers";
+import { DEMO_CODE, installMockWallet, pickCountry } from "./helpers";
 
 const API = "http://localhost:8787";
 const WEB_ORIGIN = "http://localhost:3200";
@@ -42,7 +42,7 @@ async function connectWallet(page: Page) {
 
 async function fillPhone(page: Page, national: string) {
   await page.getByTestId("card-activate").click();
-  await page.getByTestId("phone-country").selectOption("IN");
+  await pickCountry(page, "IN");
   await page.getByTestId("phone-input").fill(national);
   await page.getByTestId("phone-submit").click();
 }
@@ -81,7 +81,8 @@ test.describe("verification through the real API", () => {
     await again.close();
   });
 
-  test("a second wallet cannot activate a card with an already-verified phone", async ({ browser }) => {
+  test("a second wallet with an already-verified phone signs in: OTP + signature move the card, the first wallet is signed out", async ({ browser }) => {
+    test.setTimeout(120_000);
     const a = await newWalletPage(browser);
     const b = await newWalletPage(browser);
     const phone = freshPhone();
@@ -93,11 +94,18 @@ test.describe("verification through the real API", () => {
 
     await connectWallet(b.page);
     await expect(b.page.getByTestId("card-locked")).toBeVisible();
+    await b.page.waitForTimeout(31_000); // the real Worker keeps a 30s resend cooldown per phone
     await fillPhone(b.page, phone.national);
-    await expect(b.page.getByTestId("dup-error")).toHaveText("Card already active for this verified identity.");
-    await expect(b.page.getByTestId("otp-step")).toHaveCount(0);
-    await b.page.getByTestId("otp-close").click();
-    await expect(b.page.getByTestId("card-locked")).toBeVisible();
+    await expect(b.page.getByTestId("dup-error")).toHaveCount(0);
+    await expect(b.page.getByTestId("relink-note")).toBeVisible();
+    await b.page.getByTestId("otp-input").fill(DEMO_CODE);
+    await expect(b.page.getByTestId("activation-success")).toContainText("now linked to this wallet");
+    await expect(b.page.getByTestId("card-unlocked")).toBeVisible();
+
+    // One holder per phone: the first wallet no longer has the card
+    await a.page.reload();
+    await connectWallet(a.page);
+    await expect(a.page.getByTestId("card-locked")).toBeVisible({ timeout: 15_000 });
     await a.ctx.close();
     await b.ctx.close();
   });

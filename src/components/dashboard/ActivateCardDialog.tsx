@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CountrySelect } from "@/components/ui/CountrySelect";
 import { Dialog } from "@/components/ui/Dialog";
 import { useIdentity } from "@/features/identity/IdentityProvider";
 import { ClientError, DEMO_CODE } from "@/lib/identity/client";
@@ -15,10 +16,13 @@ export interface Activation {
   maskedPhone: string;
   /** Pseudonymous identity id from the verification service; absent when the card was already active. */
   identityId?: string;
+  /** The card already existed on another wallet or device and was moved here. */
+  relinked?: boolean;
 }
 
 const OTP_LENGTH = 6;
-const BLOCKING = new Set(["PHONE_ALREADY_BOUND", "OWNER_ALREADY_HAS_CARD"]);
+// Only "this account already has a card for a different number" blocks. A number that already has a card is a re-link, not an error.
+const BLOCKING = new Set(["OWNER_ALREADY_HAS_CARD"]);
 
 function Steps({ step }: { step: Step }) {
   const items = [
@@ -59,6 +63,7 @@ export function ActivateCardDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; blocking: boolean } | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
+  const [relinked, setRelinked] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [cooldown, setCooldown] = useState(0);
   const [shake, setShake] = useState(0);
@@ -108,6 +113,7 @@ export function ActivateCardDialog({
 
   const finish = useCallback(
     (a: Activation) => {
+      setRelinked(!!a.relinked);
       setStep("success");
       onActivated(a);
       setTimeout(onClose, 1100);
@@ -158,7 +164,7 @@ export function ActivateCardDialog({
         }
       }
       const r = await client.check({ phone: session.e164, code: value, owner, nonce: session.nonce, signature });
-      finish({ maskedPhone: r.maskedPhone, identityId: r.identityId });
+      finish({ maskedPhone: r.maskedPhone, identityId: r.identityId, relinked: r.relinked });
     } catch (err) {
       const ce = fail(err);
       setCode("");
@@ -183,7 +189,7 @@ export function ActivateCardDialog({
       <div className="mb-1 flex items-start justify-between gap-3">
         <div>
           <h2 id="activate-title" className="text-lg font-bold text-fg">
-            {step === "success" ? "Card activated" : "Activate your card"}
+            {step === "success" ? (relinked ? "Welcome back" : "Card activated") : "Activate your card"}
           </h2>
           {step !== "success" && <p className="mt-0.5 text-xs text-muted">One verified person, one card. Takes about 30 seconds.</p>}
         </div>
@@ -214,22 +220,16 @@ export function ActivateCardDialog({
           <div>
             <label htmlFor="phone-national" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-muted">Mobile number</label>
             <div className="flex gap-2">
-              <select
-                aria-label="Country calling code"
-                data-testid="phone-country"
+              <CountrySelect
+                testId="phone-country"
+                label="Country calling code"
                 value={country}
-                onChange={(e) => {
-                  setCountry(e.target.value as CountryCode);
+                options={countries}
+                onChange={(iso) => {
+                  setCountry(iso as CountryCode);
                   setError(null);
                 }}
-                className="h-12 w-[8.5rem] shrink-0 rounded-xl border border-white/10 bg-white/[0.05] px-2 text-sm text-fg outline-none focus:border-cyan"
-              >
-                {countries.map((c) => (
-                  <option key={c.iso} value={c.iso} className="glass-card">
-                    {c.flag} {c.name} ({c.dial})
-                  </option>
-                ))}
-              </select>
+              />
               <input
                 id="phone-national"
                 data-testid="phone-input"
@@ -266,6 +266,11 @@ export function ActivateCardDialog({
 
       {step === "otp" && session && (
         <div className="space-y-4" data-testid="otp-step">
+          {session.relink && (
+            <div data-testid="relink-note" className="rounded-xl border border-cyan/25 bg-cyan/[0.07] px-3 py-2.5 text-xs text-fg/90">
+              <span className="font-semibold text-cyan">Welcome back.</span> This number already has a card. Verify it to sign in and move the card to this wallet. It will no longer be active on the other one.
+            </div>
+          )}
           <p className="text-sm text-muted">
             Enter the 6-digit code sent to <span className="font-mono text-fg" data-testid="otp-sent-to">{session.maskedPhone}</span>.
           </p>
@@ -351,8 +356,8 @@ export function ActivateCardDialog({
           >
             ✓
           </motion.div>
-          <p className="text-base font-semibold text-fg">You&rsquo;re verified</p>
-          <p className="text-xs text-muted">Unlocking your card…</p>
+          <p className="text-base font-semibold text-fg">{relinked ? "Your card is now linked to this wallet" : "You\u2019re verified"}</p>
+          <p className="text-xs text-muted">{relinked ? "Signed in with your number. Unlocking your card…" : "Unlocking your card…"}</p>
         </motion.div>
       )}
     </Dialog>

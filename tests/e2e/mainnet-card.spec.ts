@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { pickCountry } from "./helpers";
 
 /**
  * The Mainnet Card tab end to end on the Anvil fork: deposit -> yield -> phone OTP (browser demo verifier) -> card issuer
@@ -180,7 +181,7 @@ async function mockIssuer(page: Page, opts: { onchain?: boolean } = {}): Promise
 
 async function verifyPhone(page: Page, code = "123456") {
   await page.getByTestId("card-verify-phone").click();
-  await page.getByTestId("phone-country").selectOption("IN");
+  await pickCountry(page, "IN");
   await page.getByTestId("phone-input").fill("98765 43210");
   await page.getByTestId("phone-submit").click();
   await page.getByTestId("otp-input").fill(code);

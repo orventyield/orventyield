@@ -2,11 +2,20 @@ import { expect, type Page } from "@playwright/test";
 
 export const DEMO_CODE = "123456";
 
+/** Choose a country in the glass dropdown (it replaced the native <select>). */
+export async function pickCountry(page: Page, iso: string) {
+  const trigger = page.getByTestId("phone-country");
+  if ((await trigger.getAttribute("data-value")) === iso) return;
+  await trigger.click();
+  await page.getByTestId(`country-option-${iso}`).click();
+  await expect(page.getByTestId("phone-country-panel")).toHaveCount(0);
+}
+
 /** Open the dialog from the locked card, verify a phone number with the demo code, and wait for the card to unlock. */
 export async function activateCard(page: Page, opts: { country?: string; national?: string; code?: string } = {}) {
   const { country = "IN", national = "98765 43210", code = DEMO_CODE } = opts;
   await page.getByTestId("card-activate").click();
-  await page.getByTestId("phone-country").selectOption(country);
+  await pickCountry(page, country);
   await page.getByTestId("phone-input").fill(national);
   await page.getByTestId("phone-submit").click();
   await page.getByTestId("otp-input").fill(code);

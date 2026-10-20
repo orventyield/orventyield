@@ -140,7 +140,16 @@ export interface StartInput {
 }
 export type StartResult =
   | { alreadyActive: true }
-  | { alreadyActive: false; nonce: string; expiresAt: number; resendAfterSec: number; maskedPhone: string; messageToSign?: string };
+  | {
+      alreadyActive: false;
+      nonce: string;
+      expiresAt: number;
+      resendAfterSec: number;
+      maskedPhone: string;
+      messageToSign?: string;
+      /** This number already has a card on another wallet or device. Verifying moves it here. */
+      relink?: boolean;
+    };
 
 export interface CheckInput {
   phone: string;
@@ -156,6 +165,8 @@ export interface CheckResult {
   maskedPhone: string;
   /** Pseudonymous, non-reversible id of the verified identity (truncated HMAC). Lets clients mirror 1U1C. */
   identityId: string;
+  /** The card was already active on another wallet or device and has been moved to this one. */
+  relinked?: boolean;
 }
 
 export class VerificationService {
@@ -232,7 +243,10 @@ export class VerificationService {
       if (mine.phoneHash === hash) return { alreadyActive: true };
       throw new VerifyError("OWNER_ALREADY_HAS_CARD", msg("OWNER_ALREADY_HAS_CARD"));
     }
-    if (await store.getCardByPhone(hash)) throw new VerifyError("PHONE_ALREADY_BOUND", msg("PHONE_ALREADY_BOUND"));
+    // A number that already has a card on ANOTHER wallet is not an error: it is a returning user. They get a code like anyone
+    // else, and proving the phone (OTP) moves the card here. The same rate limits and budget apply as for any SMS.
+    const holder = await store.getCardByPhone(hash);
+    const relink = !!holder && holder.owner !== owner;
 
     // 3) Per-phone limits, resend cooldown, and the global daily SMS budget.
     const recent = await store.eventsSince("start_phone", hash, now - this.cfg.resendCooldownMs + 1);
@@ -265,6 +279,7 @@ export class VerificationService {
       resendAfterSec: Math.ceil(this.cfg.resendCooldownMs / 1000),
       maskedPhone,
       messageToSign: this.needsSignature(owner) ? activationMessage({ owner, masked: maskedPhone, nonce, issuedAt: now }) : undefined,
+      ...(relink ? { relink: true } : {}),
     };
   }
 
@@ -331,10 +346,21 @@ export class VerificationService {
     const identityId = hash.slice(0, 24);
     if (res === "ok") return { active: true, activatedAt: now, maskedPhone: masked, identityId };
 
-    // Lost a race, or the same user re-verifying: decide from what is actually stored.
+    // Lost a race, the same user re-verifying, or a returning user on a new wallet: decide from what is actually stored.
     const mine = await store.getCardByOwner(owner);
     if (mine && mine.phoneHash === hash) return { active: true, activatedAt: mine.activatedAt, maskedPhone: masked, identityId };
-    if (res === "phone_taken") throw new VerifyError("PHONE_ALREADY_BOUND", msg("PHONE_ALREADY_BOUND"));
+    if (res === "phone_taken") {
+      // The phone just proved it is theirs: move the card here. The previous wallet no longer holds it.
+      const moved = await store.moveCard(hash, owner);
+      if (moved === "ok") {
+        const now2 = await store.getCardByOwner(owner);
+        return { active: true, activatedAt: now2?.activatedAt ?? now, maskedPhone: masked, identityId, relinked: true };
+      }
+      if (moved === "not_found") {
+        // The card disappeared between the two steps: claim it normally.
+        if ((await store.insertCard({ phoneHash: hash, owner, activatedAt: now })) === "ok") return { active: true, activatedAt: now, maskedPhone: masked, identityId };
+      }
+    }
     throw new VerifyError("OWNER_ALREADY_HAS_CARD", msg("OWNER_ALREADY_HAS_CARD"));
   }
 }

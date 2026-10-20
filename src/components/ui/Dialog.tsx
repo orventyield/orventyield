@@ -42,6 +42,8 @@ export function Dialog({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      // A popover rendered outside the panel (e.g. a dropdown) handles its own Escape and Tab.
+      if (document.querySelector("[data-dialog-popover-open]")) return;
       if (e.key === "Escape") {
         e.stopPropagation();
         close();

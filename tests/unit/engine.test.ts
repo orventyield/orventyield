@@ -44,11 +44,12 @@ describe("one user = one card (engine)", () => {
     const first = issueCard(empty, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "id-1");
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    const dup = issueCard(first.registry, "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "id-1");
-    expect(dup.ok).toBe(false);
-    if (!dup.ok) {
-      expect(dup.code).toBe("PHONE_ALREADY_BOUND");
-      expect(dup.message).toBe("Card already active for this verified identity.");
+    // a second wallet proving the same identity re-links the card to itself: still exactly one holder
+    const relinked = issueCard(first.registry, "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "id-1");
+    expect(relinked.ok).toBe(true);
+    if (relinked.ok) {
+      expect(Object.keys(relinked.registry.byOwner)).toEqual(["0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"]);
+      expect(Object.keys(relinked.registry.byPhone)).toEqual(["id-1"]);
     }
   });
 

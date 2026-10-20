@@ -83,14 +83,63 @@ describe.each(["memory", "sqlite"] as const)("verification service (%s store)", 
   });
 
   describe("one user = one card", () => {
-    it("rejects the same phone under another wallet before any SMS is sent", async () => {
+    it("a number that already has a card is a returning user: it gets a code and is told this is a re-link", async () => {
       await activate(c, guest("alice"), PHONE_A);
+      c.clock.t += 31_000; // past the per-phone resend cooldown
       const spy = vi.spyOn(c.otp, "start");
-      const e = await fails(c.svc.start({ phone: PHONE_A, owner: guest("mallory"), ip: "3.3.3.3" }));
-      expect(e.code).toBe("PHONE_ALREADY_BOUND");
-      expect(e.message).toBe("Card already active for this verified identity.");
-      expect(e.status).toBe(409);
-      expect(spy).not.toHaveBeenCalled();
+      const s = await c.svc.start({ phone: PHONE_A, owner: guest("newdevice"), ip: "3.3.3.3" });
+      expect(s).toMatchObject({ alreadyActive: false, relink: true });
+      expect(spy).toHaveBeenCalledTimes(1); // proof of the phone is required, so an SMS IS sent
+      // Nothing moves until the code is proven: alice still holds the card, the new device does not
+      expect((await c.svc.status(guest("alice"))).active).toBe(true);
+      expect((await c.svc.status(guest("newdevice"))).active).toBe(false);
+    });
+
+    it("proving the phone moves the card: the new owner is active, the previous one is not (one holder per phone)", async () => {
+      const first = await activate(c, guest("alice"), PHONE_A);
+      if ("alreadyActive" in first) throw new Error("unexpected");
+      c.clock.t += 31_000;
+      const s = await c.svc.start({ phone: PHONE_A, owner: guest("newdevice"), ip: "3.3.3.3" });
+      if (s.alreadyActive) throw new Error("unexpected");
+      const r = await c.svc.check({ phone: PHONE_A, owner: guest("newdevice"), nonce: s.nonce, code: c.otp.peek(PHONE_A)!, ip: "3.3.3.3" });
+      expect(r).toMatchObject({ active: true, relinked: true, identityId: first.identityId });
+      expect(r.activatedAt).toBe(first.activatedAt); // card age is preserved
+      expect((await c.svc.status(guest("newdevice"))).active).toBe(true);
+      expect((await c.svc.status(guest("alice"))).active).toBe(false);
+    });
+
+    it("a wrong code never re-links, and the original holder keeps the card", async () => {
+      await activate(c, guest("alice"), PHONE_A);
+      c.clock.t += 31_000;
+      const s = await c.svc.start({ phone: PHONE_A, owner: guest("mallory"), ip: "3.3.3.3" });
+      if (s.alreadyActive) throw new Error("unexpected");
+      const e = await fails(c.svc.check({ phone: PHONE_A, owner: guest("mallory"), nonce: s.nonce, code: "000000", ip: "3.3.3.3" }));
+      expect(e.code).toBe("INVALID_CODE");
+      expect((await c.svc.status(guest("alice"))).active).toBe(true);
+      expect((await c.svc.status(guest("mallory"))).active).toBe(false);
+    });
+
+    it("an owner that already has a card for ANOTHER phone cannot re-link a second one", async () => {
+      await activate(c, guest("alice"), PHONE_A, "1.1.1.1");
+      await activate(c, guest("bob"), PHONE_B, "2.2.2.2");
+      const e = await fails(c.svc.start({ phone: PHONE_A, owner: guest("bob"), ip: "3.3.3.3" }));
+      expect(e.code).toBe("OWNER_ALREADY_HAS_CARD");
+      expect((await c.svc.status(guest("alice"))).active).toBe(true);
+    });
+
+    it("re-linking a wallet requires its signature, so nobody can pull a card onto a wallet they do not own", async () => {
+      const w = make(kind, { requireWalletSignature: true });
+      const alice = guest("alice");
+      await activate(w, alice, PHONE_A);
+      w.clock.t += 31_000;
+      const victim = "0x3333333333333333333333333333333333333333";
+      const s = await w.svc.start({ phone: PHONE_A, owner: victim, ip: "4.4.4.4" });
+      if (s.alreadyActive) throw new Error("unexpected");
+      expect(s.relink).toBe(true);
+      expect(s.messageToSign).toBeTruthy();
+      const e = await fails(w.svc.check({ phone: PHONE_A, owner: victim, nonce: s.nonce, code: w.otp.peek(PHONE_A)!, ip: "4.4.4.4" })); // no signature
+      expect(e.code).toBe("BAD_SIGNATURE");
+      expect((await w.svc.status(alice)).active).toBe(true);
     });
 
     it("rejects a second phone for an owner that already has a card", async () => {
@@ -238,13 +287,19 @@ describe.each(["memory", "sqlite"] as const)("verification service (%s store)", 
       await expect(small.svc.start({ phone: "+919876543299", owner: guest("u9"), ip: "5.5.5.9" })).resolves.toBeTruthy();
     });
 
-    it("duplicate-number probing is throttled per IP even though it sends no SMS", async () => {
+    it("re-link attempts are throttled per IP and per phone like any other SMS", async () => {
       await activate(c, guest("alice"), PHONE_A, "1.1.1.1");
-      for (let i = 0; i < 5; i++) {
-        const e = await fails(c.svc.start({ phone: PHONE_A, owner: guest(`m${i}`), ip: "8.8.8.8" }));
-        expect(e.code).toBe("PHONE_ALREADY_BOUND");
+      c.clock.t += 31_000;
+      // the first re-link attempt sends; further ones hit the resend cooldown and then the per-phone limits, never an unbounded SMS stream
+      const first = await c.svc.start({ phone: PHONE_A, owner: guest("m0"), ip: "8.8.8.8" });
+      expect(first).toMatchObject({ relink: true });
+      expect((await fails(c.svc.start({ phone: PHONE_A, owner: guest("m1"), ip: "8.8.8.8" }))).code).toBe("COOLDOWN");
+      const sent = vi.spyOn(c.otp, "start");
+      for (let i = 2; i < 12; i++) {
+        c.clock.t += 31_000;
+        await c.svc.start({ phone: PHONE_A, owner: guest(`m${i}`), ip: `8.8.8.${i}` }).catch(() => undefined);
       }
-      expect((await fails(c.svc.start({ phone: PHONE_A, owner: guest("m9"), ip: "8.8.8.8" }))).code).toBe("RATE_LIMITED");
+      expect(sent.mock.calls.length).toBeLessThanOrEqual(2); // 3 per phone per hour, one already used above
     });
 
     it("failed provider sends still count against the limits", async () => {
