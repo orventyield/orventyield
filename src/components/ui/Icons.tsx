@@ -1,3 +1,5 @@
+import { LOGO_CYAN, LOGO_VIEWBOX, LOGO_WHITE } from "./logoPaths";
+
 import type { SVGProps } from "react";
 
 type P = SVGProps<SVGSVGElement>;
@@ -101,9 +103,9 @@ export const Contactless = (p: P) => (
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
-      <circle cx="16" cy="16" r="9" fill="none" stroke="#00F0FF" strokeWidth="4" />
-      <circle cx="23" cy="9" r="3.2" fill="#10B981" />
+    <svg viewBox={LOGO_VIEWBOX} className={className} aria-hidden="true">
+      <path fill="#F4F4F5" fillRule="evenodd" d={LOGO_WHITE} />
+      <path fill="#00F0FF" fillRule="evenodd" d={LOGO_CYAN} />
     </svg>
   );
 }

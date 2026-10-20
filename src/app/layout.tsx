@@ -10,6 +10,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://orventyield.tech"),
   title: "OrventYield: Spend the yield. Keep the principal.",
   description:
     "A non-custodial yield neobank. Deposit USDC into your own Safe, watch yield tick live, and spend the yield while your principal stays put.",
@@ -17,7 +18,9 @@ export const metadata: Metadata = {
     title: "OrventYield: Spend the yield. Keep the principal.",
     description: "Live yield, a virtual card and real-world spending, without selling your crypto.",
     type: "website",
+    siteName: "OrventYield",
   },
+  twitter: { card: "summary_large_image", title: "OrventYield: Spend the yield. Keep the principal." },
 };
 
 export const viewport: Viewport = {

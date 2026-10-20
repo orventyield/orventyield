@@ -47,7 +47,7 @@ export function Nav() {
         aria-label="Main"
       >
         <Link href="/" className="flex items-center gap-2" aria-label="OrventYield home">
-          <Logo className="h-7 w-7" />
+          <Logo className="h-9 w-9" />
           <span className="text-[17px] font-bold tracking-tight">
             Orvent<span className="text-cyan">Yield</span>
           </span>

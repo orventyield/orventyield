@@ -173,7 +173,7 @@ export function DashboardHeader({ onResetDemo }: { onResetDemo?: () => void }) {
     <header className="sticky top-0 z-40 border-b border-white/5 bg-[#07080C]/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-3 px-4 py-3 sm:px-6">
         <Link href="/" className="group flex items-center gap-2" aria-label="OrventYield home">
-          <Logo className="h-7 w-7 transition-transform group-hover:scale-105" />
+          <Logo className="h-9 w-9 transition-transform group-hover:scale-105" />
           <span className="text-lg font-bold tracking-tight text-fg">
             Orvent<span className="text-cyan">Yield</span>
           </span>
