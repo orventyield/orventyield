@@ -13,6 +13,7 @@
     "fork:stop": "bash scripts/anvil-fork.sh stop",
     "fork:test": "node scripts/fork-safe-aave.mjs",
     "cashout:probe": "node scripts/transak-staging-probe.mjs",
+    "cards:probe": "node scripts/bitrefill-cards-probe.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
