@@ -132,40 +132,6 @@ export function MainnetDashboard() {
   };
 
   if (a.status === "disconnected") return <ConnectGate />;
-  if (a.status === "wrong-chain") {
-    return (
-      <Card className="mx-auto max-w-xl text-center">
-        <div data-testid="wrong-network" className="space-y-4 py-4">
-          <h2 className="text-xl font-bold text-fg">Switch to Arbitrum One</h2>
-          <p className="mx-auto max-w-sm text-sm text-muted">OrventYield runs on Arbitrum One. Your wallet is on a different network.</p>
-          <button type="button" data-testid="switch-network" onClick={a.switchToArbitrum} className="min-h-12 rounded-xl bg-cyan px-8 text-sm font-semibold text-bg hover:brightness-110">
-            Switch network
-          </button>
-          {a.safe && (
-            <>
-              <p className="text-xs text-muted">Or pay from this network: it is bridged into your Safe for you.</p>
-              <button type="button" data-testid="wrong-network-bridge" onClick={() => setModal("bridge")} className="min-h-12 rounded-xl border border-cyan/30 bg-cyan/10 px-8 text-sm font-semibold text-cyan hover:bg-cyan/20">
-                Bridge &amp; Deposit
-              </button>
-              <BridgeDepositDialog
-                open={modal === "bridge"}
-                onClose={close}
-                safe={a.safe}
-                idleUsdc={0n}
-                steps={[]}
-                busy={false}
-                error={null}
-                success={null}
-                explorer={explorer}
-                onSupply={() => undefined}
-                onConnect={() => openWalletModal({ thenMainnet: true })}
-              />
-            </>
-          )}
-        </div>
-      </Card>
-    );
-  }
   if (a.status === "error") {
     return (
       <Card className="mx-auto max-w-xl text-center">
@@ -181,6 +147,16 @@ export function MainnetDashboard() {
 
   return (
     <div className="space-y-6" data-testid="mainnet-dashboard">
+      {a.wrongChain && (
+        <div data-testid="network-notice" role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs text-muted">
+          <span>
+            Connected on <span className="font-semibold text-fg">{a.walletChainName ?? "another network"}</span>. Everything here still loads; we switch to Arbitrum for you when you withdraw or pay.
+          </span>
+          <button type="button" data-testid="switch-network" onClick={a.switchToArbitrum} className="min-h-9 rounded-lg border border-white/10 px-3 font-semibold text-fg hover:bg-white/5">
+            Switch to Arbitrum
+          </button>
+        </div>
+      )}
       {/* Navigation tabs: identical to the Playground */}
       <SegmentedTabs<Tab>
         layoutId="mn-tab-pill"

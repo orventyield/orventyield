@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { erc20Abi, getAddress, type Address, type Hex } from "viem";
-import { useAccount, useBalance, useChainId, usePublicClient, useSendTransaction, useSwitchChain } from "wagmi";
+import { useAccount, useBalance, useChainId, usePublicClient, useConfig, useSendTransaction, useSwitchChain } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveData, findSafeCreationBlock, readAccount, supplyData, transferData, withdrawPrincipalData, withdrawYieldData,
@@ -50,7 +50,9 @@ export function useSafeAccount() {
   const wrongChain = isConnected && walletChainId !== ARBITRUM_CHAIN_ID && !onFork;
   const client = usePublicClient({ chainId });
   const qc = useQueryClient();
-  const { switchChain } = useSwitchChain();
+  const { switchChain, switchChainAsync } = useSwitchChain();
+  const wagmiConfig = useConfig();
+  const walletChainName = wagmiConfig.chains.find((c) => c.id === walletChainId)?.name;
   const { sendTransactionAsync } = useSendTransaction();
 
   const enabled = !!owner && !!client;
@@ -139,6 +141,11 @@ export function useSafeAccount() {
       setSteps(active.map((p) => ({ id: p.id, label: p.label, detail: p.detail, status: "todo" })));
       const mark = (id: string, patch: Partial<TxStep>) => setSteps((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
       try {
+        // Reads work from any network; only an Arbitrum write needs the wallet on Arbitrum. Switch right here, on demand.
+        if (wrongChain) {
+          mark(active[0]!.id, { status: "wallet" });
+          await switchChainAsync({ chainId: ARBITRUM_CHAIN_ID });
+        }
         for (const step of active) {
           mark(step.id, { status: "wallet" });
           await client.call({ account: owner, to: step.to, data: step.data }); // simulate: throws with the revert reason
@@ -163,7 +170,7 @@ export function useSafeAccount() {
         setBusy(false);
       }
     },
-    [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe],
+    [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe, wrongChain, switchChainAsync],
   );
 
   const deposit = useCallback(
@@ -311,7 +318,7 @@ export function useSafeAccount() {
     [owner, safe, deployed, run, chainId, safeStep],
   );
 
-  const status = !isConnected ? "disconnected" : wrongChain ? "wrong-chain" : safeQ.isError || accountQ.isError || walletQ.isError ? "error" : safeQ.isLoading || deployedQ.isLoading || walletQ.isLoading || (deployed && accountQ.isLoading) ? "loading" : "ready";
+  const status = !isConnected ? "disconnected" : safeQ.isError || accountQ.isError || walletQ.isError ? "error" : safeQ.isLoading || deployedQ.isLoading || walletQ.isLoading || (deployed && accountQ.isLoading) ? "loading" : "ready";
 
   return {
     status,
@@ -339,6 +346,9 @@ export function useSafeAccount() {
     execFromSafe,
     withdrawPrincipal,
     supplyIdle,
+    /** The wallet is connected on another supported network (reads and bridging still work; Arbitrum writes switch on demand). */
+    wrongChain,
+    walletChainName,
     switchToArbitrum: () => switchChain({ chainId: ARBITRUM_CHAIN_ID }),
     retry: () => {
       void qc.invalidateQueries();
