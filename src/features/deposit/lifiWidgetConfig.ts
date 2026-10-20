@@ -124,7 +124,29 @@ export function buildLifiWidgetConfig(input: BuildLifiConfigInput): WidgetConfig
       },
       shape: { borderRadius: 16, borderRadiusSecondary: 12 },
       typography: { fontFamily: "var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif" },
-      container: { boxShadow: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "20px", background: PALETTE.surface },
+      container: { boxShadow: "0 0 0 1px rgba(0,240,255,0.18), 0 0 40px -12px rgba(0,240,255,0.25)", border: "none", borderRadius: "20px", background: PALETTE.surface },
+      components: {
+        // Input blocks (From / To): soft glass cards that light up on hover and focus.
+        MuiCard: {
+          styleOverrides: {
+            root: {
+              border: "1px solid rgba(255,255,255,0.08)",
+              backgroundColor: PALETTE.surface2,
+              transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+              "&:hover, &:focus-within": { borderColor: "rgba(0,240,255,0.45)", boxShadow: "0 0 18px -6px rgba(0,240,255,0.4)" },
+            },
+          },
+        },
+        MuiButton: { styleOverrides: { root: { textTransform: "none", fontWeight: 600 } } },
+      },
+    },
+    // Plain-English labels: the whole flow reads "You pay" -> "You receive" -> "Review & Bridge" -> "Confirm in Wallet".
+    languageResources: {
+      en: {
+        header: { exchange: "Pay with any token", from: "You pay", to: "You receive", youPay: "You pay", send: "Amount" },
+        main: { from: "You pay", to: "You receive" },
+        button: { exchange: "Review & Bridge", review: "Review & Bridge", bridgeReview: "Review & Bridge", swapReview: "Review & Bridge", depositReview: "Review & Bridge", startBridging: "Confirm in Wallet", startSwapping: "Confirm in Wallet", confirm: "Confirm in Wallet" },
+      },
     },
   };
 
