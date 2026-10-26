@@ -137,6 +137,15 @@ export function MorphoVaultOverview({ m, apy, onOpen }: { m: Account; apy: numbe
               <dd data-testid="safe-idle-usdg" className="font-semibold text-amber">${fmtUsdc(m.safeUsdg)} USDG</dd>
               <button
                 type="button"
+                data-testid="deposit-safe-usdg"
+                disabled={m.busy}
+                onClick={() => void m.supplyIdle(m.safeUsdg)}
+                className="rounded-lg bg-emerald/20 px-2 py-0.5 text-[11px] font-semibold text-emerald hover:bg-emerald/30 disabled:opacity-50"
+              >
+                + Deposit to Vault
+              </button>
+              <button
+                type="button"
                 data-testid="sweep-safe-usdg"
                 disabled={m.busy}
                 onClick={() => void m.withdrawSafeUsdg(m.safeUsdg)}

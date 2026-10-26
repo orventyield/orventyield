@@ -23,15 +23,22 @@ const Widget = dynamic(() => import("./BridgeDepositWidgetInner").then((m) => m.
 });
 
 interface Props {
-  /** The user's Safe on Arbitrum One. Destination is locked to it. */
+  /** The user's Safe: destination is locked to it. */
   safe: Address;
+  /** Destination chain ID (defaults to Arbitrum One: 42161). Set to 4663 for Robinhood Chain. */
+  toChainId?: number;
+  /** Destination token address (defaults to native USDC on Arbitrum, or Paxos USDG on Robinhood Chain). */
+  toTokenAddress?: Address;
   /** USDC base units. When set, funds also get supplied to Aave on arrival (see lifiWidgetConfig.ts). */
   supplyAmount?: bigint;
   /** Called when the widget's own "Connect wallet" button is pressed. */
   onConnect?: () => void;
 }
 
-export function BridgeDepositWidget({ safe, supplyAmount, onConnect }: Props) {
-  const config = useMemo(() => buildLifiWidgetConfig({ safe, supplyAmount, onConnect }), [safe, supplyAmount, onConnect]);
+export function BridgeDepositWidget({ safe, toChainId, toTokenAddress, supplyAmount, onConnect }: Props) {
+  const config = useMemo(
+    () => buildLifiWidgetConfig({ safe, toChainId, toTokenAddress, supplyAmount, onConnect }),
+    [safe, toChainId, toTokenAddress, supplyAmount, onConnect],
+  );
   return <Widget config={config} />;
 }

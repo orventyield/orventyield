@@ -262,6 +262,41 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     [owner, safe, run, safeStep],
   );
 
+  /**
+   * Supply USDG that is already in the Safe (e.g. just bridged in) to the Morpho vault, in ONE Safe transaction: approve
+   * exactly `amount` to the vault, then deposit for the Safe. Creates the Safe first if the bridge landed before it existed.
+   */
+  const supplyIdle = useCallback(
+    (amount: bigint) => {
+      if (!owner || !safe || amount <= 0n) return;
+      const { initializer, saltNonce } = safeSetup(owner);
+      return run(
+        [
+          {
+            id: "deploy",
+            label: "Create your Safe",
+            detail: `Safe v1.4.1 factory deploys your personal smart account ${safe.slice(0, 6)}…${safe.slice(-4)} on Robinhood Chain. You are its only owner.`,
+            to: ROBINHOOD.safeProxyFactory,
+            data: encodeFunctionData({ abi: safeFactoryAbi, functionName: "createProxyWithNonce", args: [ROBINHOOD.safeL2Singleton, initializer, saltNonce] }),
+            skip: deployed,
+            onDone: (b) => writeCache(blockKey(chainId, safe), b.toString()),
+          },
+          safeStep(
+            "supply-idle",
+            "Deposit into Morpho Vault",
+            `Your Safe supplies the ${fmtUsdc(amount)} USDG it holds to the Morpho Steakhouse USDG vault (exact-amount approval), where it earns yield.`,
+            [
+              { to: ROBINHOOD.usdg, data: approveData(amount) },
+              { to: ROBINHOOD.steakhouseUsdgVault, data: depositData(amount, safe) },
+            ],
+          ),
+        ],
+        `Deposited ${fmtUsdc(amount)} USDG. It is now earning yield in your Safe.`,
+      );
+    },
+    [owner, safe, deployed, run, chainId, safeStep],
+  );
+
   /** Principal exit straight to the connected wallet. */
   const withdrawPrincipal = useCallback(
     async (amount: bigint) => {
@@ -333,6 +368,7 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
       setSteps([]);
     },
     deposit,
+    supplyIdle,
     withdrawYield,
     withdrawPrincipal,
     withdrawSafeUsdg,

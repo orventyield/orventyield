@@ -2,17 +2,17 @@ import { formatUnits, getAddress, isAddress, type Address } from "viem";
 import type { WidgetConfig } from "@lifi/widget";
 import { supplyData } from "../../lib/aave/account";
 import { ARBITRUM, ARBITRUM_CHAIN_ID } from "../../lib/contracts/arbitrum";
+import { ROBINHOOD, ROBINHOOD_CHAIN_ID } from "../../lib/contracts/robinhood";
 
 /**
  * Pure builder for the LI.FI "Bridge & Deposit" widget configuration. No React, no network.
  *
- * Destination is locked to native USDC on Arbitrum One, received by the user's Safe (the address is shown but cannot be
- * edited). Two modes:
- *  - plain (default): USDC lands in the Safe; the existing Safe -> Aave supply step then deposits it.
- *  - contract call (`supplyAmount` given): LI.FI also runs Aave Pool.supply(USDC, amount, onBehalfOf=Safe, 0) on Arbitrum,
- *    so the funds land as aUSDC. The widget pins `toFallbackAddress` to the same locked `toAddress` (checked in
- *    @lifi/widget 4.8.0 src/hooks/useRoutes.ts), so a failed destination call leaves bridged USDC in the Safe.
- *    The amount is baked into calldata, so this mode needs a known receive amount up front.
+ * Destination is locked to native USDC on Arbitrum One or Paxos USDG on Robinhood Chain, received by the user's Safe (the
+ * address is shown but cannot be edited).
+ * Modes:
+ *  - plain (default): USDC/USDG lands in the Safe; the Safe -> vault supply step then deposits it.
+ *  - contract call (`supplyAmount` given on Arbitrum): LI.FI also runs Aave Pool.supply(USDC, amount, onBehalfOf=Safe, 0),
+ *    so the funds land as aUSDC.
  */
 
 export const LIFI_INTEGRATOR = "OrventYield";
@@ -64,8 +64,12 @@ const PALETTE = {
 } as const;
 
 export interface BuildLifiConfigInput {
-  /** The user's Safe on Arbitrum One. Required: the widget must never fall back to the connected EOA. */
+  /** The user's Safe. Required: the widget must never fall back to the connected EOA. */
   safe: string;
+  /** Destination chain ID (defaults to Arbitrum One: 42161). Can be set to 4663 for Robinhood Chain. */
+  toChainId?: number;
+  /** Destination token address (defaults to native USDC on Arbitrum, or Paxos USDG on Robinhood Chain). */
+  toTokenAddress?: Address;
   /** USDC base units. When > 0, add the destination Aave supply call so funds arrive as aUSDC. */
   supplyAmount?: bigint;
   /** Optional LI.FI partner key. NOTE: anything passed here ships in the public bundle. */
@@ -82,6 +86,11 @@ export function buildLifiWidgetConfig(input: BuildLifiConfigInput): WidgetConfig
   const supply = input.supplyAmount ?? 0n;
   if (supply < 0n) throw new Error("supplyAmount must not be negative.");
 
+  const destChainId = input.toChainId ?? ARBITRUM_CHAIN_ID;
+  const isRobinhood = destChainId === ROBINHOOD_CHAIN_ID;
+  const destToken = input.toTokenAddress ?? (isRobinhood ? (ROBINHOOD.usdg as Address) : ARBITRUM.usdc);
+  const safeName = isRobinhood ? "Your Robinhood Safe" : "Your OrventYield Safe";
+
   const config: WidgetConfig = {
     integrator: LIFI_INTEGRATOR,
     ...(input.apiKey ? { apiKey: input.apiKey } : {}),
@@ -90,19 +99,19 @@ export function buildLifiWidgetConfig(input: BuildLifiConfigInput): WidgetConfig
     slippage: DEFAULT_SLIPPAGE,
 
     // Destination: locked.
-    toChain: ARBITRUM_CHAIN_ID,
-    toToken: ARBITRUM.usdc,
+    toChain: destChainId,
+    toToken: destToken,
     // "EVM" is the value of @lifi/sdk's ChainType.EVM; spelled out so this module stays free of runtime SDK imports.
-    toAddress: { address: safe, chainType: "EVM" as NonNullable<WidgetConfig["toAddress"]>["chainType"], name: "Your OrventYield Safe" },
+    toAddress: { address: safe, chainType: "EVM" as NonNullable<WidgetConfig["toAddress"]>["chainType"], name: safeName },
     disabledUI: { toAddress: true, toToken: true },
     hiddenUI: { appearance: true, language: true },
     requiredUI: { toAddress: true },
 
-    // Source: five chains, four asset families.
-    chains: { from: { allow: [...SOURCE_CHAIN_IDS] }, to: { allow: [ARBITRUM_CHAIN_ID] } },
+    // Source: five chains, four asset families. Destination: target chain & token.
+    chains: { from: { allow: [...SOURCE_CHAIN_IDS] }, to: { allow: [destChainId] } },
     tokens: {
       from: { allow: SOURCE_TOKENS.map((t) => ({ chainId: t.chainId, address: t.address })) },
-      to: { allow: [{ chainId: ARBITRUM_CHAIN_ID, address: ARBITRUM.usdc }] },
+      to: { allow: [{ chainId: destChainId, address: destToken }] },
     },
 
     walletConfig: { onConnect: input.onConnect },
@@ -150,7 +159,7 @@ export function buildLifiWidgetConfig(input: BuildLifiConfigInput): WidgetConfig
     },
   };
 
-  if (supply > 0n) {
+  if (supply > 0n && !isRobinhood) {
     config.mode = "custom";
     config.modeOptions = { custom: { type: "deposit" } };
     // The widget wants a human decimal string for toAmount (it parses it with the token decimals).

@@ -85,3 +85,28 @@ describe("buildLifiWidgetConfig: Aave supply contract call", () => {
     expect(call(10n ** 15n).toAmount).toBe("1000000000");
   });
 });
+
+describe("buildLifiWidgetConfig: Robinhood Chain destination", () => {
+  const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+  it("targets Paxos USDG on Robinhood Chain when specified", () => {
+    const c = buildLifiWidgetConfig({ safe: SAFE, toChainId: 4663, toTokenAddress: USDG });
+    expect(c.toChain).toBe(4663);
+    expect(c.toToken).toBe(USDG);
+    expect(c.toAddress?.name).toBe("Your Robinhood Safe");
+    expect(c.toAddress?.address).toBe(getAddress(SAFE));
+    expect(c.chains?.to?.allow).toEqual([4663]);
+    expect(c.tokens?.to?.allow).toEqual([{ chainId: 4663, address: USDG }]);
+  });
+  it("defaults to Paxos USDG if toTokenAddress is omitted on Robinhood Chain", () => {
+    const c = buildLifiWidgetConfig({ safe: SAFE, toChainId: 4663 });
+    expect(c.toChain).toBe(4663);
+    expect(c.toToken).toBe(USDG);
+    expect(c.toAddress?.name).toBe("Your Robinhood Safe");
+  });
+  it("does not attach Aave contract calls on Robinhood Chain", () => {
+    const c = buildLifiWidgetConfig({ safe: SAFE, toChainId: 4663, supplyAmount: 1000000n });
+    expect(c.contractCalls).toBeUndefined();
+    expect(c.mode).toBeUndefined();
+  });
+});
+

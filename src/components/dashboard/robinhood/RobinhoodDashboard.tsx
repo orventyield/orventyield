@@ -6,6 +6,7 @@ import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { BankCashout } from "@/components/dashboard/BankCashout";
 import { ConnectGate } from "@/components/dashboard/MainnetDashboard";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
+import { BridgeDepositDialog } from "@/components/dashboard/mainnet/BridgeDepositDialog";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
 import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
 import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
@@ -23,7 +24,7 @@ import { useAppMode } from "@/features/mode/AppModeProvider";
 import type { SpendResult } from "@/features/vault/useVaultState";
 import { useVoucherShop } from "@/features/vouchers/useVoucherShop";
 import type { PoolEvent } from "@/lib/aave/position";
-import { ROBINHOOD, ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
+import { ROBINHOOD, ROBINHOOD_CHAIN_ID, ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
 import { formatExpiry } from "@/lib/immersve/stage";
 import { authCode, type CardDetails } from "@/utils/card";
 
@@ -33,7 +34,7 @@ type Tab = "overview" | "pos" | "vouchers" | "cashout" | "activity";
 export function RobinhoodDashboard() {
   const m = useMorphoAccount();
   const { apy } = useMorphoApy();
-  const { setNetwork } = useAppMode();
+  const { setNetwork, openWalletModal } = useAppMode();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [modal, setModal] = useState<MorphoModal>(null);
@@ -274,61 +275,26 @@ export function RobinhoodDashboard() {
       )}
 
       {/* Bridge & Deposit Dialog */}
-      <Dialog
-        open={modal === "bridge"}
-        onClose={close}
-        labelledBy="rh-bridge-title"
-        testId="bridge-dialog"
-        dismissible={!m.busy}
-      >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h2 id="rh-bridge-title" className="text-lg font-bold text-fg">Bridge &amp; Deposit</h2>
-            <p className="mt-1 text-xs text-muted">
-              Robinhood Chain (Arbitrum Orbit L2) uses Paxos USDG. Li.Fi cross-chain liquidity routes directly on Arbitrum One.
-            </p>
-          </div>
-          <button type="button" aria-label="Close" onClick={close} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-muted hover:bg-white/5 hover:text-fg">
-            ✕
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-xl border border-cyan/30 bg-cyan/[0.06] p-4 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-fg">
-              <span>🌐</span>
-              <span>Deposit with any token via Arbitrum One</span>
-            </div>
-            <p className="text-xs text-muted leading-relaxed">
-              Our 1-click Li.Fi bridge supports deposits with USDC, ETH, USDT, DAI, and 50+ tokens from Ethereum, Polygon, Base, Optimism, Solana, and more on Arbitrum One.
-            </p>
-            <button
-              type="button"
-              onClick={toArbitrum}
-              className="min-h-11 w-full rounded-xl bg-cyan py-2.5 text-center text-xs font-semibold text-bg shadow-sm shadow-cyan/30 hover:brightness-110 transition-all"
-            >
-              Switch to Arbitrum One Bridge &amp; Deposit →
-            </button>
-          </div>
-
-          <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 text-xs text-muted space-y-2">
-            <div className="font-semibold text-fg">Direct Robinhood Chain Bridging:</div>
-            <p>
-              To fund Robinhood Chain directly, bridge ETH via the official Robinhood Chain Orbit Bridge, or swap to Paxos Global Dollar (USDG).
-            </p>
-            {explorer && (
-              <a
-                href={`${explorer}/address/${ROBINHOOD.usdg}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-cyan hover:underline"
-              >
-                View USDG Contract on Explorer ↗
-              </a>
-            )}
-          </div>
-        </div>
-      </Dialog>
+      {m.safe && (
+        <BridgeDepositDialog
+          open={modal === "bridge"}
+          onClose={close}
+          safe={m.safe}
+          idleAmount={m.safeUsdg}
+          asset="USDG"
+          networkName="Robinhood Chain"
+          vaultName="Morpho Steakhouse Vault"
+          toChainId={ROBINHOOD_CHAIN_ID}
+          toTokenAddress={ROBINHOOD.usdg}
+          steps={m.steps}
+          busy={m.busy}
+          error={m.error}
+          success={modal === "bridge" ? m.lastDone : null}
+          explorer={explorer}
+          onSupply={(v) => void m.supplyIdle(v)}
+          onConnect={() => openWalletModal({ thenMainnet: true })}
+        />
+      )}
 
       <AmountDialog
         open={modal === "deposit"}
