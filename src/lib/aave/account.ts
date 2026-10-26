@@ -30,7 +30,7 @@ export const withdrawPrincipalData = (amount: bigint, owner: Address): Hex =>
 export const transferData = (to: Address, amount: bigint): Hex =>
   encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, amount] });
 
-async function chunked<T>(from: bigint, to: bigint, fetch: (a: bigint, b: bigint) => Promise<T[]>): Promise<T[]> {
+export async function chunked<T>(from: bigint, to: bigint, fetch: (a: bigint, b: bigint) => Promise<T[]>): Promise<T[]> {
   const out: T[] = [];
   for (let a = from; a <= to; a += LOG_SPAN + 1n) {
     const b = a + LOG_SPAN > to ? to : a + LOG_SPAN;
@@ -40,13 +40,13 @@ async function chunked<T>(from: bigint, to: bigint, fetch: (a: bigint, b: bigint
 }
 
 /** Block at which the Safe was created, found by scanning the factory's ProxyCreation events (callers cache it). */
-export async function findSafeCreationBlock(client: Client, safe: Address, earliest = 0n): Promise<bigint | null> {
+export async function findSafeCreationBlock(client: Client, safe: Address, earliest = 0n, factory: Address = ARBITRUM.safeProxyFactory): Promise<bigint | null> {
   const head = await client.getBlockNumber();
   // Newest first: Safes are usually recent, and the public RPC allows ~10M blocks per query.
   for (let b = head; b >= earliest; b = b > LOG_SPAN ? b - LOG_SPAN - 1n : 0n) {
     const from = b > LOG_SPAN ? b - LOG_SPAN : 0n;
     const logs = await client.getLogs({
-      address: ARBITRUM.safeProxyFactory,
+      address: factory,
       event: safeFactoryAbi[2],
       args: { proxy: safe },
       fromBlock: from < earliest ? earliest : from,

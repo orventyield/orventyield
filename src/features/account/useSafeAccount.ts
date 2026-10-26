@@ -25,15 +25,15 @@ export interface TxStep {
   hash?: Hex;
 }
 
-const blockKey = (chainId: number, safe: string) => `oy.safeblock.${chainId}.${safe.toLowerCase()}`;
-const readCache = (k: string): string | null => {
+export const blockKey = (chainId: number, safe: string) => `oy.safeblock.${chainId}.${safe.toLowerCase()}`;
+export const readCache = (k: string): string | null => {
   try {
     return window.localStorage.getItem(k);
   } catch {
     return null;
   }
 };
-const writeCache = (k: string, v: string) => {
+export const writeCache = (k: string, v: string) => {
   try {
     window.localStorage.setItem(k, v);
   } catch {
@@ -42,7 +42,8 @@ const writeCache = (k: string, v: string) => {
 };
 
 /** The user's own Safe + Aave v3 position on Arbitrum One (or the local Anvil fork in development). */
-export function useSafeAccount() {
+/** `active: false` pauses every read (used when the other yield engine is the selected one). */
+export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
   const { address: owner, isConnected } = useAccount();
   const walletChainId = useChainId();
   const onFork = LOCAL_FORK_ENABLED && walletChainId === LOCAL_FORK_CHAIN_ID;
@@ -55,7 +56,7 @@ export function useSafeAccount() {
   const walletChainName = wagmiConfig.chains.find((c) => c.id === walletChainId)?.name;
   const { sendTransactionAsync } = useSendTransaction();
 
-  const enabled = !!owner && !!client;
+  const enabled = active && !!owner && !!client;
 
   const safeQ = useQuery({
     queryKey: ["safe-address", chainId, owner],
