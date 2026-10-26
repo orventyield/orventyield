@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MastercardCard, MastercardMark } from "@/components/dashboard/mainnet/MastercardCard";
+import { ChipEmblem, ContactlessWave } from "@/components/ui/CardParts";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import type { TxStep } from "@/features/account/useSafeAccount";
 import type { TopUpSource } from "@/lib/immersve/funding";
@@ -52,17 +53,68 @@ export function CardPanel({ suite: s, txSteps, accountBusy, explorer, onSpendVou
     return (
       <div className="h-full rounded-2xl glass-card p-5" data-testid="card-panel">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-fg">Your virtual Mastercard</h2>
+          <div>
+            <h2 className="text-lg font-bold text-fg">Your virtual Mastercard</h2>
+            <p className="text-xs text-muted">Spend earned yield worldwide while principal stays locked.</p>
+          </div>
           <MastercardMark className="h-7 w-11 shrink-0" />
         </div>
-        <div data-testid="card-pending-partner" className="space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
-          <p className="text-sm font-semibold text-fg">Coming soon</p>
-          <p className="text-xs text-muted">
-            Spend your earned yield anywhere Mastercard is accepted worldwide. In the meantime, your accrued yield is ready to spend instantly with gift vouchers, or cash out directly to your bank / UPI.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button type="button" data-testid="card-spend-vouchers" onClick={onSpendVouchers} className="min-h-11 flex-1 rounded-xl bg-cyan px-4 text-xs font-semibold text-bg hover:brightness-110">Spend on vouchers</button>
-            <button type="button" data-testid="card-spend-cashout" onClick={onSpendCashout} className="min-h-11 flex-1 rounded-xl border border-white/10 px-4 text-xs font-semibold text-fg hover:bg-white/5">Cash out to bank / UPI</button>
+        <div data-testid="card-pending-partner" className="space-y-4 rounded-xl border border-white/10 bg-white/[0.04] p-5">
+          {/* Obsidian Metal Card Preview */}
+          <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl metal-card holo-sheen p-5 shadow-2xl">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-14 -top-14 h-44 w-44 rounded-full bg-cyan/20 blur-3xl" />
+            <div className="relative z-10 flex aspect-[1.586/1] flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <span className="text-sm font-extrabold tracking-tight text-fg">Orvent<span className="text-cyan">Yield</span></span>
+                <span className="rounded-full border border-cyan/40 bg-cyan/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-cyan">Early Access</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <ChipEmblem className="h-9 w-12" />
+                <ContactlessWave className="h-6 w-6 rotate-90 text-fg/60" />
+              </div>
+              <div>
+                <p className="font-mono text-base tracking-[0.14em] text-fg/80 sm:text-lg">•••• •••• •••• ••••</p>
+                <div className="mt-2 flex items-end justify-between gap-3">
+                  <div className="font-mono text-[10px] uppercase text-muted">
+                    <p>Cardholder Name</p>
+                    <p className="mt-0.5">Exp ••/••</p>
+                  </div>
+                  <MastercardMark className="h-8 w-12" />
+                </div>
+              </div>
+            </div>
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-bg/70 p-4 text-center backdrop-blur-[2px]">
+              <span className="rounded-full border border-cyan/40 bg-cyan/15 px-3 py-1 font-mono text-xs font-semibold text-cyan">
+                PARTNER ONBOARDING
+              </span>
+              <p className="mt-2 text-xs font-medium text-fg/90">Institutional Mastercard issuing is in final onboarding.</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-center sm:text-left">
+            <p className="text-sm font-semibold text-fg">Spend Your Accrued Yield Today</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              While our banking partner completes regulatory clearance for instant virtual Mastercard issuance, your accrued yield is 100% liquid and ready to spend right now via instant vouchers or direct bank transfer.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <button
+              type="button"
+              data-testid="card-spend-vouchers"
+              onClick={onSpendVouchers}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-cyan px-4 text-xs font-semibold text-bg shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:brightness-110"
+            >
+              <span>Instant Gift Vouchers</span>
+            </button>
+            <button
+              type="button"
+              data-testid="card-spend-cashout"
+              onClick={onSpendCashout}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-semibold text-fg hover:bg-white/10"
+            >
+              <span>Cash Out to Bank / UPI</span>
+            </button>
           </div>
         </div>
       </div>
