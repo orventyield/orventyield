@@ -1,0 +1,112 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { LiveYield } from "@/components/ui/LiveYield";
+import { UsdgBadge } from "@/components/dashboard/robinhood/UsdgBadge";
+import type { useMorphoAccount } from "@/features/account/useMorphoAccount";
+import { fmtUsdc, fmtUsdc4 } from "@/lib/aave/format";
+import { ROBINHOOD, ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
+import { tickYield } from "@/lib/morpho/apy";
+
+type Account = ReturnType<typeof useMorphoAccount>;
+export type MorphoModal = "deposit" | "yield" | "principal" | null;
+
+const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+
+/** The Robinhood Chain twin of the Arbitrum vault overview: Safe + Morpho "Steakhouse USDG", all figures in USDG. */
+export function MorphoVaultOverview({ m, apy, onOpen }: { m: Account; apy: number | null; onOpen: (x: MorphoModal) => void }) {
+  const snap = m.snapshot;
+  const principal = snap?.principal ?? 0n;
+  const assets = snap?.aBalance ?? 0n;
+  const hasPosition = assets > 0n;
+
+  // Display-only: the yield read from the vault, plus what the position earns each second at the vault's APY.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const ticking = tickYield(snap?.yieldAvailable ?? 0n, assets, apy, m.fetchedAt ? now - m.fetchedAt : 0);
+  const explorer = m.onFork ? undefined : ROBINHOOD_EXPLORER;
+
+  return (
+    <div className="space-y-6" data-testid="vault-overview">
+      {m.gasWarning && (
+        <div role="alert" data-testid="no-gas" className="rounded-xl border border-amber/30 bg-amber/10 p-3 text-sm text-amber">
+          {m.gasWarning}
+        </div>
+      )}
+
+      <div className="rounded-2xl glass-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-wider text-muted">Strategy</p>
+            <h2 data-testid="strategy-title" className="text-lg font-bold text-fg">Steakhouse USDG (Morpho Protocol)</h2>
+          </div>
+          <UsdgBadge />
+        </div>
+        {explorer && (
+          <a className="mt-2 inline-block font-mono text-[11px] text-cyan hover:underline" href={`${explorer}/address/${ROBINHOOD.steakhouseUsdgVault}`} target="_blank" rel="noopener noreferrer">
+            Vault {short(ROBINHOOD.steakhouseUsdgVault)} ↗
+          </a>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="relative overflow-hidden rounded-2xl glass-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">Principal Vault</span>
+            <span className="flex items-center gap-1.5 rounded-full border border-emerald/20 bg-emerald/10 px-2 py-0.5 text-xs font-medium text-emerald">
+              <span data-testid="apy-value">{apy === null ? "Variable APY" : `+${(apy * 100).toFixed(2)}% APY`}</span>
+            </span>
+          </div>
+          <div className="mb-1 flex items-baseline gap-2">
+            <span data-testid="principal-value" className="text-3xl font-extrabold tracking-tight text-fg tabular">{fmtUsdc(principal)}</span>
+            <span className="font-mono text-sm font-semibold text-emerald">USDG</span>
+          </div>
+          <div className="mb-4 font-mono text-xs text-muted">In the Morpho vault via your Safe · USDG</div>
+          <div className="flex items-center gap-2">
+            <button type="button" data-testid="open-deposit" disabled={!!m.gasWarning} onClick={() => onOpen("deposit")} className="min-h-11 flex-1 rounded-xl bg-emerald py-2 text-center text-xs font-semibold text-bg shadow-sm shadow-emerald/30 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+              + Deposit USDG
+            </button>
+            <button type="button" data-testid="open-principal" disabled={m.limits.principal <= 0n || !!m.gasWarning} onClick={() => onOpen("principal")} className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2 text-center text-xs font-semibold text-fg transition-all hover:bg-white/5 disabled:opacity-40">
+              Withdraw
+            </button>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl glass-card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="font-mono text-xs uppercase tracking-wider text-muted">Live Accrued Yield</span>
+            <span className="flex items-center gap-1.5 font-mono text-xs text-emerald">
+              <span className={`h-2 w-2 rounded-full bg-emerald ${hasPosition ? "tick-dot" : "opacity-40"}`} />
+              {hasPosition ? "Accruing" : "Waiting for a deposit"}
+            </span>
+          </div>
+          <div className="mb-1 flex items-baseline gap-2">
+            <LiveYield testId="yield-value" value={fmtUsdc4(ticking)} live={hasPosition} />
+            <span className="font-mono text-sm font-semibold text-emerald">USDG</span>
+          </div>
+          <div className="mb-4 font-mono text-xs text-muted">Read from the vault. Variable, not guaranteed.</div>
+          <button type="button" data-testid="open-yield" disabled={m.limits.yield <= 0n || !!m.gasWarning} onClick={() => onOpen("yield")} className="min-h-11 w-full rounded-xl border border-emerald/30 bg-emerald/10 py-2 text-center text-xs font-semibold text-emerald shadow-sm shadow-emerald/20 transition-all hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
+            Withdraw Yield
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl glass-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="font-mono text-[11px] uppercase tracking-wider text-muted">Your Safe · Robinhood Chain</p>
+          <p data-testid="safe-address" className="mt-1 break-all font-mono text-sm text-fg">{m.safe ?? "…"}</p>
+        </div>
+        <dl className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1 font-mono text-xs text-muted">
+          <div className="flex gap-2"><dt>Status</dt><dd data-testid="safe-status" className={m.deployed ? "text-emerald" : "text-fg"}>{m.deployed ? "Active" : "Created on first deposit"}</dd></div>
+          <div className="flex gap-2"><dt>Wallet USDG</dt><dd data-testid="wallet-usdg" className="text-fg">{fmtUsdc(m.walletUsdg)}</dd></div>
+          {m.safe && explorer && (
+            <a className="text-cyan hover:underline" href={`${explorer}/address/${m.safe}`} target="_blank" rel="noopener noreferrer">Explorer ↗</a>
+          )}
+        </dl>
+      </div>
+    </div>
+  );
+}

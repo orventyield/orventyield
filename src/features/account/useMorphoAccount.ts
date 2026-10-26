@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { encodeFunctionData, erc20Abi, getAddress, type Address, type Hex } from "viem";
 import { useAccount, useBalance, useChainId, useConfig, usePublicClient, useSendTransaction, useSwitchChain } from "wagmi";
 import { findSafeCreationBlock, transferData } from "@/lib/aave/account";
@@ -10,6 +10,7 @@ import { ROBINHOOD, ROBINHOOD_CHAIN_ID } from "@/lib/contracts/robinhood";
 import { approveData, depositData, readMorphoAccount, simulateWithdrawal, withdrawToData, withdrawYieldData } from "@/lib/morpho/account";
 import { checkMorphoRequest, morphoLimits } from "@/lib/morpho/position";
 import { execCalldata, predictSafeAddress, readCreationCode, safeCall, safeFactoryAbi, safeSetup, withGasBuffer } from "@/lib/safe/safe";
+import { ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
 import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 import { friendlyTxError } from "./errors";
 import { createTxLock } from "@/lib/txLock";
@@ -97,6 +98,14 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
   const [lastDone, setLastDone] = useState<string | null>(null);
   const runId = useRef(0);
   const lock = useRef(createTxLock());
+
+  // A different account (or a disconnect) must never inherit the previous one's progress or a stale completion message.
+  useEffect(() => {
+    runId.current++;
+    setSteps([]);
+    setError(null);
+    setLastDone(null);
+  }, [owner]);
 
   const refetchAll = useCallback(async () => {
     await Promise.all(["mo-safe-deployed", "mo-wallet-usdg", "mo-account"].map((k) => qc.invalidateQueries({ queryKey: [k, chainId] })));
@@ -301,8 +310,12 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     payFromPrincipal,
     /** Upfront warning to show above the action buttons: no ETH for gas on Robinhood Chain. Null when fine or still loading. */
     gasWarning: gasWarning("morpho", enabled ? eth.data?.value : undefined),
+    onFork,
     wrongChain,
     walletChainName,
     switchToRobinhood: () => switchChain({ chainId: ROBINHOOD_CHAIN_ID }),
+    switchToArbitrum: () => switchChain({ chainId: ARBITRUM_CHAIN_ID }),
+    /** When the position was last read (ms), for the display-only ticking yield. */
+    fetchedAt: accountQ.dataUpdatedAt,
   };
 }

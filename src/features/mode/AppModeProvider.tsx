@@ -7,10 +7,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
  * Mainnet: the user's own Safe + Aave v3 account on Arbitrum One.
  */
 export type AppMode = "playground" | "mainnet";
+/** Which yield engine the Mainnet dashboard shows: Aave on Arbitrum One, or Morpho on Robinhood Chain. */
+export type AppNetwork = "arbitrum" | "robinhood";
 
 interface AppModeValue {
   mode: AppMode;
   setMode: (m: AppMode) => void;
+  network: AppNetwork;
+  setNetwork: (n: AppNetwork) => void;
   walletModalOpen: boolean;
   openWalletModal: (opts?: { thenMainnet?: boolean }) => void;
   closeWalletModal: () => void;
@@ -21,6 +25,7 @@ interface AppModeValue {
 const Ctx = createContext<AppModeValue | null>(null);
 
 const MODE_KEY = "oy.mode";
+const NETWORK_KEY = "oy.network";
 
 // localStorage can throw (private windows, blocked storage); the app must work without it.
 function read(key: string): string | null {
@@ -41,18 +46,25 @@ function write(key: string, value: string | null) {
 
 export function AppModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<AppMode>("playground");
+  const [network, setNetworkState] = useState<AppNetwork>("arbitrum");
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [switchToMainnetOnConnect, setSwitch] = useState(false);
 
   // Restore after mount so server and client markup match.
   useEffect(() => {
     if (read(MODE_KEY) === "mainnet") setModeState("mainnet");
+    if (read(NETWORK_KEY) === "robinhood") setNetworkState("robinhood");
     write("oy.safe", null); // legacy key from the removed watch-a-Safe feature
   }, []);
 
   const setMode = useCallback((m: AppMode) => {
     setModeState(m);
     write(MODE_KEY, m);
+  }, []);
+
+  const setNetwork = useCallback((n: AppNetwork) => {
+    setNetworkState(n);
+    write(NETWORK_KEY, n);
   }, []);
 
   const openWalletModal = useCallback((opts?: { thenMainnet?: boolean }) => {
@@ -65,8 +77,8 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ mode, setMode, walletModalOpen, openWalletModal, closeWalletModal, switchToMainnetOnConnect }),
-    [mode, setMode, walletModalOpen, openWalletModal, closeWalletModal, switchToMainnetOnConnect],
+    () => ({ mode, setMode, network, setNetwork, walletModalOpen, openWalletModal, closeWalletModal, switchToMainnetOnConnect }),
+    [mode, setMode, network, setNetwork, walletModalOpen, openWalletModal, closeWalletModal, switchToMainnetOnConnect],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

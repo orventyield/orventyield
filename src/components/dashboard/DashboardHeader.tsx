@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatUnits } from "viem";
 import { useAccount, useBalance, useChainId, useDisconnect, useReadContract } from "wagmi";
 import { Logo } from "@/components/ui/Icons";
-import { useAppMode, type AppMode } from "@/features/mode/AppModeProvider";
+import { useAppMode, type AppMode, type AppNetwork } from "@/features/mode/AppModeProvider";
 import { erc20Abi } from "@/lib/contracts/abis";
 import { ARBITRUM } from "@/lib/contracts/arbitrum";
 import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
@@ -81,6 +81,67 @@ function ModeToggle() {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+const NETWORKS: { id: AppNetwork; label: string; note: string }[] = [
+  { id: "arbitrum", label: "Arbitrum One", note: "USDC · Aave" },
+  { id: "robinhood", label: "Robinhood Chain", note: "USDG · Morpho" },
+];
+
+/** One-click switch between the two yield networks. Selecting never prompts the wallet: reads work from any network. */
+function NetworkSwitcher() {
+  const { network, setNetwork } = useAppMode();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const current = NETWORKS.find((n) => n.id === network)!;
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        data-testid="network-switcher"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-surface px-3 text-xs font-semibold text-fg hover:border-cyan/40"
+      >
+        <span className={`h-2 w-2 rounded-full ${network === "robinhood" ? "bg-emerald" : "bg-cyan"}`} aria-hidden="true" />
+        {current.label}
+        <span aria-hidden="true" className="text-muted">▾</span>
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-surface shadow-2xl">
+          {NETWORKS.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={n.id === network}
+              data-testid={`network-option-${n.id}`}
+              onClick={() => {
+                setNetwork(n.id);
+                setOpen(false);
+              }}
+              className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-xs hover:bg-white/5 ${n.id === network ? "text-fg" : "text-muted"}`}
+            >
+              <span className="font-semibold">{n.label}</span>
+              <span className="font-mono text-[11px] text-muted">{n.note}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -189,6 +250,7 @@ export function DashboardHeader({ onResetDemo }: { onResetDemo?: () => void }) {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <ForkWalletBadge />
+          {mode === "mainnet" && <NetworkSwitcher />}
           {mode === "playground" && !isConnected && (
             <span data-testid="demo-badge" className="hidden items-center gap-1.5 rounded-lg border border-amber/30 bg-amber/10 px-2.5 py-1.5 text-xs font-semibold text-amber md:flex">
               <span aria-hidden="true">🧪</span> Demo Mode

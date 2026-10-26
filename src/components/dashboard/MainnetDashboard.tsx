@@ -34,7 +34,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   return <div className={`relative overflow-hidden rounded-2xl glass-card p-5 transition-all hover:border-white/10 ${className}`}>{children}</div>;
 }
 
-function ConnectGate() {
+export function ConnectGate() {
   const { openWalletModal, setMode } = useAppMode();
   return (
     <Card className="mx-auto max-w-xl text-center">

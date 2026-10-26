@@ -15,25 +15,56 @@ export async function installForkWallet(page: Page) {
             if (j.error) throw Object.assign(new Error(j.error.message), { code: j.error.code });
             return j.result;
           });
-      let authorized = false;
-      const w = window as unknown as { __rejectSign?: boolean };
+      const authorizedRef = { value: false };
+      const w = window as unknown as { __rejectSign?: boolean; __rejectSend?: boolean; __holdSend?: boolean; __holding?: number; __releaseSend?: () => void; __sent?: { to: string; data: string }[] };
+      w.__sent = [];
+      // The wallet's own network can change under the app (the user switches in the wallet): emitted exactly like a real wallet.
+      let chain = "0x7a69";
+      const listeners: Record<string, ((v: unknown) => void)[]> = {};
+      // The user disconnects (or locks) the wallet while the app is mid-flow: emitted exactly like a real wallet.
+      (w as unknown as { __emitAccounts: (list: string[]) => void }).__emitAccounts = (list: string[]) => {
+        if (list.length === 0) authorizedRef.value = false;
+        (listeners.accountsChanged ?? []).forEach((f) => f(list));
+      };
+      (w as unknown as { __emitChain: (hex: string) => void }).__emitChain = (hex: string) => {
+        chain = hex;
+        (listeners.chainChanged ?? []).forEach((f) => f(hex));
+      };
       const provider = {
         request: async ({ method, params }: { method: string; params?: unknown[] }) => {
           if (method === "eth_requestAccounts") {
-            authorized = true;
+            authorizedRef.value = true;
             return [account];
           }
-          if (method === "eth_accounts") return authorized ? [account] : [];
-          if (method === "eth_chainId") return "0x7a69";
+          if (method === "eth_accounts") return authorizedRef.value ? [account] : [];
+          if (method === "eth_chainId") return chain;
           if (method === "wallet_switchEthereumChain") return null;
           if (method === "personal_sign" && w.__rejectSign) {
             w.__rejectSign = false;
             throw Object.assign(new Error("User rejected the request."), { code: 4001 });
           }
+          if (method === "eth_sendTransaction") {
+            const tx = (params?.[0] ?? {}) as { to?: string; data?: string };
+            w.__sent!.push({ to: String(tx.to), data: String(tx.data) });
+            if (w.__rejectSend) {
+              w.__rejectSend = false;
+              throw Object.assign(new Error("User rejected the request."), { code: 4001 });
+            }
+            // Test hook: the wallet prompt stays open (the user has not decided yet) until __releaseSend() is called.
+            if (w.__holdSend) {
+              w.__holding = (w.__holding ?? 0) + 1;
+              await new Promise<void>((res) => (w.__releaseSend = res));
+              w.__holdSend = false;
+            }
+          }
           return call(method, params ?? []);
         },
-        on() {},
-        removeListener() {},
+        on(ev: string, f: (v: unknown) => void) {
+          (listeners[ev] ??= []).push(f);
+        },
+        removeListener(ev: string, f: (v: unknown) => void) {
+          listeners[ev] = (listeners[ev] ?? []).filter((x) => x !== f);
+        },
       };
       const announce = () => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: Object.freeze({ info, provider }) }));
       window.addEventListener("eip6963:requestProvider", announce);

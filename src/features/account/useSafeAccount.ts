@@ -126,6 +126,14 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
   const runId = useRef(0);
   const lock = useRef(createTxLock());
 
+  // A different account (or a disconnect) must never inherit the previous one's progress or a stale completion message.
+  useEffect(() => {
+    runId.current++;
+    setSteps([]);
+    setError(null);
+    setLastDone(null);
+  }, [owner]);
+
   const refetchAll = useCallback(async () => {
     await Promise.all(
       ["safe-deployed", "wallet-usdc", "safe-account"].map((k) => qc.invalidateQueries({ queryKey: [k, chainId] })),

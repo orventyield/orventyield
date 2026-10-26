@@ -3,7 +3,7 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import type { TxStep } from "@/features/account/useSafeAccount";
-import { fmtUsdc, parseUsdcInput } from "@/lib/aave/format";
+import { fmtUsdc, fmtUsdcFull, parseUsdcInput } from "@/lib/aave/format";
 import { TxSteps } from "./TxSteps";
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   testId: string;
   title: string;
   intro: string;
+  /** Token symbol shown in labels. Defaults to USDC (Arbitrum); Robinhood Chain uses USDG. Both have 6 decimals. */
+  asset?: string;
   /** Network and asset this dialog moves, shown as a badge so nobody sends the wrong token or chain. */
   networkBadge?: string;
   /** Largest allowed amount in USDC base units. */
@@ -35,6 +37,7 @@ interface Props {
 
 export function AmountDialog(p: Props) {
   const id = useId();
+  const asset = p.asset ?? "USDC";
   const [text, setText] = useState("");
   useEffect(() => {
     if (p.open) setText("");
@@ -74,7 +77,7 @@ export function AmountDialog(p: Props) {
         >
           {p.header}
           <label className="block text-xs font-mono uppercase tracking-wider text-muted" htmlFor={`${id}-amt`}>
-            Amount (USDC)
+            Amount ({asset})
           </label>
           <div className="flex gap-2">
             <input
@@ -119,9 +122,9 @@ export function AmountDialog(p: Props) {
               })}
             </div>
           )}
-          <p className="text-[11px] font-mono text-muted">{p.maxLabel}: {fmtUsdc(p.max)} USDC</p>
+          <p className="text-[11px] font-mono text-muted">{p.maxLabel}: {fmtUsdc(p.max)} {asset}</p>
           {invalid && <p role="alert" data-testid="amount-invalid" className="text-xs text-danger">Enter a number with at most 6 decimals.</p>}
-          {over && <p role="alert" data-testid="amount-over" className="text-xs text-danger">That is more than the {fmtUsdc(p.max)} USDC available.</p>}
+          {over && <p role="alert" data-testid="amount-over" className="text-xs text-danger">That is more than the {fmtUsdc(p.max)} {asset} available.</p>}
           {p.children}
 
           {!started && (
@@ -166,11 +169,4 @@ export function AmountDialog(p: Props) {
       )}
     </Dialog>
   );
-}
-
-/** Full-precision string for the MAX button (no thousands separators, trailing zeros trimmed). */
-function fmtUsdcFull(v: bigint): string {
-  const w = v / 1_000_000n;
-  const f = (v % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
-  return f ? `${w}.${f}` : `${w}`;
 }

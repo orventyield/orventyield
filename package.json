@@ -14,6 +14,7 @@
     "fork:test": "node scripts/fork-safe-aave.mjs",
     "cashout:probe": "node scripts/transak-staging-probe.mjs",
     "cards:probe": "node scripts/bitrefill-cards-probe.mjs",
+    "rpc:load": "node scripts/rpc-load-test.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {

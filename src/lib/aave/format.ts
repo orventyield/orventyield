@@ -18,3 +18,10 @@ export function parseUsdcInput(s: string): bigint | null {
   const [w, f = ""] = t.split(".");
   return BigInt(w!) * 1_000_000n + BigInt(f.padEnd(6, "0"));
 }
+
+/** Full-precision string for a MAX button: no thousands separators, trailing zeros trimmed. Exact for every bigint (6 decimals). */
+export function fmtUsdcFull(v: bigint): string {
+  const w = v / 1_000_000n;
+  const fr = (v % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return fr ? `${w}.${fr}` : `${w}`;
+}
