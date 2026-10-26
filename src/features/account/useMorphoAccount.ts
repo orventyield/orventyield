@@ -307,6 +307,14 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     [owner, safe, guardWithdrawal, run, safeStep],
   );
 
+  const execFromSafe = useCallback(
+    async (calls: Parameters<typeof safeCall>[0], label: string, detail: string): Promise<boolean> => {
+      if (!owner || !safe || calls.length === 0) return false;
+      return run([safeStep("safe-exec", label, detail, calls)], `${label} done.`);
+    },
+    [owner, safe, run, safeStep],
+  );
+
   const status = !isConnected ? "disconnected" : safeQ.isError || accountQ.isError || walletQ.isError ? "error" : safeQ.isLoading || deployedQ.isLoading || walletQ.isLoading || (deployed && accountQ.isLoading) ? "loading" : "ready";
   const limits = useMemo(() => (snap ? morphoLimits(snap) : { yield: 0n, principal: 0n }), [snap]);
 
@@ -337,6 +345,7 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     withdrawSafeUsdg,
     payFromYield,
     payFromPrincipal,
+    execFromSafe,
     /** Upfront warning to show above the action buttons: no ETH for gas on Robinhood Chain. Null when fine or still loading. */
     gasWarning: gasWarning("morpho", enabled ? eth.data?.value : undefined),
     onFork,

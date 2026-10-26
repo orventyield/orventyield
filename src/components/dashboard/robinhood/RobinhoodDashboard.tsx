@@ -1,34 +1,71 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { ConnectGate } from "@/components/dashboard/MainnetDashboard";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
+import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
+import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
 import { MorphoVaultOverview, type MorphoModal } from "@/components/dashboard/robinhood/MorphoVaultOverview";
 import { SpendingRailsBanner } from "@/components/dashboard/robinhood/SpendingRailsBanner";
+import { PosSimulator } from "@/components/dashboard/PosSimulator";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMorphoAccount } from "@/features/account/useMorphoAccount";
 import { useMorphoApy } from "@/features/account/useMorphoApy";
+import { useCardSuite } from "@/features/card/useCardSuite";
+import { buildLedger } from "@/features/ledger/mainnetLedger";
 import { useAppMode } from "@/features/mode/AppModeProvider";
 import { ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
+import { formatExpiry } from "@/lib/immersve/stage";
+import { authCode, type CardDetails } from "@/utils/card";
 
-type Tab = "vault" | "vouchers" | "card" | "cashout";
+type Tab = "overview" | "pos" | "vouchers" | "cashout" | "activity";
 
-const SPENDING: Record<Exclude<Tab, "vault">, { title: string; body: string }> = {
-  vouchers: { title: "Digital Voucher Store", body: "Amazon, Uber, Swiggy and Zomato vouchers, paid from your earned yield." },
-  card: { title: "Your virtual Mastercard", body: "Spend your earned yield anywhere Mastercard is accepted." },
-  cashout: { title: "1-Click Bank / UPI Cashout", body: "Pay out earned yield to your bank account or UPI." },
-};
-
-/** Mainnet on Robinhood Chain: the Vault tab (Safe + Morpho, USDG) and the spending tabs, which point back to Arbitrum One. */
+/** Mainnet on Robinhood Chain: 1:1 parity with Arbitrum layout (Vault, Card, Vouchers, Cashout, Activity). */
 export function RobinhoodDashboard() {
   const m = useMorphoAccount();
   const { apy } = useMorphoApy();
   const { setNetwork } = useAppMode();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>("vault");
+  const [tab, setTab] = useState<Tab>("overview");
   const [modal, setModal] = useState<MorphoModal>(null);
   const explorer = m.onFork ? undefined : ROBINHOOD_EXPLORER;
+
+  const yieldMax = m.limits.yield;
+  const principalMax = m.limits.principal;
+  const suite = useCardSuite({
+    maxYield: yieldMax,
+    maxPrincipal: principalMax,
+    pay: m.payFromYield,
+    payPrincipal: m.payFromPrincipal,
+    exec: m.execFromSafe,
+  });
+
+  const active = suite.cards?.find((c) => c.status === "active");
+  const posCard: CardDetails | null = useMemo(() => {
+    if (!active) return null;
+    return {
+      pan: active.panFirst6 + "******" + active.panLast4,
+      cvv: "•••",
+      expiry: formatExpiry(active.expiry),
+      network: "mastercard",
+    };
+  }, [active]);
+
+  const allowanceUsd = suite.cardBalanceCents / 100;
+  const previewSpend = () => ({
+    success: true,
+    authCode: authCode("rh-card"),
+    source: "mainnet-preview",
+    txHash: "",
+  });
+
+  const snap = m.snapshot;
+  const ledger = useMemo(
+    () => (m.safe ? buildLedger(snap?.events ?? [], m.safe, [], explorer) : []),
+    [m.safe, snap?.events, explorer],
+  );
 
   if (m.status === "disconnected") return <ConnectGate />;
   if (m.status === "error") {
@@ -44,8 +81,8 @@ export function RobinhoodDashboard() {
   }
   if (m.status === "loading") {
     return (
-      <div data-testid="mainnet-loading" className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy="true" aria-label="Loading your account">
-        {[0, 1].map((i) => <div key={i} className="h-44 animate-pulse rounded-2xl glass-card" />)}
+      <div data-testid="mainnet-loading" className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-busy="true" aria-label="Loading your account">
+        {[0, 1, 2].map((i) => <div key={i} className="h-44 animate-pulse rounded-2xl glass-card" />)}
       </div>
     );
   }
@@ -56,9 +93,8 @@ export function RobinhoodDashboard() {
   };
   const toArbitrum = () => {
     setNetwork("arbitrum");
-    m.switchToArbitrum(); // the wallet follows; a refusal in the wallet leaves the app on Arbitrum with the notice below
+    m.switchToArbitrum();
   };
-  const snap = m.snapshot;
 
   return (
     <div className="space-y-6" data-testid="rh-dashboard">
@@ -71,27 +107,97 @@ export function RobinhoodDashboard() {
         </div>
       )}
 
+      {/* Navigation tabs: identical layout to Arbitrum One */}
       <SegmentedTabs<Tab>
         layoutId="rh-tab-pill"
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "vault", label: "Vault", icon: "🏛️", testId: "tab-vault" },
+          { id: "overview", label: "Vault & Card", icon: "🏛️", testId: "tab-vault" },
+          { id: "pos", label: "POS Terminal Simulator", icon: "💳", testId: "tab-pos" },
           { id: "vouchers", label: "Voucher Store", icon: "🎁", testId: "tab-vouchers" },
-          { id: "card", label: "Card", icon: "💳", testId: "tab-card" },
-          { id: "cashout", label: "Bank / UPI", icon: "🏦", testId: "tab-cashout" },
+          { id: "cashout", label: "1-Click Bank / UPI", icon: "🏦", testId: "tab-cashout" },
+          { id: "activity", label: `Ledger (${ledger.length})`, icon: "📜", testId: "tab-activity" },
         ]}
       />
 
-      {tab === "vault" ? (
-        <MorphoVaultOverview m={m} apy={apy} onOpen={setModal} />
-      ) : (
-        <div className="space-y-4">
-          <SpendingRailsBanner onSwitch={toArbitrum} />
-          <div className="rounded-2xl glass-card p-5 opacity-80" data-testid="spending-preview">
-            <h3 className="text-base font-bold text-fg">{SPENDING[tab].title}</h3>
-            <p className="mt-1 text-sm text-muted">{SPENDING[tab].body}</p>
+      {tab === "overview" && (
+        <div className="space-y-6">
+          <MorphoVaultOverview m={m} apy={apy} onOpen={setModal} />
+          <SpendShortcuts onVouchers={() => setTab("vouchers")} onCashout={() => setTab("cashout")} />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="lg:col-span-6">
+              <CardPanel
+                suite={suite}
+                txSteps={m.steps}
+                accountBusy={m.busy}
+                explorer={explorer}
+                onSpendVouchers={() => setTab("vouchers")}
+                onSpendCashout={() => setTab("cashout")}
+              />
+            </div>
+            <div className="lg:col-span-6">
+              {posCard ? (
+                <PosSimulator
+                  card={posCard}
+                  isCardFrozen={!!active?.isBlocked}
+                  spendableUsd={allowanceUsd}
+                  onSpendCard={previewSpend}
+                  live
+                />
+              ) : (
+                <div data-testid="pos-locked" className="h-full rounded-2xl glass-card p-5">
+                  <h3 className="text-base font-bold text-fg">POS Merchant Terminal</h3>
+                  <p className="mt-2 text-sm text-muted">
+                    Get your virtual card and fund it with earned yield first. Then you can test a swipe at Uber, Starbucks or Amazon against the money on your card.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
+          <ActivityFeed transactions={ledger.slice(0, 5)} live />
+        </div>
+      )}
+
+      {tab === "pos" && (
+        <div className="space-y-6">
+          {posCard ? (
+            <PosSimulator card={posCard} isCardFrozen={!!active?.isBlocked} spendableUsd={allowanceUsd} onSpendCard={previewSpend} live />
+          ) : (
+            <div className="rounded-2xl glass-card p-5 text-sm text-muted">Get your virtual card on the Vault &amp; Card tab to test spending here.</div>
+          )}
+          <ActivityFeed transactions={ledger.filter((t) => t.type === "card_spend")} live />
+        </div>
+      )}
+
+      {tab === "vouchers" && (
+        <div className="space-y-6">
+          <SpendingRailsBanner onSwitch={toArbitrum} />
+          <div className="rounded-2xl glass-card p-5" data-testid="spending-preview">
+            <h3 className="text-base font-bold text-fg">Digital Voucher Store</h3>
+            <p className="mt-1 text-sm text-muted">
+              Redeem earned yield directly for Amazon, Swiggy, Uber and Flipkart gift vouchers on Arbitrum One.
+            </p>
+          </div>
+          <ActivityFeed transactions={ledger.filter((t) => t.type === "voucher_redeem")} live />
+        </div>
+      )}
+
+      {tab === "cashout" && (
+        <div className="space-y-6">
+          <SpendingRailsBanner onSwitch={toArbitrum} />
+          <div className="rounded-2xl glass-card p-5" data-testid="spending-preview">
+            <h3 className="text-base font-bold text-fg">1-Click Bank / UPI Cashout</h3>
+            <p className="mt-1 text-sm text-muted">
+              Cash out your accrued yield directly to your Indian bank account or UPI ID on Arbitrum One.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {tab === "activity" && (
+        <div className="space-y-6">
+          <ActivityFeed transactions={ledger} live />
         </div>
       )}
 
