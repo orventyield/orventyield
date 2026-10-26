@@ -3,26 +3,33 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { BankCashout } from "@/components/dashboard/BankCashout";
 import { ConnectGate } from "@/components/dashboard/MainnetDashboard";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
+import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
 import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
+import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
 import { MorphoVaultOverview, type MorphoModal } from "@/components/dashboard/robinhood/MorphoVaultOverview";
-import { SpendingRailsBanner } from "@/components/dashboard/robinhood/SpendingRailsBanner";
 import { PosSimulator } from "@/components/dashboard/PosSimulator";
+import { Dialog } from "@/components/ui/Dialog";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMorphoAccount } from "@/features/account/useMorphoAccount";
 import { useMorphoApy } from "@/features/account/useMorphoApy";
 import { useCardSuite } from "@/features/card/useCardSuite";
+import { CASHOUT_FORBIDDEN, useCashout } from "@/features/cashout/useCashout";
 import { buildLedger } from "@/features/ledger/mainnetLedger";
 import { useAppMode } from "@/features/mode/AppModeProvider";
-import { ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
+import type { SpendResult } from "@/features/vault/useVaultState";
+import { useVoucherShop } from "@/features/vouchers/useVoucherShop";
+import type { PoolEvent } from "@/lib/aave/position";
+import { ROBINHOOD, ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
 import { formatExpiry } from "@/lib/immersve/stage";
 import { authCode, type CardDetails } from "@/utils/card";
 
 type Tab = "overview" | "pos" | "vouchers" | "cashout" | "activity";
 
-/** Mainnet on Robinhood Chain: 1:1 parity with Arbitrum layout (Vault, Card, Vouchers, Cashout, Activity). */
+/** Mainnet on Robinhood Chain: 1:1 functional & layout parity with Arbitrum One (Vault, Card, POS, Vouchers, Cashout, Activity). */
 export function RobinhoodDashboard() {
   const m = useMorphoAccount();
   const { apy } = useMorphoApy();
@@ -42,29 +49,83 @@ export function RobinhoodDashboard() {
     exec: m.execFromSafe,
   });
 
-  const active = suite.cards?.find((c) => c.status === "active");
-  const posCard: CardDetails | null = useMemo(() => {
-    if (!active) return null;
-    return {
-      pan: active.panFirst6 + "******" + active.panLast4,
-      cvv: "•••",
-      expiry: formatExpiry(active.expiry),
-      network: "mastercard",
-    };
-  }, [active]);
-
-  const allowanceUsd = suite.cardBalanceCents / 100;
-  const previewSpend = () => ({
-    success: true,
-    authCode: authCode("rh-card"),
-    source: "mainnet-preview",
-    txHash: "",
+  const shop = useVoucherShop({
+    owner: m.owner,
+    safe: m.safe,
+    maxYield: yieldMax,
+    pay: m.payFromYield,
+    enabled: tab === "vouchers",
   });
 
+  const cardTxs = useMemo(
+    () =>
+      suite.cardTransactions
+        .filter((t) => t.creditDebitIndicator !== "credit")
+        .map((t) => ({
+          id: t.id,
+          amountCents: Number(t.amount) || 0,
+          merchant: t.cardAcceptor?.name ?? "Merchant",
+          timestamp: Date.parse(t.transactionDate) || 0,
+        })),
+    [suite.cardTransactions],
+  );
+
+  const forbiddenDest = useMemo(() => [...CASHOUT_FORBIDDEN, m.safe ?? "", m.owner ?? ""], [m.safe, m.owner]);
+  const cashout = useCashout({
+    maxYield: yieldMax,
+    pay: m.payFromYield,
+    forbidden: forbiddenDest,
+    enabled: tab === "cashout",
+  });
+
+  const active = suite.stage.stage === "active" ? suite.stage.card : null;
+  const posCard: CardDetails | null = active
+    ? {
+        pan: `${active.panFirst6}••••••${active.panLast4}`,
+        cvv: "",
+        expiry: formatExpiry(active.expiry),
+        network: "mastercard",
+      }
+    : null;
+
+  const allowanceUsd = suite.cardBalanceCents / 100;
+  const previewSpend = (amountUsd: number, merchant: string): SpendResult => {
+    if (!active) return { success: false, error: "CARD NOT ACTIVE" };
+    if (active.isBlocked) return { success: false, error: "CARD BLOCKED" };
+    if (suite.cardBalanceCents <= 0) return { success: false, error: "CARD NOT FUNDED" };
+    if (amountUsd > allowanceUsd + 1e-9) return { success: false, error: "EXCEEDS CARD BALANCE" };
+    const now = new Date();
+    return {
+      success: true,
+      source: "mainnet-preview",
+      receipt: {
+        authCode: authCode(`${active.id}:${merchant}:${amountUsd}:${now.getTime()}`),
+        timestampIso: now.toISOString(),
+        merchant,
+        amountUsd,
+        txHash: null,
+        funding: { fromYield: amountUsd },
+        source: "mainnet-preview",
+      },
+    };
+  };
+
   const snap = m.snapshot;
+  const poolEvents: PoolEvent[] = useMemo(
+    () =>
+      (snap?.events ?? []).map((e) => ({
+        kind: e.kind === "deposit" ? ("supply" as const) : ("withdraw" as const),
+        amount: e.assets,
+        counterparty: e.counterparty,
+        txHash: e.txHash,
+        timestamp: e.timestamp,
+      })),
+    [snap?.events],
+  );
+
   const ledger = useMemo(
-    () => (m.safe ? buildLedger(snap?.events ?? [], m.safe, [], explorer) : []),
-    [m.safe, snap?.events, explorer],
+    () => (m.safe ? buildLedger(poolEvents, m.safe, shop.history, explorer, cardTxs) : []),
+    [m.safe, poolEvents, shop.history, explorer, cardTxs],
   );
 
   if (m.status === "disconnected") return <ConnectGate />;
@@ -172,26 +233,37 @@ export function RobinhoodDashboard() {
 
       {tab === "vouchers" && (
         <div className="space-y-6">
-          <SpendingRailsBanner onSwitch={toArbitrum} />
-          <div className="rounded-2xl glass-card p-5" data-testid="spending-preview">
-            <h3 className="text-base font-bold text-fg">Digital Voucher Store</h3>
-            <p className="mt-1 text-sm text-muted">
-              Redeem earned yield directly for Amazon, Swiggy, Uber and Flipkart gift vouchers on Arbitrum One.
-            </p>
-          </div>
+          <VoucherPanel
+            shop={shop}
+            maxYield={yieldMax}
+            tickingYield={yieldMax}
+            busy={m.busy}
+            txError={m.error}
+            steps={m.steps}
+            explorer={explorer}
+          />
           <ActivityFeed transactions={ledger.filter((t) => t.type === "voucher_redeem")} live />
         </div>
       )}
 
       {tab === "cashout" && (
         <div className="space-y-6">
-          <SpendingRailsBanner onSwitch={toArbitrum} />
-          <div className="rounded-2xl glass-card p-5" data-testid="spending-preview">
-            <h3 className="text-base font-bold text-fg">1-Click Bank / UPI Cashout</h3>
-            <p className="mt-1 text-sm text-muted">
-              Cash out your accrued yield directly to your Indian bank account or UPI ID on Arbitrum One.
-            </p>
-          </div>
+          {cashout.configured && !cashout.unavailable ? (
+            <CashoutPanel
+              cashout={cashout}
+              yieldBase={yieldMax}
+              tickingYield={yieldMax}
+              txSteps={m.steps}
+              txError={m.error}
+              explorer={explorer}
+            />
+          ) : (
+            <BankCashout
+              accruedYieldUsd={Number(yieldMax) / 1_000_000}
+              onCashout={() => ({ success: false, error: "Cashout is not available yet." })}
+              unavailable="Bank and UPI payouts are temporarily unavailable. Nothing was sent and your earned yield stays safe. Please try again shortly."
+            />
+          )}
         </div>
       )}
 
@@ -200,6 +272,63 @@ export function RobinhoodDashboard() {
           <ActivityFeed transactions={ledger} live />
         </div>
       )}
+
+      {/* Bridge & Deposit Dialog */}
+      <Dialog
+        open={modal === "bridge"}
+        onClose={close}
+        labelledBy="rh-bridge-title"
+        testId="bridge-dialog"
+        dismissible={!m.busy}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 id="rh-bridge-title" className="text-lg font-bold text-fg">Bridge &amp; Deposit</h2>
+            <p className="mt-1 text-xs text-muted">
+              Robinhood Chain (Arbitrum Orbit L2) uses Paxos USDG. Li.Fi cross-chain liquidity routes directly on Arbitrum One.
+            </p>
+          </div>
+          <button type="button" aria-label="Close" onClick={close} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-muted hover:bg-white/5 hover:text-fg">
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-xl border border-cyan/30 bg-cyan/[0.06] p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-fg">
+              <span>🌐</span>
+              <span>Deposit with any token via Arbitrum One</span>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              Our 1-click Li.Fi bridge supports deposits with USDC, ETH, USDT, DAI, and 50+ tokens from Ethereum, Polygon, Base, Optimism, Solana, and more on Arbitrum One.
+            </p>
+            <button
+              type="button"
+              onClick={toArbitrum}
+              className="min-h-11 w-full rounded-xl bg-cyan py-2.5 text-center text-xs font-semibold text-bg shadow-sm shadow-cyan/30 hover:brightness-110 transition-all"
+            >
+              Switch to Arbitrum One Bridge &amp; Deposit →
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 text-xs text-muted space-y-2">
+            <div className="font-semibold text-fg">Direct Robinhood Chain Bridging:</div>
+            <p>
+              To fund Robinhood Chain directly, bridge ETH via the official Robinhood Chain Orbit Bridge, or swap to Paxos Global Dollar (USDG).
+            </p>
+            {explorer && (
+              <a
+                href={`${explorer}/address/${ROBINHOOD.usdg}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-cyan hover:underline"
+              >
+                View USDG Contract on Explorer ↗
+              </a>
+            )}
+          </div>
+        </div>
+      </Dialog>
 
       <AmountDialog
         open={modal === "deposit"}
@@ -223,7 +352,28 @@ export function RobinhoodDashboard() {
         success={modal === "deposit" ? m.lastDone : null}
         explorer={explorer}
         onSubmit={(v) => void m.deposit(v)}
-      />
+      >
+        {m.walletUsdg === 0n && (
+          <div className="mt-3 rounded-xl border border-amber/30 bg-amber/10 p-3 text-xs text-amber space-y-2">
+            <div className="font-semibold flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>No USDG in connected wallet</span>
+            </div>
+            <p className="text-muted leading-relaxed">
+              This vault operates on Paxos Global Dollar (USDG) on Robinhood Chain. If you have USDC or funds on Arbitrum One or Ethereum, you can bridge/swap, or switch directly to Arbitrum One to deposit USDC.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={toArbitrum}
+                className="rounded-lg bg-cyan px-3 py-1.5 font-semibold text-bg hover:brightness-110 transition-all text-xs"
+              >
+                Switch to Arbitrum One (USDC) →
+              </button>
+            </div>
+          </div>
+        )}
+      </AmountDialog>
 
       <AmountDialog
         open={modal === "yield"}

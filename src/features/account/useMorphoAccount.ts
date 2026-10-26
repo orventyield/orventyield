@@ -124,13 +124,6 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
       if (!owner || !client || busy) return false;
       // A fast double click or a second tap is refused here, before a second wallet prompt can open.
       if (!lock.current.tryAcquire()) return false;
-      // No ETH for gas: say so upfront, before any wallet prompt.
-      const noGas = gasWarning("morpho", eth.data?.value);
-      if (noGas) {
-        setError(noGas);
-        lock.current.release();
-        return false;
-      }
       const todo = plan.filter((p) => !p.skip);
       const my = ++runId.current;
       setBusy(true);

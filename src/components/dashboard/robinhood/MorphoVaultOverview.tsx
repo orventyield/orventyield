@@ -9,7 +9,7 @@ import { ROBINHOOD, ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
 import { tickYield } from "@/lib/morpho/apy";
 
 type Account = ReturnType<typeof useMorphoAccount>;
-export type MorphoModal = "deposit" | "yield" | "principal" | null;
+export type MorphoModal = "deposit" | "bridge" | "yield" | "principal" | null;
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
@@ -70,10 +70,13 @@ export function MorphoVaultOverview({ m, apy, onOpen }: { m: Account; apy: numbe
           </div>
           <div className="mb-4 font-mono text-xs text-muted">In the Morpho vault via your Safe · USDG</div>
           <div className="flex items-center gap-2">
-            <button type="button" data-testid="open-deposit" disabled={!!m.gasWarning} onClick={() => onOpen("deposit")} className="min-h-11 flex-1 rounded-xl bg-cyan py-2 text-center text-xs font-semibold text-bg shadow-sm shadow-cyan/30 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" data-testid="open-deposit" onClick={() => onOpen("deposit")} className="min-h-11 flex-1 rounded-xl bg-cyan py-2 text-center text-xs font-semibold text-bg shadow-sm shadow-cyan/30 transition-all hover:brightness-110">
               + Deposit USDG
             </button>
-            <button type="button" data-testid="open-principal" disabled={m.limits.principal <= 0n || !!m.gasWarning} onClick={() => onOpen("principal")} className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2 text-center text-xs font-semibold text-fg transition-all hover:bg-white/5 disabled:opacity-40">
+            <button type="button" data-testid="open-bridge" onClick={() => onOpen("bridge")} className="min-h-11 flex-1 rounded-xl border border-cyan/30 bg-cyan/10 py-2 text-center text-xs font-semibold text-cyan transition-all hover:bg-cyan/20">
+              Bridge &amp; Deposit
+            </button>
+            <button type="button" data-testid="open-principal" disabled={principal <= 0n} onClick={() => onOpen("principal")} className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2 text-center text-xs font-semibold text-fg transition-all hover:bg-white/5 disabled:opacity-40">
               Withdraw
             </button>
           </div>
@@ -93,7 +96,7 @@ export function MorphoVaultOverview({ m, apy, onOpen }: { m: Account; apy: numbe
             <span className="font-mono text-sm font-semibold text-emerald">USDG</span>
           </div>
           <div className="mb-4 font-mono text-xs text-muted">Read from Morpho vault. Variable, not guaranteed.</div>
-          <button type="button" data-testid="open-yield" disabled={m.limits.yield <= 0n || !!m.gasWarning} onClick={() => onOpen("yield")} className="min-h-11 w-full rounded-xl border border-emerald/30 bg-emerald/10 py-2 text-center text-xs font-semibold text-emerald shadow-sm shadow-emerald/20 transition-all hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" data-testid="open-yield" disabled={m.limits.yield <= 0n} onClick={() => onOpen("yield")} className="min-h-11 w-full rounded-xl border border-emerald/30 bg-emerald/10 py-2 text-center text-xs font-semibold text-emerald shadow-sm shadow-emerald/20 transition-all hover:bg-emerald/20 disabled:cursor-not-allowed disabled:opacity-50">
             Withdraw Yield
           </button>
         </div>
