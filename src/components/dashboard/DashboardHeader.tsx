@@ -4,11 +4,12 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { formatUnits } from "viem";
-import { useAccount, useBalance, useChainId, useDisconnect, useReadContract } from "wagmi";
+import { useAccount, useBalance, useChainId, useDisconnect, useReadContract, useSwitchChain } from "wagmi";
 import { Logo } from "@/components/ui/Icons";
 import { useAppMode, type AppMode, type AppNetwork } from "@/features/mode/AppModeProvider";
 import { erc20Abi } from "@/lib/contracts/abis";
-import { ARBITRUM } from "@/lib/contracts/arbitrum";
+import { ARBITRUM, ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
+import { ROBINHOOD_CHAIN_ID } from "@/lib/contracts/robinhood";
 import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 
 /** Real ETH/USDC balances of the connected wallet when pointed at the local Anvil fork. */
@@ -85,76 +86,127 @@ function ModeToggle() {
   );
 }
 
-const NETWORKS: { id: AppNetwork; label: string; note: string }[] = [
-  { id: "arbitrum", label: "Arbitrum One", note: "USDC · Aave" },
-  { id: "robinhood", label: "Robinhood Chain", note: "USDG · Morpho" },
-];
+function ArbitrumIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M12 2.5L3.5 16.5L5.8 20.5L12 10.2L18.2 20.5L20.5 16.5L12 2.5Z"
+        fill="#28A0F0"
+      />
+      <path
+        d="M12 12.8L9 18H15L12 12.8Z"
+        fill="#00F0FF"
+      />
+    </svg>
+  );
+}
 
-/** One-click switch between the two yield networks. Selecting never prompts the wallet: reads work from any network. */
+function RobinhoodIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M13 2.5C13 2.5 13.5 8 9.8 12.2C6 16.5 5 21.5 5 21.5C5 21.5 9.2 20.5 13 16C16.8 11.5 19 6.5 19 2.5H13Z"
+        fill="#00C805"
+      />
+      <path
+        d="M13 16C11.5 17.5 10 19 9 20C10 19.5 11.5 18.5 13 16Z"
+        fill="#10B981"
+      />
+    </svg>
+  );
+}
+
+const NETWORKS = [
+  {
+    id: "arbitrum" as const,
+    name: "Arbitrum One",
+    shortName: "Arbitrum",
+    token: "USDC",
+    chainId: ARBITRUM_CHAIN_ID,
+    icon: ArbitrumIcon,
+    activeColor: "text-cyan",
+    activeGlow: "shadow-[0_0_24px_rgba(0,240,255,0.35)]",
+    activeBg: "bg-gradient-to-r from-cyan/20 to-blue-500/15 border-cyan/40",
+  },
+  {
+    id: "robinhood" as const,
+    name: "Robinhood Chain",
+    shortName: "Robinhood",
+    token: "USDG",
+    chainId: ROBINHOOD_CHAIN_ID,
+    icon: RobinhoodIcon,
+    activeColor: "text-emerald",
+    activeGlow: "shadow-[0_0_24px_rgba(16,185,129,0.35)]",
+    activeBg: "bg-gradient-to-r from-emerald/20 to-green-500/15 border-emerald/40",
+  },
+] as const;
+
+/**
+ * Interactive segmented network switcher: both Arbitrum One and Robinhood Chain are always visible side-by-side.
+ * Clicking either network immediately switches the app view AND prompts the wallet to switch chain if connected.
+ */
 function NetworkSwitcher() {
   const { network, setNetwork } = useAppMode();
-  const [open, setOpen] = useState(false);
-  // Where the menu sits, relative to the button's wrapper, so it always stays fully inside the screen (on a phone the button
-  // can wrap to the left edge, where a right-anchored menu would hang off-screen).
-  const [place, setPlace] = useState<{ left: number; width: number }>({ left: 0, width: 224 });
-  const ref = useRef<HTMLDivElement>(null);
-  const toggle = () => {
-    if (!open && ref.current) {
-      const r = ref.current.getBoundingClientRect();
-      const margin = 16;
-      const width = Math.min(224, window.innerWidth - margin * 2);
-      const desired = Math.min(Math.max(r.right - width, margin), window.innerWidth - margin - width); // viewport x of the menu's left edge
-      setPlace({ left: desired - r.left, width });
+  const { isConnected } = useAccount();
+  const walletChainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  const handleSwitch = (target: AppNetwork) => {
+    setNetwork(target);
+    const targetChainId = target === "arbitrum" ? ARBITRUM_CHAIN_ID : ROBINHOOD_CHAIN_ID;
+    if (isConnected && switchChain && walletChainId !== targetChainId) {
+      if (!(LOCAL_FORK_ENABLED && walletChainId === LOCAL_FORK_CHAIN_ID)) {
+        try {
+          switchChain({ chainId: targetChainId });
+        } catch {
+          /* wallet rejected or unsupported; UI state switched safely */
+        }
+      }
     }
-    setOpen((v) => !v);
   };
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  const current = NETWORKS.find((n) => n.id === network)!;
+
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        data-testid="network-switcher"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={toggle}
-        className="flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-surface px-3 text-xs font-semibold text-fg hover:border-cyan/40"
-      >
-        <span className={`h-2 w-2 rounded-full ${network === "robinhood" ? "bg-emerald" : "bg-cyan"}`} aria-hidden="true" />
-        {current.label}
-        <span aria-hidden="true" className="text-muted">▾</span>
-      </button>
-      {open && (
-        <div role="menu" style={{ left: place.left, width: place.width }} className="absolute z-50 mt-2 overflow-hidden rounded-xl border border-white/10 bg-surface shadow-2xl">
-          {NETWORKS.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              role="menuitemradio"
-              aria-checked={n.id === network}
-              data-testid={`network-option-${n.id}`}
-              onClick={() => {
-                setNetwork(n.id);
-                setOpen(false);
-              }}
-              className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-xs hover:bg-white/5 ${n.id === network ? "text-fg" : "text-muted"}`}
+    <div
+      role="radiogroup"
+      aria-label="Yield Network"
+      data-testid="network-switcher"
+      className="relative flex items-center rounded-full border border-white/10 bg-surface-2 p-1 text-xs font-semibold shadow-inner"
+    >
+      {NETWORKS.map((n) => {
+        const active = network === n.id;
+        const Icon = n.icon;
+        return (
+          <button
+            key={n.id}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            data-testid={`network-option-${n.id}`}
+            onClick={() => handleSwitch(n.id)}
+            className={`group relative z-10 flex min-h-10 sm:min-h-11 items-center gap-1.5 rounded-full px-3 sm:px-4 text-xs transition-all select-none sm:gap-2 ${
+              active ? "text-fg font-bold" : "text-muted hover:text-fg hover:bg-white/[0.04]"
+            }`}
+          >
+            {active && (
+              <motion.span
+                layoutId="network-active-pill"
+                transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                className={`absolute inset-0 -z-10 rounded-full border ${n.activeBg} ${n.activeGlow}`}
+              />
+            )}
+            <Icon className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${active ? n.activeColor : "opacity-70 group-hover:opacity-100"}`} />
+            <span className="hidden sm:inline">{n.name}</span>
+            <span className="inline sm:hidden">{n.shortName}</span>
+            <span
+              className={`rounded px-1.5 py-0.5 font-mono text-[10px] transition-colors ${
+                active ? `${n.activeColor} bg-white/10` : "text-muted/80 bg-white/5"
+              }`}
             >
-              <span className="font-semibold">{n.label}</span>
-              <span className="font-mono text-[11px] text-muted">{n.note}</span>
-            </button>
-          ))}
-        </div>
-      )}
+              {n.token}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
