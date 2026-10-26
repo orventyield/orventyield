@@ -94,7 +94,20 @@ const NETWORKS: { id: AppNetwork; label: string; note: string }[] = [
 function NetworkSwitcher() {
   const { network, setNetwork } = useAppMode();
   const [open, setOpen] = useState(false);
+  // Where the menu sits, relative to the button's wrapper, so it always stays fully inside the screen (on a phone the button
+  // can wrap to the left edge, where a right-anchored menu would hang off-screen).
+  const [place, setPlace] = useState<{ left: number; width: number }>({ left: 0, width: 224 });
   const ref = useRef<HTMLDivElement>(null);
+  const toggle = () => {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      const margin = 16;
+      const width = Math.min(224, window.innerWidth - margin * 2);
+      const desired = Math.min(Math.max(r.right - width, margin), window.innerWidth - margin - width); // viewport x of the menu's left edge
+      setPlace({ left: desired - r.left, width });
+    }
+    setOpen((v) => !v);
+  };
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
@@ -114,7 +127,7 @@ function NetworkSwitcher() {
         data-testid="network-switcher"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-surface px-3 text-xs font-semibold text-fg hover:border-cyan/40"
       >
         <span className={`h-2 w-2 rounded-full ${network === "robinhood" ? "bg-emerald" : "bg-cyan"}`} aria-hidden="true" />
@@ -122,7 +135,7 @@ function NetworkSwitcher() {
         <span aria-hidden="true" className="text-muted">▾</span>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-surface shadow-2xl">
+        <div role="menu" style={{ left: place.left, width: place.width }} className="absolute z-50 mt-2 overflow-hidden rounded-xl border border-white/10 bg-surface shadow-2xl">
           {NETWORKS.map((n) => (
             <button
               key={n.id}

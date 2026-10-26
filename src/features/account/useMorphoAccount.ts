@@ -7,7 +7,7 @@ import { useAccount, useBalance, useChainId, useConfig, usePublicClient, useSend
 import { findSafeCreationBlock, transferData } from "@/lib/aave/account";
 import { fmtUsdc } from "@/lib/aave/format";
 import { ROBINHOOD, ROBINHOOD_CHAIN_ID } from "@/lib/contracts/robinhood";
-import { approveData, depositData, readMorphoAccount, simulateWithdrawal, withdrawToData, withdrawYieldData } from "@/lib/morpho/account";
+import { approveData, assertMorphoInnerCalls, assertMorphoTarget, depositData, readMorphoAccount, simulateWithdrawal, withdrawToData, withdrawYieldData } from "@/lib/morpho/account";
 import { checkMorphoRequest, morphoLimits } from "@/lib/morpho/position";
 import { execCalldata, predictSafeAddress, readCreationCode, safeCall, safeFactoryAbi, safeSetup, withGasBuffer } from "@/lib/safe/safe";
 import { ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
@@ -24,6 +24,8 @@ interface PlanStep {
   to: Address;
   data: Hex;
   skip?: boolean;
+  /** The calls a Safe step makes on the user's behalf; checked against the allowlist before the wallet is asked to sign. */
+  inner?: readonly { to: string }[];
   onDone?: (blockNumber: bigint) => void;
 }
 
@@ -138,6 +140,8 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
           await switchChainAsync({ chainId: ROBINHOOD_CHAIN_ID });
         }
         for (const step of todo) {
+          assertMorphoTarget(step.to, safe); // refuse any target outside the allowlist before the wallet is asked to sign
+          if (step.inner) assertMorphoInnerCalls(step.inner);
           mark(step.id, { status: "wallet" });
           await client.call({ account: owner, to: step.to, data: step.data }); // simulate: throws with the revert reason
           const gas = step.to.toLowerCase() === safe?.toLowerCase() ? withGasBuffer(await client.estimateGas({ account: owner, to: step.to, data: step.data })) : undefined;
@@ -167,7 +171,7 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
   const safeStep = useCallback(
     (id: string, label: string, detail: string, calls: Parameters<typeof safeCall>[0]): PlanStep => {
       const c = safeCall(calls);
-      return { id, label, detail, to: safe!, data: execCalldata(owner!, c.to, c.data, c.operation) };
+      return { id, label, detail, to: safe!, data: execCalldata(owner!, c.to, c.data, c.operation), inner: calls };
     },
     [safe, owner],
   );

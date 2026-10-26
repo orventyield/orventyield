@@ -201,4 +201,39 @@ test.describe("Robinhood Chain: Safe + Morpho Steakhouse USDG", () => {
     await page.waitForTimeout(1500);
     expect(errors).toEqual([]);
   });
+  test("switching networks never shows one chain's balance as the other's asset", async ({ page }) => {
+    test.setTimeout(180_000);
+    await rpc("anvil_setBalance", [ACCOUNT, ETH_100]);
+    await fundUsdg(ACCOUNT, 250_000_000n);
+    const errors = await open(page);
+    await switchToRobinhood(page);
+    await page.getByTestId("open-deposit").click();
+    await page.getByTestId("amount-input").fill("100");
+    await page.getByTestId("amount-confirm").click();
+    await expect(page.getByTestId("tx-success")).toBeVisible({ timeout: 120_000 });
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("principal-value")).toHaveText("100.00", { timeout: 30_000 });
+
+    // Robinhood screen: USDG only, never USDC
+    let text = await page.locator("main").innerText();
+    expect(text).toContain("USDG");
+    expect(text).not.toMatch(/USDC/);
+
+    // Switch to Arbitrum One: the 100 USDG position is gone from view; no USDG or Morpho wording, and no "100.00" principal
+    await page.getByTestId("network-switcher").click();
+    await page.getByTestId("network-option-arbitrum").click();
+    await expect(page.getByTestId("strategy-title")).toHaveCount(0);
+    await expect(page.getByTestId("usdg-badge")).toHaveCount(0);
+    text = await page.locator("main").innerText();
+    expect(text).not.toMatch(/USDG|Morpho|Steakhouse/);
+    if ((await page.getByTestId("principal-value").count()) > 0) expect(await page.getByTestId("principal-value").textContent()).not.toContain("100.00");
+
+    // And back: the same position, labelled USDG again
+    await page.getByTestId("network-switcher").click();
+    await page.getByTestId("network-option-robinhood").click();
+    await expect(page.getByTestId("principal-value")).toHaveText("100.00", { timeout: 30_000 });
+    text = await page.locator("main").innerText();
+    expect(text).not.toMatch(/USDC/);
+    expect(errors).toEqual([]);
+  });
 });

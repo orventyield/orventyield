@@ -19,6 +19,25 @@ export function assertAllowedVault(vault: string): Address {
 
 const VAULT = ROBINHOOD.steakhouseUsdgVault;
 
+/**
+ * Every transaction the Morpho flow sends goes to exactly one of these: the Safe factory (create the Safe), USDG (approve /
+ * transfer), the allowlisted vault (deposit / withdraw) or the user's own Safe (execTransaction). Anything else is refused
+ * BEFORE the wallet is asked to sign, so a bug or a tampered plan can never send funds to another contract.
+ */
+export function assertMorphoTarget(to: string, safe: string | undefined): void {
+  const t = to.toLowerCase();
+  const ok = [ROBINHOOD.safeProxyFactory, ROBINHOOD.usdg, ...ROBINHOOD_VAULT_ALLOWLIST, ...(safe ? [safe] : [])].some((a) => a.toLowerCase() === t);
+  if (!ok) throw new Error("Blocked: that contract is not one OrventYield may call.");
+}
+
+/** Calls the Safe makes on the user's behalf may only touch the allowlisted vault and USDG (withdraw, then transfer). */
+export function assertMorphoInnerCalls(calls: readonly { to: string }[]): void {
+  for (const c of calls) {
+    const t = c.to.toLowerCase();
+    if (![ROBINHOOD.usdg, ...ROBINHOOD_VAULT_ALLOWLIST].some((a) => a.toLowerCase() === t)) throw new Error("Blocked: the Safe may only call the allowlisted vault and USDG.");
+  }
+}
+
 /** Exact-amount USDG approval for the vault (never unlimited). The wallet approves; the vault pulls from the wallet. */
 export const approveData = (amount: bigint): Hex => encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [assertAllowedVault(VAULT), amount] });
 
