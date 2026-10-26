@@ -11,6 +11,7 @@ import { approveData, assertMorphoInnerCalls, assertMorphoTarget, depositData, r
 import { checkMorphoRequest, morphoLimits } from "@/lib/morpho/position";
 import { execCalldata, predictSafeAddress, readCreationCode, safeCall, safeFactoryAbi, safeSetup, withGasBuffer } from "@/lib/safe/safe";
 import { ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
+import { switchOrAddChain } from "@/lib/chainSwitch";
 import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 import { friendlyTxError } from "./errors";
 import { createTxLock } from "@/lib/txLock";
@@ -132,10 +133,10 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
       setSteps(todo.map((p) => ({ id: p.id, label: p.label, detail: p.detail, status: "todo" })));
       const mark = (id: string, patch: Partial<TxStep>) => setSteps((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
       try {
-        // Reads work from any network; a Robinhood write needs the wallet on Robinhood Chain. Switch here, on demand.
+        // Reads work from any network; a Robinhood write needs the wallet on Robinhood Chain. Automatically add and switch if needed.
         if (wrongChain) {
           mark(todo[0]!.id, { status: "wallet" });
-          await switchChainAsync({ chainId: ROBINHOOD_CHAIN_ID });
+          await switchOrAddChain(wagmiConfig, ROBINHOOD_CHAIN_ID);
         }
         for (const step of todo) {
           assertMorphoTarget(step.to, safe); // refuse any target outside the allowlist before the wallet is asked to sign
@@ -380,8 +381,8 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     onFork,
     wrongChain,
     walletChainName,
-    switchToRobinhood: () => switchChain({ chainId: ROBINHOOD_CHAIN_ID }),
-    switchToArbitrum: () => switchChain({ chainId: ARBITRUM_CHAIN_ID }),
+    switchToRobinhood: () => void switchOrAddChain(wagmiConfig, ROBINHOOD_CHAIN_ID),
+    switchToArbitrum: () => void switchOrAddChain(wagmiConfig, ARBITRUM_CHAIN_ID),
     /** When the position was last read (ms), for the display-only ticking yield. */
     fetchedAt: accountQ.dataUpdatedAt,
   };

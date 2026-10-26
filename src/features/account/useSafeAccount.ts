@@ -14,6 +14,7 @@ import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 import { encodeFunctionData } from "viem";
 import { fmtUsdc } from "@/lib/aave/format";
 import { friendlyTxError } from "./errors";
+import { switchOrAddChain } from "@/lib/chainSwitch";
 import { createTxLock } from "@/lib/txLock";
 
 export type StepStatus = "todo" | "wallet" | "pending" | "done" | "failed";
@@ -158,10 +159,10 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
       setSteps(active.map((p) => ({ id: p.id, label: p.label, detail: p.detail, status: "todo" })));
       const mark = (id: string, patch: Partial<TxStep>) => setSteps((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
       try {
-        // Reads work from any network; only an Arbitrum write needs the wallet on Arbitrum. Switch right here, on demand.
+        // Reads work from any network; only an Arbitrum write needs the wallet on Arbitrum. Automatically add and switch if needed.
         if (wrongChain) {
           mark(active[0]!.id, { status: "wallet" });
-          await switchChainAsync({ chainId: ARBITRUM_CHAIN_ID });
+          await switchOrAddChain(wagmiConfig, ARBITRUM_CHAIN_ID);
         }
         for (const step of active) {
           assertArbitrumTarget(step.to, safe); // refuse any target outside the allowlist before the wallet is asked to sign
@@ -389,7 +390,7 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
     /** The wallet is connected on another supported network (reads and bridging still work; Arbitrum writes switch on demand). */
     wrongChain,
     walletChainName,
-    switchToArbitrum: () => switchChain({ chainId: ARBITRUM_CHAIN_ID }),
+    switchToArbitrum: () => void switchOrAddChain(wagmiConfig, ARBITRUM_CHAIN_ID),
     retry: () => {
       void qc.invalidateQueries();
     },

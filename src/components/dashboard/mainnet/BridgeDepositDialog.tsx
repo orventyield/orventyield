@@ -2,11 +2,15 @@
 
 import { useId } from "react";
 import type { Address } from "viem";
+import { useAccount, useChainId, useConfig } from "wagmi";
 import { BridgeDepositWidget } from "@/components/dashboard/mainnet/BridgeDepositWidget";
 import { TxSteps } from "@/components/dashboard/mainnet/TxSteps";
 import { Dialog } from "@/components/ui/Dialog";
 import type { TxStep } from "@/features/account/useSafeAccount";
 import { fmtUsdc } from "@/lib/aave/format";
+import { switchOrAddChain } from "@/lib/chainSwitch";
+import { ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
+import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 
 interface Props {
   open: boolean;
@@ -43,6 +47,13 @@ export function BridgeDepositDialog(p: Props) {
   const asset = p.asset ?? "USDC";
   const vaultName = p.vaultName ?? "Aave";
   const networkName = p.networkName ?? "Arbitrum One";
+  const targetChainId = p.toChainId ?? ARBITRUM_CHAIN_ID;
+
+  const { isConnected } = useAccount();
+  const walletChainId = useChainId();
+  const wagmiConfig = useConfig();
+  const walletChainName = wagmiConfig.chains.find((c) => c.id === walletChainId)?.name;
+  const isWrongChain = isConnected && walletChainId !== targetChainId && !(LOCAL_FORK_ENABLED && walletChainId === LOCAL_FORK_CHAIN_ID);
 
   return (
     <Dialog open={p.open} onClose={p.onClose} labelledBy={id} testId="bridge-dialog" dismissible={!p.busy}>
@@ -57,6 +68,22 @@ export function BridgeDepositDialog(p: Props) {
           ✕
         </button>
       </div>
+
+      {isWrongChain && (
+        <div data-testid="bridge-chain-notice" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-xs text-muted">
+          <span>
+            Connected on <span className="font-semibold text-fg">{walletChainName ?? "another network"}</span>.
+          </span>
+          <button
+            type="button"
+            data-testid="bridge-switch-network"
+            onClick={() => void switchOrAddChain(wagmiConfig, targetChainId).catch(() => {})}
+            className="rounded-lg border border-cyan/40 bg-cyan/10 px-3 py-1 font-semibold text-cyan hover:bg-cyan/20 transition-all text-xs"
+          >
+            Switch wallet to {networkName}
+          </button>
+        </div>
+      )}
 
       {(idle > 0n || started) && (
         <div data-testid="bridge-idle" className="mb-4 space-y-3 rounded-xl border border-emerald/30 bg-emerald/10 p-3">
