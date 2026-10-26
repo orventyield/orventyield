@@ -13,7 +13,6 @@ import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
 import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
 import { MorphoVaultOverview, type MorphoModal } from "@/components/dashboard/robinhood/MorphoVaultOverview";
 import { PosSimulator } from "@/components/dashboard/PosSimulator";
-import { Dialog } from "@/components/ui/Dialog";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMorphoAccount } from "@/features/account/useMorphoAccount";
 import { useMorphoApy } from "@/features/account/useMorphoApy";

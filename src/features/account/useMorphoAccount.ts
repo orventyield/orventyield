@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { encodeFunctionData, erc20Abi, getAddress, type Address, type Hex } from "viem";
-import { useAccount, useBalance, useChainId, useConfig, usePublicClient, useSendTransaction, useSwitchChain } from "wagmi";
+import { useAccount, useBalance, useChainId, useConfig, usePublicClient, useSendTransaction } from "wagmi";
 import { findSafeCreationBlock, transferData } from "@/lib/aave/account";
 import { fmtUsdc } from "@/lib/aave/format";
 import { ROBINHOOD, ROBINHOOD_CHAIN_ID } from "@/lib/contracts/robinhood";
@@ -44,7 +44,6 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
   const wrongChain = isConnected && walletChainId !== ROBINHOOD_CHAIN_ID && !onFork;
   const client = usePublicClient({ chainId });
   const qc = useQueryClient();
-  const { switchChain, switchChainAsync } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
   const wagmiConfig = useConfig();
   const walletChainName = wagmiConfig.chains.find((c) => c.id === walletChainId)?.name;
@@ -169,7 +168,7 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
         lock.current.release();
       }
     },
-    [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe, wrongChain, switchChainAsync, eth.data?.value],
+    [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe, wrongChain, wagmiConfig],
   );
 
   const safeStep = useCallback(

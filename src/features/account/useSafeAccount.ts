@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { erc20Abi, getAddress, type Address, type Hex } from "viem";
-import { useAccount, useBalance, useChainId, usePublicClient, useConfig, useSendTransaction, useSwitchChain } from "wagmi";
+import { useAccount, useBalance, useChainId, usePublicClient, useConfig, useSendTransaction } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveData, assertArbitrumTarget, findSafeCreationBlock, readAccount, supplyData, transferData, withdrawPrincipalData, withdrawYieldData,
@@ -53,7 +53,6 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
   const wrongChain = isConnected && walletChainId !== ARBITRUM_CHAIN_ID && !onFork;
   const client = usePublicClient({ chainId });
   const qc = useQueryClient();
-  const { switchChain, switchChainAsync } = useSwitchChain();
   const wagmiConfig = useConfig();
   const walletChainName = wagmiConfig.chains.find((c) => c.id === walletChainId)?.name;
   const { sendTransactionAsync } = useSendTransaction();
@@ -190,7 +189,7 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
         lock.current.release();
       }
     },
-    [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe, wrongChain, switchChainAsync],
+    [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe, wrongChain, wagmiConfig],
   );
 
   const deposit = useCallback(
