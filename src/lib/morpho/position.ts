@@ -40,7 +40,13 @@ export function toPoolEvents(events: VaultEvent[]): PoolEvent[] {
 
 /** Position from events and the Safe's current assets. `aBalance` holds the current assets (name kept for the shared type). */
 export function morphoPosition(events: VaultEvent[], safe: string, currentAssets: bigint): Position {
-  return positionOf(toPoolEvents(events), safe, currentAssets);
+  const p = positionOf(toPoolEvents(events), safe, currentAssets);
+  // Invariant defense: If the safe holds vault assets but events are empty (e.g. initial indexing lag or cache reset),
+  // we must never assume 100% of currentAssets is yield. Treat it as principal until events confirm otherwise.
+  if (events.length === 0 && currentAssets > 0n) {
+    return { principal: currentAssets, aBalance: currentAssets, yieldAvailable: 0n };
+  }
+  return p;
 }
 
 export interface MorphoLimits {

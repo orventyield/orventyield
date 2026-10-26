@@ -4,12 +4,19 @@ import { safeFactoryAbi } from "../safe/safe";
 import { poolAbi, RESERVE_ATOKEN, RESERVE_LIQUIDITY_RATE } from "./abi";
 import { positionOf, type PoolEvent, type Position } from "./position";
 
-/** Public Arbitrum RPCs cap eth_getLogs at 10M blocks per call. */
+/** Public Arbitrum RPCs cap eth_getLogs at 10M blocks, while commercial providers (Alchemy, Infura) cap at 10k-50k. */
 export const LOG_SPAN = 9_000_000n;
 /** How many of the newest pool events get a block timestamp for the ledger. */
 const LEDGER_EVENTS = 50;
 
 type Client = Pick<PublicClient, "readContract" | "getLogs" | "getBlockNumber" | "getBlock">;
+
+/** Every transaction the Aave flow sends goes to the Safe factory, USDC, Aave pool, or user's Safe. */
+export function assertArbitrumTarget(to: string, safe: string | undefined): void {
+  const t = to.toLowerCase();
+  const ok = [ARBITRUM.safeProxyFactory, ARBITRUM.usdc, ARBITRUM.aavePool, ...(safe ? [safe] : [])].some((a) => a.toLowerCase() === t);
+  if (!ok) throw new Error("Blocked: that contract is not one OrventYield may call.");
+}
 
 /** Exact-amount approval for the Aave Pool (never unlimited). */
 export const approveData = (amount: bigint): Hex =>
@@ -30,11 +37,29 @@ export const withdrawPrincipalData = (amount: bigint, owner: Address): Hex =>
 export const transferData = (to: Address, amount: bigint): Hex =>
   encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [to, amount] });
 
+/** Adaptively splits block range if commercial providers (Alchemy/Infura) return range or limit errors. */
+async function adaptiveFetch<T>(a: bigint, b: bigint, fetch: (start: bigint, end: bigint) => Promise<T[]>): Promise<T[]> {
+  try {
+    return await fetch(a, b);
+  } catch (err: unknown) {
+    const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    const isRangeError = msg.includes("range") || msg.includes("limit") || msg.includes("10000") || msg.includes("400") || msg.includes("exceed");
+    if (isRangeError && b > a) {
+      const mid = a + (b - a) / 2n;
+      const left = await adaptiveFetch(a, mid, fetch);
+      const right = await adaptiveFetch(mid + 1n, b, fetch);
+      return [...left, ...right];
+    }
+    throw err;
+  }
+}
+
 export async function chunked<T>(from: bigint, to: bigint, fetch: (a: bigint, b: bigint) => Promise<T[]>): Promise<T[]> {
+  if (from > to) return [];
   const out: T[] = [];
   for (let a = from; a <= to; a += LOG_SPAN + 1n) {
     const b = a + LOG_SPAN > to ? to : a + LOG_SPAN;
-    out.push(...(await fetch(a, b)));
+    out.push(...(await adaptiveFetch(a, b, fetch)));
   }
   return out;
 }
@@ -45,14 +70,21 @@ export async function findSafeCreationBlock(client: Client, safe: Address, earli
   // Newest first: Safes are usually recent, and the public RPC allows ~10M blocks per query.
   for (let b = head; b >= earliest; b = b > LOG_SPAN ? b - LOG_SPAN - 1n : 0n) {
     const from = b > LOG_SPAN ? b - LOG_SPAN : 0n;
-    const logs = await client.getLogs({
-      address: factory,
-      event: safeFactoryAbi[2],
-      args: { proxy: safe },
-      fromBlock: from < earliest ? earliest : from,
-      toBlock: b,
-    });
-    if (logs.length) return logs[0]!.blockNumber;
+    const start = from < earliest ? earliest : from;
+    try {
+      const logs = await adaptiveFetch(start, b, (s, e) =>
+        client.getLogs({
+          address: factory,
+          event: safeFactoryAbi[2],
+          args: { proxy: safe },
+          fromBlock: s,
+          toBlock: e,
+        })
+      );
+      if (logs.length) return logs[0]!.blockNumber;
+    } catch {
+      /* continue backward search */
+    }
     if (from === 0n) break;
   }
   return null;

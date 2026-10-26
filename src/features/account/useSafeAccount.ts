@@ -5,7 +5,7 @@ import { erc20Abi, getAddress, type Address, type Hex } from "viem";
 import { useAccount, useBalance, useChainId, usePublicClient, useConfig, useSendTransaction, useSwitchChain } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  approveData, findSafeCreationBlock, readAccount, supplyData, transferData, withdrawPrincipalData, withdrawYieldData,
+  approveData, assertArbitrumTarget, findSafeCreationBlock, readAccount, supplyData, transferData, withdrawPrincipalData, withdrawYieldData,
 } from "@/lib/aave/account";
 import { maxPrincipalWithdrawal, maxYieldWithdrawal, rayToApy, yieldPerSecond } from "@/lib/aave/position";
 import { ARBITRUM, ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
@@ -94,6 +94,10 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
     queryFn: async () => {
       const key = blockKey(chainId, safe!);
       let from = readCache(key) ? BigInt(readCache(key)!) : null;
+      const head = await client!.getBlockNumber();
+      if (from !== null && from > head) {
+        from = null; // Stale or corrupt future block in localStorage
+      }
       if (from === null) {
         from = await findSafeCreationBlock(client!, safe!);
         if (from === null) throw new Error("Could not locate your Safe's creation block.");
@@ -160,6 +164,7 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
           await switchChainAsync({ chainId: ARBITRUM_CHAIN_ID });
         }
         for (const step of active) {
+          assertArbitrumTarget(step.to, safe); // refuse any target outside the allowlist before the wallet is asked to sign
           mark(step.id, { status: "wallet" });
           await client.call({ account: owner, to: step.to, data: step.data }); // simulate: throws with the revert reason
           // Safe transactions get gas headroom (see withGasBuffer); plain wallet transactions keep the wallet's own estimate.

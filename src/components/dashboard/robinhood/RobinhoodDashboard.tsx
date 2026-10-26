@@ -28,7 +28,6 @@ export function RobinhoodDashboard() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("vault");
   const [modal, setModal] = useState<MorphoModal>(null);
-  const [toWallet, setToWallet] = useState(true);
   const explorer = m.onFork ? undefined : ROBINHOOD_EXPLORER;
 
   if (m.status === "disconnected") return <ConnectGate />;
@@ -130,19 +129,14 @@ export function RobinhoodDashboard() {
         max={m.limits.yield}
         maxLabel="Yield available"
         confirmLabel="Withdraw yield"
-        preview={[{ label: "Withdraw yield", detail: toWallet ? "Your Safe takes the yield out of the vault and sends it to your wallet in one transaction." : "Your Safe takes the yield out of the vault and keeps it as USDG in the Safe." }]}
+        preview={[{ label: "Withdraw yield", detail: "Your Safe takes the yield out of the vault and sends it to your wallet in one transaction." }]}
         steps={m.steps}
         busy={m.busy}
         error={m.error}
         success={modal === "yield" ? m.lastDone : null}
         explorer={explorer}
-        onSubmit={(v) => void m.withdrawYield(v, toWallet)}
-      >
-        <label className="flex min-h-11 items-center gap-2 text-xs text-muted">
-          <input type="checkbox" checked={toWallet} disabled={m.busy} onChange={(e) => setToWallet(e.target.checked)} className="h-4 w-4 accent-cyan" />
-          Send it to my wallet
-        </label>
-      </AmountDialog>
+        onSubmit={(v) => void m.withdrawYield(v, true)}
+      />
 
       <AmountDialog
         open={modal === "principal"}

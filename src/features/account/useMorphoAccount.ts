@@ -66,12 +66,13 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
   const deployed = deployedQ.data === true;
 
   const walletQ = useQuery({
-    queryKey: ["mo-wallet-usdg", chainId, owner],
+    queryKey: ["mo-wallet-usdg", chainId, owner, safe],
     enabled,
     refetchInterval: 20_000,
     queryFn: async () => ({
       usdg: await client!.readContract({ address: ROBINHOOD.usdg, abi: erc20Abi, functionName: "balanceOf", args: [owner!] }),
       allowance: await client!.readContract({ address: ROBINHOOD.usdg, abi: erc20Abi, functionName: "allowance", args: [owner!, ROBINHOOD.steakhouseUsdgVault] }),
+      safeUsdg: safe ? await client!.readContract({ address: ROBINHOOD.usdg, abi: erc20Abi, functionName: "balanceOf", args: [safe] }) : 0n,
     }),
   });
   const eth = useBalance({ address: owner, chainId, query: { enabled, refetchInterval: 30_000 } });
@@ -83,6 +84,10 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     queryFn: async () => {
       const key = blockKey(chainId, safe!);
       let from = readCache(key) ? BigInt(readCache(key)!) : null;
+      const head = await client!.getBlockNumber();
+      if (from !== null && from > head) {
+        from = null; // Stale or corrupt future block in localStorage
+      }
       if (from === null) {
         from = await findSafeCreationBlock(client!, safe!, 0n, ROBINHOOD.safeProxyFactory);
         if (from === null) throw new Error("Could not locate your Safe's creation block.");
@@ -144,7 +149,12 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
           if (step.inner) assertMorphoInnerCalls(step.inner);
           mark(step.id, { status: "wallet" });
           await client.call({ account: owner, to: step.to, data: step.data }); // simulate: throws with the revert reason
-          const gas = step.to.toLowerCase() === safe?.toLowerCase() ? withGasBuffer(await client.estimateGas({ account: owner, to: step.to, data: step.data })) : undefined;
+          let gas: bigint | undefined;
+          try {
+            gas = withGasBuffer(await client.estimateGas({ account: owner, to: step.to, data: step.data }));
+          } catch {
+            gas = undefined;
+          }
           const hash = await sendTransactionAsync({ to: step.to, data: step.data, chainId, gas });
           mark(step.id, { status: "pending", hash });
           const receipt = await client.waitForTransactionReceipt({ hash });
@@ -233,18 +243,30 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     [owner, safe, deployed, walletQ.data, run, chainId],
   );
 
-  /** Withdraw accrued yield only. `toWallet` also sends it on to the connected wallet in the same Safe transaction. */
+  /** Withdraw accrued yield only. Defaults to sending it on to the connected wallet in the same Safe transaction. */
   const withdrawYield = useCallback(
-    async (amount: bigint, toWallet: boolean) => {
+    async (amount: bigint, toWallet = true) => {
       if (!owner || !safe) return;
       if (!(await guardWithdrawal("yield", amount, withdrawYieldData(amount, safe)))) return;
       const calls = [{ to: ROBINHOOD.steakhouseUsdgVault, data: withdrawYieldData(amount, safe) }, ...(toWallet ? [{ to: ROBINHOOD.usdg, data: transferData(owner, amount) }] : [])];
       return run(
-        [safeStep("withdraw-yield", "Withdraw yield", `Your Safe withdraws ${fmtUsdc(amount)} USDG of earned yield from the vault${toWallet ? " and sends it to your wallet" : " and keeps it in the Safe"}.`, calls)],
+        [safeStep("withdraw-yield", "Withdraw yield", `Your Safe withdraws ${fmtUsdc(amount)} USDG of earned yield from the vault and sends it to your wallet.`, calls)],
         `Withdrew ${fmtUsdc(amount)} USDG of yield.`,
       );
     },
     [owner, safe, guardWithdrawal, run, safeStep],
+  );
+
+  /** Transfer any idle USDG sitting inside the Safe directly to the owner's wallet. */
+  const withdrawSafeUsdg = useCallback(
+    async (amount: bigint) => {
+      if (!owner || !safe || amount <= 0n) return;
+      return run(
+        [safeStep("withdraw-safe-usdg", "Transfer USDG to wallet", `Your Safe transfers ${fmtUsdc(amount)} USDG to your wallet.`, [{ to: ROBINHOOD.usdg, data: transferData(owner, amount) }])],
+        `Transferred ${fmtUsdc(amount)} USDG from your Safe to your wallet.`,
+      );
+    },
+    [owner, safe, run, safeStep],
   );
 
   /** Principal exit straight to the connected wallet. */
@@ -295,6 +317,8 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     deployed,
     /** USDG in the connected wallet (6 decimals). */
     walletUsdg: walletQ.data?.usdg ?? 0n,
+    /** USDG sitting idle in the Safe (6 decimals). */
+    safeUsdg: walletQ.data?.safeUsdg ?? 0n,
     walletEth: eth.data?.value ?? 0n,
     snapshot: snap,
     limits,
@@ -310,6 +334,7 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     deposit,
     withdrawYield,
     withdrawPrincipal,
+    withdrawSafeUsdg,
     payFromYield,
     payFromPrincipal,
     /** Upfront warning to show above the action buttons: no ETH for gas on Robinhood Chain. Null when fine or still loading. */

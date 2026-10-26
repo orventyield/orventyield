@@ -102,6 +102,21 @@ export function MorphoVaultOverview({ m, apy, onOpen }: { m: Account; apy: numbe
         <dl className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-1 font-mono text-xs text-muted">
           <div className="flex gap-2"><dt>Status</dt><dd data-testid="safe-status" className={m.deployed ? "text-emerald" : "text-fg"}>{m.deployed ? "Active" : "Created on first deposit"}</dd></div>
           <div className="flex gap-2"><dt>Wallet USDG</dt><dd data-testid="wallet-usdg" className="text-fg">{fmtUsdc(m.walletUsdg)}</dd></div>
+          {m.safeUsdg > 0n && (
+            <div className="flex items-center gap-2">
+              <dt className="text-amber">Safe Idle</dt>
+              <dd data-testid="safe-idle-usdg" className="font-semibold text-amber">{fmtUsdc(m.safeUsdg)} USDG</dd>
+              <button
+                type="button"
+                data-testid="sweep-safe-usdg"
+                disabled={m.busy}
+                onClick={() => void m.withdrawSafeUsdg(m.safeUsdg)}
+                className="rounded-lg bg-amber/20 px-2 py-0.5 text-[11px] font-semibold text-amber hover:bg-amber/30 disabled:opacity-50"
+              >
+                Sweep to Wallet
+              </button>
+            </div>
+          )}
           {m.safe && explorer && (
             <a className="text-cyan hover:underline" href={`${explorer}/address/${m.safe}`} target="_blank" rel="noopener noreferrer">Explorer ↗</a>
           )}
