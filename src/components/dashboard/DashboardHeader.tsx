@@ -4,12 +4,13 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { formatUnits } from "viem";
-import { useAccount, useBalance, useChainId, useDisconnect, useReadContract, useSwitchChain } from "wagmi";
+import { useAccount, useBalance, useChainId, useConfig, useDisconnect, useReadContract } from "wagmi";
 import { Logo } from "@/components/ui/Icons";
 import { useAppMode, type AppMode, type AppNetwork } from "@/features/mode/AppModeProvider";
 import { erc20Abi } from "@/lib/contracts/abis";
 import { ARBITRUM, ARBITRUM_CHAIN_ID } from "@/lib/contracts/arbitrum";
 import { ROBINHOOD_CHAIN_ID } from "@/lib/contracts/robinhood";
+import { switchOrAddChain } from "@/lib/chainSwitch";
 import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 
 /** Real ETH/USDC balances of the connected wallet when pointed at the local Anvil fork. */
@@ -149,18 +150,16 @@ function NetworkSwitcher() {
   const { network, setNetwork } = useAppMode();
   const { isConnected } = useAccount();
   const walletChainId = useChainId();
-  const { switchChain } = useSwitchChain();
+  const wagmiConfig = useConfig();
 
   const handleSwitch = (target: AppNetwork) => {
     setNetwork(target);
     const targetChainId = target === "arbitrum" ? ARBITRUM_CHAIN_ID : ROBINHOOD_CHAIN_ID;
-    if (isConnected && switchChain && walletChainId !== targetChainId) {
+    if (isConnected && walletChainId !== targetChainId) {
       if (!(LOCAL_FORK_ENABLED && walletChainId === LOCAL_FORK_CHAIN_ID)) {
-        try {
-          switchChain({ chainId: targetChainId });
-        } catch {
+        void switchOrAddChain(wagmiConfig, targetChainId).catch(() => {
           /* wallet rejected or unsupported; UI state switched safely */
-        }
+        });
       }
     }
   };
