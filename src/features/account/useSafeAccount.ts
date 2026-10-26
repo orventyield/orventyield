@@ -14,6 +14,7 @@ import { LOCAL_FORK_CHAIN_ID, LOCAL_FORK_ENABLED } from "@/lib/wagmi";
 import { encodeFunctionData } from "viem";
 import { fmtUsdc } from "@/lib/aave/format";
 import { friendlyTxError } from "./errors";
+import { createTxLock } from "@/lib/txLock";
 
 export type StepStatus = "todo" | "wallet" | "pending" | "done" | "failed";
 export interface TxStep {
@@ -123,6 +124,7 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
   const [error, setError] = useState<string | null>(null);
   const [lastDone, setLastDone] = useState<string | null>(null);
   const runId = useRef(0);
+  const lock = useRef(createTxLock());
 
   const refetchAll = useCallback(async () => {
     await Promise.all(
@@ -134,6 +136,8 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
   const run = useCallback(
     async (plan: { id: string; label: string; detail: string; to: Address; data: Hex; skip?: boolean; onDone?: (blockNumber: bigint) => void }[], doneMessage: string) => {
       if (!owner || !client || busy) return false;
+      // A fast double click or a second tap is refused here, before a second wallet prompt can open.
+      if (!lock.current.tryAcquire()) return false;
       const active = plan.filter((p) => !p.skip);
       const my = ++runId.current;
       setBusy(true);
@@ -169,6 +173,7 @@ export function useSafeAccount({ active = true }: { active?: boolean } = {}) {
         return false;
       } finally {
         setBusy(false);
+        lock.current.release();
       }
     },
     [owner, client, busy, sendTransactionAsync, chainId, refetchAll, safe, wrongChain, switchChainAsync],

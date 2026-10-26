@@ -2,6 +2,7 @@ import { defineChain, type Chain } from "viem";
 import { http, createConfig, type Transport } from "wagmi";
 import { arbitrum, base, mainnet, optimism, polygon } from "wagmi/chains";
 import { ROBINHOOD_CHAIN_ID, ROBINHOOD_EXPLORER, ROBINHOOD_RPC } from "./contracts/robinhood";
+import { resilientTransport, rpcUrlList } from "./rpc";
 // Subpath imports avoid the connectors barrel, which pulls in optional SDKs we do not use.
 import { coinbaseWallet } from "wagmi/connectors/coinbaseWallet";
 import { injected } from "wagmi/connectors/injected";
@@ -43,6 +44,8 @@ export const robinhoodChain = defineChain({
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   rpcUrls: { default: { http: [ROBINHOOD_RPC] } },
   blockExplorers: { default: { name: "Blockscout", url: ROBINHOOD_EXPLORER } },
+  // Multicall3 (code verified on chain): lets viem merge many contract reads into ONE eth_call, so a page of balances is one request.
+  contracts: { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" } },
 });
 
 /**
@@ -52,8 +55,8 @@ export const robinhoodChain = defineChain({
 const publicChains = [arbitrum, robinhoodChain, mainnet, base, optimism, polygon] as const;
 
 const transports: Record<number, Transport> = {
-  [arbitrum.id]: http(process.env.NEXT_PUBLIC_RPC_ARBITRUM || undefined),
-  [robinhoodChain.id]: http(process.env.NEXT_PUBLIC_RPC_ROBINHOOD || undefined),
+  [arbitrum.id]: resilientTransport(rpcUrlList(process.env.NEXT_PUBLIC_RPC_ARBITRUM, process.env.NEXT_PUBLIC_RPC_ARBITRUM_2, "https://arb1.arbitrum.io/rpc")),
+  [robinhoodChain.id]: resilientTransport(rpcUrlList(process.env.NEXT_PUBLIC_RPC_ROBINHOOD, process.env.NEXT_PUBLIC_RPC_ROBINHOOD_2, ROBINHOOD_RPC)),
   // Source chains use viem's default public RPCs unless overridden.
   [mainnet.id]: http(process.env.NEXT_PUBLIC_RPC_MAINNET || undefined),
   [base.id]: http(process.env.NEXT_PUBLIC_RPC_BASE || undefined),

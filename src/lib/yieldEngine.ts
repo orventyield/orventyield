@@ -24,3 +24,12 @@ export function resolveEngine(chainId: number | undefined): { engine: YieldEngin
 export function engineAsset(engine: YieldEngine): { symbol: "USDC" | "USDG"; spendingRails: boolean } {
   return engine === "aave" ? { symbol: "USDC", spendingRails: true } : { symbol: "USDG", spendingRails: false };
 }
+
+/**
+ * Upfront warning when the wallet has no ETH for gas on the engine's chain. `ethBalance` is undefined while it is still loading
+ * (no warning then: never claim "no gas" from a missing read).
+ */
+export function gasWarning(engine: YieldEngine, ethBalance: bigint | undefined): string | null {
+  if (ethBalance === undefined || ethBalance > 0n) return null;
+  return engine === "morpho" ? "Insufficient ETH for gas on Robinhood Chain. Add a little ETH to your wallet to continue." : "Insufficient ETH for gas on Arbitrum One. Add a little ETH to your wallet to continue.";
+}

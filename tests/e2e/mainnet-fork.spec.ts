@@ -120,7 +120,7 @@ test.describe("mainnet: Safe + Aave on the fork", () => {
 
     // Deposit 1,000 USDC: three real transactions (deploy, exact approve, supply)
     await page.getByTestId("amount-input").fill("1000");
-    await page.getByTestId("amount-confirm").click();
+    await page.getByTestId("amount-confirm").dblclick(); // a double click must still send ONE set of transactions
     await expect(page.getByTestId("tx-success")).toBeVisible({ timeout: 90_000 });
     for (const s of ["deploy", "approve", "supply"]) await expect(page.getByTestId(`step-${s}`)).toHaveAttribute("data-status", "done");
     expect(await page.evaluate(() => (window as unknown as { __sent: string[] }).__sent.length)).toBe(3);
