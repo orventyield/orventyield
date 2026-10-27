@@ -6,7 +6,6 @@ import { BankCashout } from "@/components/dashboard/BankCashout";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { BridgeDepositDialog } from "@/components/dashboard/mainnet/BridgeDepositDialog";
 import { LinkedCardPanel } from "@/components/dashboard/cards/LinkedCardPanel";
-import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
 import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
 import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
 import { MainnetVaultOverview, type VaultModal } from "@/components/dashboard/mainnet/MainnetVaultOverview";
@@ -179,26 +178,27 @@ export function MainnetDashboard() {
       <div className="space-y-6">
         <MainnetVaultOverview a={a} open={openModal} />
         <SpendShortcuts onVouchers={() => setTab("vouchers")} onCashout={() => setTab("cashout")} />
-        <LinkedCardPanel
-          funding={{
-            network: "arbitrum",
-            owner: a.owner,
-            safe: a.safe,
-            yieldMax,
-            principalMax,
-            payFromYield: a.payFromYield,
-            payFromPrincipal: a.payFromPrincipal,
-            steps: a.steps,
-            busy: a.busy,
-            error: a.error,
-            lastDone: a.lastDone,
-            clearMessages: a.clearMessages,
-            gasWarning: a.status === "ready" ? gasWarning("aave", a.walletEth) : null,
-            explorer,
-          }}
-        />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-6"><CardPanel suite={suite} txSteps={a.steps} accountBusy={a.busy} explorer={explorer} onSpendVouchers={() => setTab("vouchers")} onSpendCashout={() => setTab("cashout")} /></div>
+          <div className="lg:col-span-6">
+            <LinkedCardPanel
+              funding={{
+                network: "arbitrum",
+                owner: a.owner,
+                safe: a.safe,
+                yieldMax,
+                principalMax,
+                payFromYield: a.payFromYield,
+                payFromPrincipal: a.payFromPrincipal,
+                steps: a.steps,
+                busy: a.busy,
+                error: a.error,
+                lastDone: a.lastDone,
+                clearMessages: a.clearMessages,
+                gasWarning: a.status === "ready" ? gasWarning("aave", a.walletEth) : null,
+                explorer,
+              }}
+            />
+          </div>
           <div className="lg:col-span-6">
             {posCard ? (
               <PosSimulator
@@ -211,7 +211,7 @@ export function MainnetDashboard() {
             ) : (
               <div data-testid="pos-locked" className="h-full rounded-2xl glass-card p-5">
                 <h3 className="text-base font-bold text-fg">POS Merchant Terminal</h3>
-                <p className="mt-2 text-sm text-muted">Get your virtual card and fund it with earned yield first. Then you can test a swipe at Uber, Starbucks or Amazon against the money on your card.</p>
+                <p className="mt-2 text-sm text-muted">Link your card and fund it with earned yield first. Then you can test a swipe at Uber, Starbucks or Amazon against the money on your card.</p>
               </div>
             )}
           </div>

@@ -8,7 +8,6 @@ import { ConnectGate } from "@/components/dashboard/MainnetDashboard";
 import { LinkedCardPanel } from "@/components/dashboard/cards/LinkedCardPanel";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { BridgeDepositDialog } from "@/components/dashboard/mainnet/BridgeDepositDialog";
-import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
 import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
 import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
 import { VoucherPanel } from "@/components/dashboard/mainnet/VoucherPanel";
@@ -187,33 +186,25 @@ export function RobinhoodDashboard() {
         <div className="space-y-6">
           <MorphoVaultOverview m={m} apy={apy} onOpen={setModal} />
           <SpendShortcuts onVouchers={() => setTab("vouchers")} onCashout={() => setTab("cashout")} />
-          <LinkedCardPanel
-            funding={{
-              network: "robinhood",
-              owner: m.owner,
-              safe: m.safe,
-              yieldMax,
-              principalMax,
-              payFromYield: m.payFromYield,
-              payFromPrincipal: m.payFromPrincipal,
-              steps: m.steps,
-              busy: m.busy,
-              error: m.error,
-              lastDone: m.lastDone,
-              clearMessages: m.clearMessages,
-              gasWarning: m.gasWarning,
-              explorer,
-            }}
-          />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             <div className="lg:col-span-6">
-              <CardPanel
-                suite={suite}
-                txSteps={m.steps}
-                accountBusy={m.busy}
-                explorer={explorer}
-                onSpendVouchers={() => setTab("vouchers")}
-                onSpendCashout={() => setTab("cashout")}
+              <LinkedCardPanel
+                funding={{
+                  network: "robinhood",
+                  owner: m.owner,
+                  safe: m.safe,
+                  yieldMax,
+                  principalMax,
+                  payFromYield: m.payFromYield,
+                  payFromPrincipal: m.payFromPrincipal,
+                  steps: m.steps,
+                  busy: m.busy,
+                  error: m.error,
+                  lastDone: m.lastDone,
+                  clearMessages: m.clearMessages,
+                  gasWarning: m.gasWarning,
+                  explorer,
+                }}
               />
             </div>
             <div className="lg:col-span-6">
@@ -229,7 +220,7 @@ export function RobinhoodDashboard() {
                 <div data-testid="pos-locked" className="h-full rounded-2xl glass-card p-5">
                   <h3 className="text-base font-bold text-fg">POS Merchant Terminal</h3>
                   <p className="mt-2 text-sm text-muted">
-                    Get your virtual card and fund it with earned yield first. Then you can test a swipe at Uber, Starbucks or Amazon against the money on your card.
+                    Link your card and fund it with earned yield first. Then you can test a swipe at Uber, Starbucks or Amazon against the money on your card.
                   </p>
                 </div>
               )}

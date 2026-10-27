@@ -211,6 +211,12 @@ describe("source guards for the card-link feature", () => {
     expect(src).toContain('setSource("yield")');
     expect(src).not.toContain('setSource("principal")');
   });
+  it("guide steps and description are tucked behind a collapsible '?' button", () => {
+    const src = read(PANEL);
+    expect(src).toContain('data-testid="card-help-toggle"');
+    expect(src).toContain('data-testid="card-help-guide"');
+    expect(src).toContain("showHelp");
+  });
 });
 
 import { freshHead } from "../../src/lib/aave/account";

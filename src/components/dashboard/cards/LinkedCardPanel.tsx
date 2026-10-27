@@ -53,6 +53,7 @@ export function LinkedCardPanel({ funding: f }: { funding: CardFunding }) {
   const store = useLinkedCards(f.owner, f.network, own);
   const card = store.cards.find((c) => c.provider === provider.id);
   const [dialog, setDialog] = useState<Dialogs>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const [source, setSource] = useState<CardSource>("yield");
   const [text, setText] = useState("");
   const [ack, setAck] = useState(false);
@@ -116,15 +117,49 @@ export function LinkedCardPanel({ funding: f }: { funding: CardFunding }) {
 
   return (
     <section data-testid="linked-card-panel" aria-label="Link your card" className="space-y-5 rounded-2xl glass-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold text-fg">Link your card</h2>
-          <p className="mt-0.5 text-xs text-muted">Already have, or want, a {provider.name} card? Link it and put your yield on it in a few taps.</p>
+          <button
+            type="button"
+            data-testid="card-help-toggle"
+            onClick={() => setShowHelp((prev) => !prev)}
+            aria-label="How to get and link a card"
+            title="How to get and link a card"
+            aria-expanded={showHelp}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-white/5 font-mono text-xs font-bold text-muted transition hover:border-cyan/50 hover:bg-cyan/10 hover:text-cyan"
+          >
+            ?
+          </button>
         </div>
         <span data-testid="card-network-badge" className="rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 font-mono text-[11px] font-semibold text-emerald">
           {provider.chainName} · {symbol}
         </span>
       </div>
+
+      {showHelp && (
+        <div data-testid="card-help-guide" className="space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-xs">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-muted">Already have, or want, a {provider.name} card? Link it and put your yield on it in a few taps.</p>
+            <button
+              type="button"
+              onClick={() => setShowHelp(false)}
+              className="text-xs text-muted hover:text-fg"
+              aria-label="Hide guide"
+            >
+              ✕
+            </button>
+          </div>
+          <ol className="space-y-2 text-muted">
+            {provider.steps.map((s, i) => (
+              <li key={s} className="flex gap-2.5">
+                <span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-cyan/30 bg-cyan/10 font-mono text-[10px] text-cyan">{i + 1}</span>
+                <span className="leading-snug">{s}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {noGas && (
         <div role="alert" data-testid="card-no-gas" className="rounded-xl border border-amber/30 bg-amber/10 p-3 text-sm text-amber">
@@ -134,14 +169,6 @@ export function LinkedCardPanel({ funding: f }: { funding: CardFunding }) {
 
       {!card ? (
         <div data-testid="card-get" className="space-y-4">
-          <ol className="space-y-2 text-sm text-muted">
-            {provider.steps.map((s, i) => (
-              <li key={s} className="flex gap-3">
-                <span aria-hidden="true" className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-cyan/30 bg-cyan/10 font-mono text-[11px] text-cyan">{i + 1}</span>
-                <span>{s}</span>
-              </li>
-            ))}
-          </ol>
           <div className="flex flex-col gap-2 sm:flex-row">
             <a data-testid="card-provider-link" href={provider.siteUrl} target="_blank" rel="noopener noreferrer" className={`${secondary} inline-flex items-center justify-center`}>
               Open {provider.name} ↗
@@ -150,6 +177,16 @@ export function LinkedCardPanel({ funding: f }: { funding: CardFunding }) {
               Link my card address
             </button>
           </div>
+          {!showHelp && (
+            <button
+              type="button"
+              onClick={() => setShowHelp(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-muted transition hover:text-cyan"
+            >
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-white/5 font-mono text-[10px] font-bold">?</span>
+              <span>Need help getting or linking a {provider.name} card?</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
