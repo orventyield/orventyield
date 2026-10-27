@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { BankCashout } from "@/components/dashboard/BankCashout";
 import { ConnectGate } from "@/components/dashboard/MainnetDashboard";
+import { LinkedCardPanel } from "@/components/dashboard/cards/LinkedCardPanel";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { BridgeDepositDialog } from "@/components/dashboard/mainnet/BridgeDepositDialog";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
@@ -186,6 +187,24 @@ export function RobinhoodDashboard() {
         <div className="space-y-6">
           <MorphoVaultOverview m={m} apy={apy} onOpen={setModal} />
           <SpendShortcuts onVouchers={() => setTab("vouchers")} onCashout={() => setTab("cashout")} />
+          <LinkedCardPanel
+            funding={{
+              network: "robinhood",
+              owner: m.owner,
+              safe: m.safe,
+              yieldMax,
+              principalMax,
+              payFromYield: m.payFromYield,
+              payFromPrincipal: m.payFromPrincipal,
+              steps: m.steps,
+              busy: m.busy,
+              error: m.error,
+              lastDone: m.lastDone,
+              clearMessages: m.clearMessages,
+              gasWarning: m.gasWarning,
+              explorer,
+            }}
+          />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             <div className="lg:col-span-6">
               <CardPanel

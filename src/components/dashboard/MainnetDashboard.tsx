@@ -5,6 +5,7 @@ import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { BankCashout } from "@/components/dashboard/BankCashout";
 import { AmountDialog } from "@/components/dashboard/mainnet/AmountDialog";
 import { BridgeDepositDialog } from "@/components/dashboard/mainnet/BridgeDepositDialog";
+import { LinkedCardPanel } from "@/components/dashboard/cards/LinkedCardPanel";
 import { CardPanel } from "@/components/dashboard/mainnet/CardPanel";
 import { SpendShortcuts } from "@/components/dashboard/mainnet/SpendShortcuts";
 import { CashoutPanel } from "@/components/dashboard/mainnet/CashoutPanel";
@@ -22,6 +23,7 @@ import type { SpendResult } from "@/features/vault/useVaultState";
 import { useVoucherShop } from "@/features/vouchers/useVoucherShop";
 import { maxPrincipalWithdrawal, maxYieldWithdrawal } from "@/lib/aave/position";
 import { formatExpiry } from "@/lib/immersve/stage";
+import { gasWarning } from "@/lib/yieldEngine";
 import { authCode, type CardDetails } from "@/utils/card";
 
 const EXPLORER = "https://arbiscan.io";
@@ -177,6 +179,24 @@ export function MainnetDashboard() {
       <div className="space-y-6">
         <MainnetVaultOverview a={a} open={openModal} />
         <SpendShortcuts onVouchers={() => setTab("vouchers")} onCashout={() => setTab("cashout")} />
+        <LinkedCardPanel
+          funding={{
+            network: "arbitrum",
+            owner: a.owner,
+            safe: a.safe,
+            yieldMax,
+            principalMax,
+            payFromYield: a.payFromYield,
+            payFromPrincipal: a.payFromPrincipal,
+            steps: a.steps,
+            busy: a.busy,
+            error: a.error,
+            lastDone: a.lastDone,
+            clearMessages: a.clearMessages,
+            gasWarning: a.status === "ready" ? gasWarning("aave", a.walletEth) : null,
+            explorer,
+          }}
+        />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="lg:col-span-6"><CardPanel suite={suite} txSteps={a.steps} accountBusy={a.busy} explorer={explorer} onSpendVouchers={() => setTab("vouchers")} onSpendCashout={() => setTab("cashout")} /></div>
           <div className="lg:col-span-6">

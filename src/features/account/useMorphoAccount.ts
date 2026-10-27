@@ -84,7 +84,7 @@ export function useMorphoAccount({ active = true }: { active?: boolean } = {}) {
     queryFn: async () => {
       const key = blockKey(chainId, safe!);
       let from = readCache(key) ? BigInt(readCache(key)!) : null;
-      const head = await client!.getBlockNumber();
+      const head = await client!.getBlockNumber({ cacheTime: 0 });
       if (from !== null && from > head) {
         from = null; // Stale or corrupt future block in localStorage
       }

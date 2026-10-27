@@ -1,5 +1,5 @@
 import { encodeFunctionData, erc20Abi, getAddress, type Address, type Hex, type PublicClient } from "viem";
-import { chunked } from "../aave/account";
+import { chunked, freshHead } from "../aave/account";
 import { morphoPosition, NO_LIQUIDITY_MESSAGE, type VaultEvent } from "./position";
 import { morphoVaultV2Abi } from "../contracts/abis/MorphoVaultV2";
 import { ROBINHOOD, ROBINHOOD_VAULT_ALLOWLIST } from "../contracts/robinhood";
@@ -51,7 +51,7 @@ export const withdrawYieldData = (amount: bigint, safe: Address): Hex => encodeF
 export const withdrawToData = (amount: bigint, receiver: Address, safe: Address): Hex => encodeFunctionData({ abi: morphoVaultV2Abi, functionName: "withdraw", args: [amount, receiver, safe] });
 
 export async function readVaultEvents(client: Client, safe: Address, fromBlock: bigint): Promise<VaultEvent[]> {
-  const head = await client.getBlockNumber();
+  const head = await freshHead(client);
   const deposits = await chunked(fromBlock, head, (a, b) => client.getLogs({ address: VAULT, event: morphoVaultV2Abi[11], args: { owner: safe }, fromBlock: a, toBlock: b }));
   const withdrawals = await chunked(fromBlock, head, (a, b) => client.getLogs({ address: VAULT, event: morphoVaultV2Abi[12], args: { owner: safe }, fromBlock: a, toBlock: b }));
   const all = [

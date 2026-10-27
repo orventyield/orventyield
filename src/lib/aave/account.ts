@@ -11,6 +11,12 @@ const LEDGER_EVENTS = 50;
 
 type Client = Pick<PublicClient, "readContract" | "getLogs" | "getBlockNumber" | "getBlock">;
 
+/**
+ * The newest block, never from viem's short block-number cache. A read that runs right after a transaction must see that
+ * transaction's block; a cached (older) head makes the log query stop one block early and drop the new event for a poll.
+ */
+export const freshHead = (client: Pick<PublicClient, "getBlockNumber">): Promise<bigint> => client.getBlockNumber({ cacheTime: 0 });
+
 /** Every transaction the Aave flow sends goes to the Safe factory, USDC, Aave pool, or user's Safe. */
 export function assertArbitrumTarget(to: string, safe: string | undefined): void {
   const t = to.toLowerCase();
@@ -66,7 +72,7 @@ export async function chunked<T>(from: bigint, to: bigint, fetch: (a: bigint, b:
 
 /** Block at which the Safe was created, found by scanning the factory's ProxyCreation events (callers cache it). */
 export async function findSafeCreationBlock(client: Client, safe: Address, earliest = 0n, factory: Address = ARBITRUM.safeProxyFactory): Promise<bigint | null> {
-  const head = await client.getBlockNumber();
+  const head = await freshHead(client);
   // Newest first: Safes are usually recent, and the public RPC allows ~10M blocks per query.
   for (let b = head; b >= earliest; b = b > LOG_SPAN ? b - LOG_SPAN - 1n : 0n) {
     const from = b > LOG_SPAN ? b - LOG_SPAN : 0n;
@@ -91,7 +97,7 @@ export async function findSafeCreationBlock(client: Client, safe: Address, earli
 }
 
 export async function readPoolEvents(client: Client, safe: Address, fromBlock: bigint): Promise<PoolEvent[]> {
-  const head = await client.getBlockNumber();
+  const head = await freshHead(client);
   const supplies = await chunked(fromBlock, head, (a, b) =>
     client.getLogs({ address: ARBITRUM.aavePool, event: poolAbi[3], args: { reserve: ARBITRUM.usdc, onBehalfOf: safe }, fromBlock: a, toBlock: b }),
   );
