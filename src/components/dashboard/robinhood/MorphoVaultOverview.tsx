@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { LiveYield } from "@/components/ui/LiveYield";
-import { UsdgBadge } from "@/components/dashboard/robinhood/UsdgBadge";
 import type { useMorphoAccount } from "@/features/account/useMorphoAccount";
 import { fmtUsdc, fmtUsdc4 } from "@/lib/aave/format";
-import { ROBINHOOD, ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
+import { ROBINHOOD_EXPLORER } from "@/lib/contracts/robinhood";
 import { tickYield } from "@/lib/morpho/apy";
 
 type Account = ReturnType<typeof useMorphoAccount>;
 export type MorphoModal = "deposit" | "bridge" | "yield" | "principal" | null;
-
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 /** The Robinhood Chain twin of the Arbitrum vault overview: Safe + Morpho "Steakhouse USDG", all figures in USDG. */
 export function MorphoVaultOverview({ m, apy, onOpen }: { m: Account; apy: number | null; onOpen: (x: MorphoModal) => void }) {
@@ -37,22 +34,6 @@ export function MorphoVaultOverview({ m, apy, onOpen }: { m: Account; apy: numbe
           {m.gasWarning}
         </div>
       )}
-
-      {/* Strategy banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl glass-card p-4">
-        <div className="flex items-center gap-3">
-          <UsdgBadge />
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-wider text-muted">Strategy</p>
-            <h2 data-testid="strategy-title" className="text-base font-bold text-fg">Steakhouse USDG (Morpho Protocol)</h2>
-          </div>
-        </div>
-        {explorer && (
-          <a className="font-mono text-xs text-cyan hover:underline" href={`${explorer}/address/${ROBINHOOD.steakhouseUsdgVault}`} target="_blank" rel="noopener noreferrer">
-            Vault {short(ROBINHOOD.steakhouseUsdgVault)} ↗
-          </a>
-        )}
-      </div>
 
       {/* 3 main stat cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

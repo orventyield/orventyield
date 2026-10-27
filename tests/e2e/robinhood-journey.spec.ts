@@ -50,7 +50,7 @@ async function open(page: Page) {
 async function switchToRobinhood(page: Page) {
   await page.getByTestId("network-switcher").click();
   await page.getByTestId("network-option-robinhood").click();
-  await expect(page.getByTestId("strategy-title")).toHaveText("Steakhouse USDG (Morpho Protocol)", { timeout: 60_000 });
+  await expect(page.getByTestId("vault-overview")).toBeVisible({ timeout: 60_000 });
 }
 const num = async (page: Page, id: string) => Number(((await page.getByTestId(id).textContent()) ?? "").replace(/[^0-9.]/g, ""));
 

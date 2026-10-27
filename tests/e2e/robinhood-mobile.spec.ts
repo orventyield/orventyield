@@ -63,10 +63,10 @@ test.describe("Robinhood Chain on phones", () => {
         expect(b.h).toBeGreaterThanOrEqual(44);
       }
       await page.getByTestId("network-option-robinhood").click();
-      await expect(page.getByTestId("strategy-title")).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId("vault-overview")).toBeVisible({ timeout: 60_000 });
 
-      // Vault tab: title, USDG badge and APY wrap inside the screen, nothing truncated sideways
-      for (const id of ["strategy-title", "usdg-badge", "apy-value", "yield-value", "principal-value", "safe-address"]) {
+      // Vault tab: APY, values and address wrap inside the screen, nothing truncated sideways
+      for (const id of ["apy-value", "yield-value", "principal-value", "safe-address"]) {
         box = await insideViewport(page, id);
         expect(box.left, id).toBeGreaterThanOrEqual(0);
         expect(box.right, id).toBeLessThanOrEqual(box.vw);
