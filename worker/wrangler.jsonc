@@ -20,7 +20,7 @@
   // Keep Worker logs in the Cloudflare dashboard, not just in `wrangler tail`.
   "observability": { "enabled": true },
   "vars": {
-    "ALLOWED_ORIGINS": "https://orventyield.tech,https://www.orventyield.tech,http://localhost:3000",
+    "ALLOWED_ORIGINS": "https://orventyield.in,https://www.orventyield.in,https://orventyield.vercel.app,https://orventyield.tech,https://www.orventyield.tech,http://localhost:3000",
     "BITREFILL_BASE_URL": "https://api.bitrefill.com/v2",
     "TRANSAK_ENV": "production",
     "TRANSAK_GATEWAY_BASE": "https://api-gateway.transak.com",
