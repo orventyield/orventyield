@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Close, Logo, Menu } from "../ui/Icons";
+import { Close, Logo, Menu, XIcon } from "../ui/Icons";
 import { ButtonLink } from "../ui/Button";
 
 export const NAV_LINKS = [
@@ -69,6 +69,16 @@ export function Nav() {
         </ul>
 
         <div className="flex items-center gap-2">
+          <a
+            href="https://x.com/orventyield?s=20"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="OrventYield on X (Twitter)"
+            title="Follow @orventyield on X"
+            className="hidden h-10 w-10 place-items-center rounded-full glass text-muted transition-colors hover:border-cyan/40 hover:text-cyan sm:grid"
+          >
+            <XIcon className="h-4 w-4" />
+          </a>
           <div className="hidden sm:block">
             <ButtonLink href="/dashboard" className="!min-h-10 !px-5 !text-sm">
               Launch App
@@ -115,9 +125,21 @@ export function Nav() {
                 </motion.li>
               ))}
             </ul>
-            <ButtonLink href="/dashboard" className="mt-2 w-full" arrow>
-              Launch App
-            </ButtonLink>
+            <div className="mt-2 space-y-2">
+              <a
+                href="https://x.com/orventyield?s=20"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-sm font-medium text-muted transition-colors hover:text-cyan"
+              >
+                <XIcon className="h-4 w-4" />
+                <span>Follow @orventyield on X</span>
+              </a>
+              <ButtonLink href="/dashboard" className="w-full" arrow>
+                Launch App
+              </ButtonLink>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

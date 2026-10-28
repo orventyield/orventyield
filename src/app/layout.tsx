@@ -20,7 +20,12 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "OrventYield",
   },
-  twitter: { card: "summary_large_image", title: "OrventYield: Spend the yield. Keep the principal." },
+  twitter: {
+    card: "summary_large_image",
+    title: "OrventYield: Spend the yield. Keep the principal.",
+    site: "@orventyield",
+    creator: "@orventyield",
+  },
 };
 
 export const viewport: Viewport = {

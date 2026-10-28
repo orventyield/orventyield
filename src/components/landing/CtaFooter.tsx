@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Magnetic, SplitWords } from "../ui/motion";
-import { Logo } from "../ui/Icons";
+import { Logo, XIcon } from "../ui/Icons";
 import { NAV_LINKS } from "./Nav";
 
 export function Cta() {
@@ -47,13 +47,35 @@ export function Footer() {
             </span>
           </div>
           <p className="mt-3 text-sm text-muted">Spend the yield. Keep the principal.</p>
+          <div className="mt-4">
+            <a
+              href="https://x.com/orventyield?s=20"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-cyan/40 hover:bg-cyan/10 hover:text-cyan"
+              aria-label="OrventYield on X"
+            >
+              <XIcon className="h-3.5 w-3.5 text-fg" />
+              <span>Follow @orventyield</span>
+            </a>
+          </div>
         </div>
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-muted">
+        <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-muted">
           {NAV_LINKS.map((l) => (
             <Link key={l.href} href={l.href} className="transition-colors hover:text-cyan">
               {l.label}
             </Link>
           ))}
+          <a
+            href="https://x.com/orventyield?s=20"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-muted transition-colors hover:text-cyan"
+            aria-label="OrventYield on X"
+          >
+            <XIcon className="h-3.5 w-3.5" />
+            <span>X (Twitter)</span>
+          </a>
         </nav>
       </div>
       <p className="mx-auto mt-10 max-w-6xl border-t border-line pt-6 text-xs leading-relaxed text-muted/80">
